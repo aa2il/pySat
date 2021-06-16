@@ -4,11 +4,12 @@
 # Satellite orbit prediction - Rev 1.0
 # Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
 #
-# Gui to show predicted passes for various oscars.
+# Gui to show predicted passes for various OSCARs.
 #
 # Notes:
-# - Can check https://ka7fvv.net/satellite.htm to get list of operation sats.  These
-#   are stored in ft_tables.py
+# - To get a list of operation OSCARs, can check at
+#      https://ka7fvv.net/satellite.htm   and     https://www.amsat.org/status
+#   The list of displayed sat is stored in ft_tables.py - This needs to be moved to a config file!
 #
 # - When a new satellite is introduced, it may be difficult to get Gpredict to recognize it.
 #   To fix this:
