@@ -1,29 +1,50 @@
 #! /usr/bin/python3
-
-# Satellite orbit predictions
+################################################################################
 #
-# When a new satellite is introduced, it may be difficult to get Gpredict to recognize it. To fix this:
-# 1) Find the satellite in the nasa.txt file downloaded by this program
-# 2) The second column in the TLE data contains the satellite number, e.g. 07530 for AO-7
-# 3) Delete the corresponding .sat file in ~/.config/Gpredict/satdata
-# 4) In Gpredict, update TLE data using LOCAL files - point to this directory
-# 5) Gpredict seems to recognize .txt files which is why nasa.all has been renamed to nasa.txt
+# Satellite orbit prediction - Rev 1.0
+# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
 #
-# Migrated to python3 & Qt5 - To get this this to work, had to
+# Gui to show predicted passes for various oscars.
+#
+# Notes:
+# - Can check https://ka7fvv.net/satellite.htm to get list of operation sats.  These
+#   are stored in ft_tables.py
+#
+# - When a new satellite is introduced, it may be difficult to get Gpredict to recognize it.
+#   To fix this:
+#     1) Find the satellite in the nasa.txt file downloaded by this program
+#     2) The second column in the TLE data contains the satellite number, e.g. 07530 for AO-7
+#     3) Delete the corresponding .sat file in ~/.config/Gpredict/satdata
+#     4) In Gpredict, update TLE data using LOCAL files - point to this directory
+#     5) Gpredict seems to recognize .txt files which is why nasa.all has been renamed to nasa.txt
+#
+# - Migrated to python3 & Qt5 - To get this this to work, had to
 #    - fiddle with pypredict/predict.c - they changed the init of C functions in python 3
 #    - install python3-pip (pip3) and python3-setuptools
 #    - pip3 install pyhamtools
-# In python3, there is a distinction between bytes and string so the .decode(...)
-# below takes care of that
-
-# Installation of predict engine:
-# Problem is with this package - they changed the init module - ugh!
-# sudo apt-get install python-dev
-# git clone https://github.com/nsat/pypredict.git
-# cd pypredict
-# sudo python3 setup.py install
-# cd ..
-
+#   In python3, there is a distinction between bytes and string so the .decode(...)
+#   below takes care of that
+#
+# - Installation of predict engine:
+#   Problem is with this package - they changed the init module - ugh!
+#   sudo apt-get install python-dev
+#   git clone https://github.com/nsat/pypredict.git
+#   cd pypredict
+#   sudo python3 setup.py install
+#   cd ..
+#
+################################################################################
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
 ################################################################################
 
 # User params - most of these are now available as command line args
