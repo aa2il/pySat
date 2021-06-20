@@ -11,6 +11,9 @@
 #      https://ka7fvv.net/satellite.htm   and     https://www.amsat.org/status
 #   The list of displayed sat is stored in ft_tables.py - This needs to be moved to a config file!
 #
+# - The TLE data is in the file nasa.txt and is updated using the -update switch.
+# - The transponder data is from gpredict
+#
 # - When a new satellite is introduced, it may be difficult to get Gpredict to recognize it.
 #   To fix this:
 #     1) Find the satellite in the nasa.txt file downloaded by this program
@@ -54,6 +57,7 @@ URL1 = "http://www.amsat.org/amsat/ftp/keps/current/nasa.all"    # AMSAT latest 
 URL2 = "~/Python/predict/nasa.txt"                               # Local copy
 TRANSP_DATA = "~/.config/Gpredict/trsp"                          # Transponder data as parsed by gpredict
 
+ROTOR_THRESH=10       # Was 2
 MIN_PEAK_EL=30       # Degrees, min. elevation to identify overhead passes
 
 COLORS=['b','g','r','c','m','y','k',
@@ -209,7 +213,7 @@ def plot_sky_track(self,sat,ttt):
         el.append(obs['elevation'])
         t+=10
 
-    # Save data for rotor racking
+    # Save data for rotor tracking
     self.track_az=np.array(az)
     self.track_el=np.array(el)
     quad2 = np.logical_and(self.track_az>90 , self.track_az<180)
@@ -352,6 +356,7 @@ class SATELLITE:
         #print('tle2=',tle2)
         self.number=int( tle2[2][:-1] )
         #print(self.number)
+        self.main=None
 
         fname = os.path.expanduser(TRANSP_DATA+'/'+str(self.number)+'.trsp')
         #print(fname)
@@ -397,8 +402,11 @@ class SATELLITE:
             elif ('FM VOICE' in transp2) or ('MODE U/V (B) LIN' == transp2) or \
                  ('MODE U/V LINEAR' == transp2) or ('MODE V/U FM' == transp2) or \
                  ('TRANSPONDER' in transp2) or ('TRANSPODER' in transp2):
-                self.main=transp
-                flagged='*****'
+                if not self.main:
+                    self.main=transp
+                    flagged='*****'
+                else:
+                    print('************ WARNING - Multiple Transponders fit criteria - skipping ***************')
             else:
                 flagged=''
             
@@ -853,14 +861,21 @@ class WatchDog:
 
 # Rig control called every sec seconds
 class RigControl:
-    def __init__(self,gui,sec):
+    def __init__(self,P,gui,sec):
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.Updater)
         self.timer.start(1000*sec)
+        self.P=P
         self.gui=gui
 
     def Updater(self):
+        P=self.P
+        if False:
+            print('RIG CONTROL UPDATER: Rig  =',P.sock.rig_type1,P.sock.rig_type2)
+            if P.sock2.active:
+                print('RIG CONTROL UPDATER: Rotor=',P.sock2.rig_type1,P.sock2.rig_type2)
+        
         if gui.rig_ctrl and gui.Selected:
 
             # Tune to middle of transponder BW if we've selected a new sat
@@ -934,6 +949,8 @@ class RigControl:
 
     # Function to set up & downlink freqs on rig
     def track_freqs(self):
+        P=self.P
+        gui=self.gui
         
         # Compute uplink freq corresponding to downlink
         df = self.fdown - self.transp['fdn1']
@@ -964,9 +981,9 @@ class RigControl:
         # flip antenna if needed to avoid ambiquity at 180-deg
         #print('az=',gui.track_az,gui.flipper)
         if P.sock2.active:
-            pos=self.sock2.get_position()
+            pos=P.sock2.get_position()
             if el<0:
-                az=self.track_az[0]
+                az=gui.track_az[0]
                 el=0
 
             if gui.flipper:
@@ -979,9 +996,8 @@ class RigControl:
             
             print('pos=',pos,az,el,'\t',daz,de)
 
-            thresh=2
-            if abs(daz)>thresh or abs(de)>thresh:
-                self.sock2.set_position([int(az),int(el)])
+            if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
+                P.sock2.set_position([int(az),int(el)])
 
         # Update sky track
         plot_position(gui,az,el)
@@ -1006,8 +1022,14 @@ if __name__ == "__main__":
     # Open connection to rotor
     P.sock2 = socket_io.open_rig_connection(P.ROTOR_CONNECTION,0,P.PORT2,0,'ROTOR')
     if not P.sock2.active and P.sock2.connection!='NONE':
+    #if not P.sock2.active or P.sock2.connection=='NONE':
         print('*** No connection available to rotor ***')
         sys.exit(0)
+    else:
+        print(P.sock2.active)
+        print(P.sock2.connection)
+        if P.sock2.active:
+            print('Rotor found!!\t',P.sock2.rig_type1,P.sock2.rig_type2)
 
     # Get my qth
     lat, lon = locator_to_latlong(P.MY_GRID)
@@ -1048,7 +1070,7 @@ if __name__ == "__main__":
     gui  = SAT_GUI()
     monitor = WatchDog(gui,5)
     if True:
-        rig_ctrl = RigControl(gui,1)
+        rig_ctrl = RigControl(P,gui,1)
     
     date = gui.date_changed()
 
