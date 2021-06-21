@@ -2,3 +2,4 @@
 /save*
 /DIFFS
 /pypredict/build/
+/__pycache__

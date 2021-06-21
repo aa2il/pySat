@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#! /usr/bin/python3 -u
 ################################################################################
 #
 # Satellite orbit prediction - Rev 1.0
@@ -96,7 +96,9 @@ import argparse
 from pprint import pprint
 import os
 from configparser import ConfigParser 
- 
+
+from settings import *
+
 ################################################################################
 
 # Structure to contain processing params
@@ -108,8 +110,7 @@ class PARAMS:
         arg_proc.add_argument("-n", help="No. Days",type=int,default=30)
         arg_proc.add_argument('-update', action='store_true',help='Update TLE Data from Internet')
         arg_proc.add_argument("-grid", help="Grid Square",
-                              type=str,default="DM12ox")
-
+                              type=str,default=None)
         arg_proc.add_argument("-rig", help="Connection Type",
                               type=str,default=["ANY"],nargs='+',
                               choices=CONNECTIONS+['NONE']+SAT_RIGS)
@@ -120,11 +121,16 @@ class PARAMS:
                       choices=['HAMLIB','NONE'])
         arg_proc.add_argument("-port2", help="Rotor onnection Port",
                               type=int,default=0)
+        arg_proc.add_argument("-sat", help="Sat to Track",
+                              type=str,default=None)
         
         args = arg_proc.parse_args()
         self.NDAYS2     = args.n
         self.UPDATE_TLE = args.update
-        self.MY_GRID    = args.grid
+        if args.sat:
+            self.satellite  = args.sat.upper()
+        else:
+            self.satellite  = None
 
         self.connection    = args.rig[0]
         if len(args.rig)>=2:
@@ -135,6 +141,27 @@ class PARAMS:
             
         self.ROTOR_CONNECTION = args.rotor
         self.PORT2            = args.port2
+
+        # Read config file
+        self.RCFILE=os.path.expanduser("~/.satrc")
+        self.SETTINGS=None
+        try:
+            with open(self.RCFILE) as json_data_file:
+                self.SETTINGS = json.load(json_data_file)
+        except:
+            print(self.RCFILE,' not found - need call!\n')
+            s=SETTINGS(None,self)
+            while not self.SETTINGS:
+                try:
+                    s.win.update()
+                except:
+                    pass
+                time.sleep(.01)
+            print('Settings:',self.SETTINGS)
+
+        self.MY_GRID    = args.grid
+        if self.MY_GRID==None:
+            self.MY_GRID = self.SETTINGS['MY_GRID']
         
 ################################################################################
 
@@ -246,7 +273,7 @@ def plot_sky_track(self,sat,ttt):
 
 def plot_position(self,az,el):
 
-    print('PLOT_POSITION:',az,el)
+    #print('PLOT_POSITION:',az,el)
 
     RADIANS=np.pi/180.
     #if not self.sky:
@@ -429,7 +456,8 @@ class SATELLITE:
         # Observe sat at current time
         now = time.mktime( datetime.now().timetuple() )
         obs = predict.observe(self.tle, my_qth,now)
-        print('\nobs=',obs,'\n')
+        if False:
+            print('\nobs=',obs,'\n')
         
         dop100  = obs['doppler']          # Shift for f=100 MHz
         fdop1 =  1e-8*dop100*fdown        # Downlink
@@ -802,18 +830,23 @@ class SAT_GUI(QMainWindow):
 
         
     # Function to find next transit at current time
-    def find_next_transit(self):
+    def find_next_transit(self,sat_names=None):
         
         # Loop over list of sats
         tnext=1e38
-        for name in list(self.Satellites.keys()):
+        if sat_names==None:
+            sat_names=list(self.Satellites.keys())
+        for name in sat_names:
             print('\nFind best:',name)
             Sat=self.Satellites[name]
             
             # Observe sat at current time
             now = time.mktime( datetime.now().timetuple() )
-            #obs = predict.observe(Sat.tle, my_qth,now)
-            #print('\tobs=',obs)
+            if False:
+                obs = predict.observe(Sat.tle, my_qth,now)
+                print('\tobs=',obs)
+                print(' ')
+                #print(now,obs.start,obs.end)
 
             # Look at next transit for this sat
             p = predict.transits(Sat.tle, my_qth, ending_after=now)
@@ -895,8 +928,13 @@ class RigControl:
                     print('Putting IC9700 into SAT mode ...')
                     P.sock.sat_mode(1)
                     self.vfos=['M','S']
+                elif P.sock.rig_type2=='pySDR':
+                    #self.vfos=['A','B']
+                    self.vfos=['A']
+                elif P.sock.rig_type2==None:
+                    self.vfos=['A','B']
                 else:
-                    print('UPDATER: Unknown rig',P.sock.rig_type2)
+                    print('UPDATER: Unknown rig',P.sock.rig_type2,' - Aborting')
                     sys.exit(0)
 
                 # Check VFO bands - the IC9700 is quirky if the bands are reversed
@@ -916,13 +954,14 @@ class RigControl:
                 # Set proper mode on both VFOs
                 mode=self.transp['mode']
                 P.sock.set_mode(mode,VFO=self.vfos[0])
-                if self.transp['Inverting']:
-                    if mode=='USB':
-                        P.sock.set_mode('LSB',VFO=self.vfos[1])
+                if len(self.vfos)>1:
+                    if self.transp['Inverting']:
+                        if mode=='USB':
+                            P.sock.set_mode('LSB',VFO=self.vfos[1])
+                        else:
+                            P.sock.set_mode('USB',VFO=self.vfos[1])
                     else:
-                        P.sock.set_mode('USB',VFO=self.vfos[1])
-                else:
-                    P.sock.set_mode(mode,VFO=self.vfos[1])
+                        P.sock.set_mode(mode,VFO=self.vfos[1])
 
                 # Set down link freq to center of transp passband - uplink will follow
                 self.fdown = 0.5*(self.transp['fdn1']+self.transp['fdn2'])
@@ -969,8 +1008,9 @@ class RigControl:
               int(self.fup),int(fdop2),'\t',int(az),int(el))
 
         # Set up and down link freqs
-        self.frqB = int(self.fup+fdop2)
-        P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1])
+        if len(self.vfos)>1:
+            self.frqB = int(self.fup+fdop2)
+            P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1])
         self.frqA = int(self.fdown+self.fdop1)
         P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
         #print(self.frqA,self.frqB)
@@ -1001,6 +1041,15 @@ class RigControl:
 
         # Update sky track
         plot_position(gui,az,el)
+
+        # Turn on/off audio recording - SDR only
+        if el>0:
+            print('=== ',gui.Selected,' is VISIBLE ===')
+            on_off=P.sock.recorder(True)
+        else:
+            print('=== ',gui.Selected,' is BELOW THE HORIZON ===')
+            on_off=P.sock.recorder(False)
+        #print('=== buf=',on_off)
             
             
 ################################################################################
@@ -1075,7 +1124,7 @@ if __name__ == "__main__":
     date = gui.date_changed()
 
     # Determine best sat to track right now
-    sat,ttt=gui.find_next_transit()
+    sat,ttt=gui.find_next_transit([P.satellite])
     plot_sky_track(gui,sat,ttt)
     
     print('And away we go ...')
