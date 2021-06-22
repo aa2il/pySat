@@ -273,13 +273,20 @@ def plot_sky_track(self,sat,ttt):
 
 def plot_position(self,az,el):
 
-    #print('PLOT_POSITION:',az,el)
+    print('PLOT_POSITION:',az,el,self.flipper)
 
     RADIANS=np.pi/180.
     #if not self.sky:
     #    self.sky, = self.ax2.plot((90.-az)*RADIANS, 90.-el,'kx')
     #else:
-    self.sky.set_data( (90.-az)*RADIANS, 90.-el)
+    if self.flipper:
+        az90 = 90.-az+180
+        el90 = 90.-180+el
+    else:
+        az90 = 90.-az
+        el90 = 90.-el
+    print('Setting black star:',az90,el90)
+    self.sky.set_data( (az90)*RADIANS, el90)
     self.canv2.draw()
     return
     
@@ -482,6 +489,7 @@ class SAT_GUI(QMainWindow):
         self.sky=None
         self.Selected=None
         self.New_Selection=False
+        self.flipper = False
         
         # Start by putting up the root window
         print('Init GUI ...')
@@ -834,7 +842,7 @@ class SAT_GUI(QMainWindow):
         
         # Loop over list of sats
         tnext=1e38
-        if sat_names==None:
+        if sat_names[0]==None:
             sat_names=list(self.Satellites.keys())
         for name in sat_names:
             print('\nFind best:',name)
@@ -929,9 +937,8 @@ class RigControl:
                     P.sock.sat_mode(1)
                     self.vfos=['M','S']
                 elif P.sock.rig_type2=='pySDR':
-                    #self.vfos=['A','B']
                     self.vfos=['A']
-                elif P.sock.rig_type2==None:
+                elif P.sock.rig_type2==None or P.sock.rig_type2=='Dummy':
                     self.vfos=['A','B']
                 else:
                     print('UPDATER: Unknown rig',P.sock.rig_type2,' - Aborting')
@@ -1028,13 +1035,14 @@ class RigControl:
 
             if gui.flipper:
                 print('*** NEED a Flip-a-roo-ski ***')
-                #az=az-180
-                #el=180-el
+                if True:
+                    az=az-180
+                    el=180-el
                 
             daz=pos[0]-az
             de=pos[1]-el
             
-            print('pos=',pos,az,el,'\t',daz,de)
+            print('pos=',pos,'\taz/el=',az,el,'\tdaz/del=',daz,de)
 
             if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
                 P.sock2.set_position([int(az),int(el)])
@@ -1042,12 +1050,13 @@ class RigControl:
         # Update sky track
         plot_position(gui,az,el)
 
-        # Turn on/off audio recording - SDR only
-        if el>0:
-            print('=== ',gui.Selected,' is VISIBLE ===')
+        # Toggle voice recorder if available
+        visible = (not gui.flipper and el>0) or (gui.flipper and el<180)
+        if visible:
+            print('=== ',gui.Selected,' is VISIBLE ===',az,el)
             on_off=P.sock.recorder(True)
         else:
-            print('=== ',gui.Selected,' is BELOW THE HORIZON ===')
+            print('=== ',gui.Selected,' is BELOW THE HORIZON ===',az,el)
             on_off=P.sock.recorder(False)
         #print('=== buf=',on_off)
             
