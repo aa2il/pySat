@@ -7,30 +7,37 @@
 # Gui to show predicted passes for various OSCARs.
 #
 # Notes:
-# - To get a list of operation OSCARs, can check at
-#      https://ka7fvv.net/satellite.htm   and     https://www.amsat.org/status
-#   The list of displayed sat is stored in ft_tables.py - This needs to be moved to a config file!
+# - To get a list of operational OSCARs, can check at
+#      https://ka7fvv.net/satellite.htm
+#      https://www.amsat.org/status
+#      https://www.ariss.org/current-status-of-iss-stations.html
 #
-# - The TLE data is in the file nasa.txt and is updated using the -update switch.
+#   The list of displayed sat is stored in ft_tables.py - This needs
+#   to be moved to a config file.
+#
+# - The TLE data is in the file   nasa.txt    and is updated using
+#   the   -update   switch.
 # - The transponder data is from gpredict
 #
-# - When a new satellite is introduced, it may be difficult to get Gpredict to recognize it.
-#   To fix this:
+# - When a new satellite is introduced, it may be difficult to get
+#   Gpredict to recognize it.  To fix this:
 #     1) Find the satellite in the nasa.txt file downloaded by this program
 #     2) The second column in the TLE data contains the satellite number, e.g. 07530 for AO-7
 #     3) Delete the corresponding .sat file in ~/.config/Gpredict/satdata
 #     4) In Gpredict, update TLE data using LOCAL files - point to this directory
-#     5) Gpredict seems to recognize .txt files which is why nasa.all has been renamed to nasa.txt
+#     5) Gpredict seems to recognize .txt files which is why nasa.all
+#        has been renamed to nasa.txt
 #
 # - Migrated to python3 & Qt5 - To get this this to work, had to
-#    - fiddle with pypredict/predict.c - they changed the init of C functions in python 3
+#    - fiddle with pypredict/predict.c - they changed the init of C functions
+#      in python 3 - ugh!
 #    - install python3-pip (pip3) and python3-setuptools
 #    - pip3 install pyhamtools
-#   In python3, there is a distinction between bytes and string so the .decode(...)
-#   below takes care of that
+#   In python3, there is a distinction between bytes and string so the
+#   .decode(...)   below takes care of that.
 #
 # - Installation of predict engine:
-#   Problem is with this package - they changed the init module - ugh!
+#   Problem with this package - they changed the init module - ugh!
 #   sudo apt-get install python-dev
 #   git clone https://github.com/nsat/pypredict.git
 #   cd pypredict
@@ -57,8 +64,8 @@ URL1 = "http://www.amsat.org/amsat/ftp/keps/current/nasa.all"    # AMSAT latest 
 URL2 = "~/Python/predict/nasa.txt"                               # Local copy
 TRANSP_DATA = "~/.config/Gpredict/trsp"                          # Transponder data as parsed by gpredict
 
-ROTOR_THRESH=10       # Was 2
-MIN_PEAK_EL=30       # Degrees, min. elevation to identify overhead passes
+ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
+MIN_PEAK_EL  = 30       # Degrees, minimum elevation to identify overhead passes
 
 COLORS=['b','g','r','c','m','y','k',
         'dodgerblue','lime','orange','aqua','indigo','gold','gray',
@@ -108,7 +115,8 @@ class PARAMS:
         # Process command line args
         arg_proc = argparse.ArgumentParser()
         arg_proc.add_argument("-n", help="No. Days",type=int,default=30)
-        arg_proc.add_argument('-update', action='store_true',help='Update TLE Data from Internet')
+        arg_proc.add_argument('-update', action='store_true',\
+                              help='Update TLE Data from Internet')
         arg_proc.add_argument("-grid", help="Grid Square",
                               type=str,default=None)
         arg_proc.add_argument("-rig", help="Connection Type",
@@ -117,8 +125,8 @@ class PARAMS:
         arg_proc.add_argument("-port", help="Connection Port",
                               type=int,default=0)
         arg_proc.add_argument("-rotor", help="Rotor connection Type",
-                      type=str,default="NONE",
-                      choices=['HAMLIB','NONE'])
+                              type=str,default="NONE",
+                              choices=['HAMLIB','NONE'])
         arg_proc.add_argument("-port2", help="Rotor onnection Port",
                               type=int,default=0)
         arg_proc.add_argument("-sat", help="Sat to Track",
@@ -273,19 +281,13 @@ def plot_sky_track(self,sat,ttt):
 
 def plot_position(self,az,el):
 
-    print('PLOT_POSITION:',az,el,self.flipper)
+    print('\nPLOT_POSITION:',az,el,self.flipper)
 
     RADIANS=np.pi/180.
-    #if not self.sky:
-    #    self.sky, = self.ax2.plot((90.-az)*RADIANS, 90.-el,'kx')
-    #else:
-    if self.flipper:
-        az90 = 90.-az+180
-        el90 = 90.-180+el
-    else:
-        az90 = 90.-az
-        el90 = 90.-el
-    print('Setting black star:',az90,el90)
+    az90 = 90.-az
+    #el90 = 90.-el
+    el90 = 90.-max(0.,el)
+    print('Setting black star - az,el=:',az,el,'\n\tAdjusted=',az90,el90)
     self.sky.set_data( (az90)*RADIANS, el90)
     self.canv2.draw()
     return
@@ -296,6 +298,9 @@ def get_tle(TLE,sat):
     if sat=='CAS-6':
         sat='TO-108'
         print('GET_TLE: Warning - name change for TO-107 to CAS-6')
+    elif sat=='AO-7':
+        sat='AO-07'
+        print('GET_TLE: Warning - name change for AO-7 to AO-07')
     idx  = TLE.index(sat)
     tle  = TLE[idx]   + '\n'
     tle += TLE[idx+1] + '\n' 
@@ -1022,36 +1027,37 @@ class RigControl:
         P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
         #print(self.frqA,self.frqB)
 
-        # Check rotor - need some work here:
-        # - Not tested at all
-        # - check entire transit &
-        # flip antenna if needed to avoid ambiquity at 180-deg
-        #print('az=',gui.track_az,gui.flipper)
+        # Check & update rotor 
         if P.sock2.active:
+            # Current rotor position
             pos=P.sock2.get_position()
-            if el<0:
-                az=gui.track_az[0]
-                el=0
 
+            # Form new rotor position
+            if el>=0:
+                # Sat is above the horizon so point to calculated sat position
+                new_pos=[az,el]
+            else:
+                # Sat is below the horizon so point to starting point on track
+                new_pos=[gui.track_az[0] , 0]
+
+            # Flip antenna if needed to avoid ambiquity at 180-deg
             if gui.flipper:
                 print('*** NEED a Flip-a-roo-ski ***')
-                if True:
-                    az=az-180
-                    el=180-el
-                
-            daz=pos[0]-az
-            de=pos[1]-el
-            
-            print('pos=',pos,'\taz/el=',az,el,'\tdaz/del=',daz,de)
+                new_pos = [new_pos[0]-180. , 180.-new_pos[1]]
 
+            # Compute pointing error & adjust rotor if the error is large enough
+            daz=pos[0]-new_pos[0]
+            de =pos[1]-new_pos[1]
+            print('pos=',pos,'\taz/el=',az,el,'\tdaz/del=',daz,de, \
+                  '\n\tnew_pos=',new_pos)
             if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
-                P.sock2.set_position([int(az),int(el)])
+                P.sock2.set_position(new_pos)
 
         # Update sky track
         plot_position(gui,az,el)
 
-        # Toggle voice recorder if available
-        visible = (not gui.flipper and el>0) or (gui.flipper and el<180)
+        # Toggle voice recorder (if available)
+        visible = el>0
         if visible:
             print('=== ',gui.Selected,' is VISIBLE ===',az,el)
             on_off=P.sock.recorder(True)
