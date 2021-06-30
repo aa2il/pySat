@@ -215,6 +215,11 @@ def plot_sky_track(self,sat,ttt):
 
     self.Selected=sat
     self.New_Selection=True
+
+    # Turn off rig tracking when we select a new sat
+    gui.rig_ctrl = False
+    if gui.btn2.isChecked():
+        gui.btn2.toggle()
     
     # Pull out info for this sat
     tle  = self.Satellites[sat].tle
@@ -914,6 +919,7 @@ class RigControl:
         self.timer.start(1000*sec)
         self.P=P
         self.gui=gui
+        self.frqA=0
 
     def Updater(self):
         P=self.P
@@ -926,7 +932,7 @@ class RigControl:
 
             # Tune to middle of transponder BW if we've selected a new sat
             if gui.New_Selection:
-                print('New Sat Selected:',gui.Selected)
+                print('\nNew Sat Selected:',gui.Selected)
                 self.satellite = gui.Satellites[gui.Selected]
                 self.transp    = self.satellite.transponders[self.satellite.main]
                 print('main=',self.satellite.main)
@@ -986,13 +992,14 @@ class RigControl:
                 # Check if op has spun main dial - if so, compute new downlink freq
                 frq = int( P.sock.get_freq(VFO=self.vfos[0]) )
                 if frq!=self.frqA:
-                    print('Rig freq change:',self.frqA,frq)
+                    #print('========================================================================')
+                    #print('================================ Rig freq change: old frq=',self.frqA,'\tnew frq=',frq)
+                    #print('========================================================================')
                     self.fdown = frq - self.fdop1
 
                     # Don't do anything until op stops spinning the dial
-                    if True:
-                        self.frqA = frq
-                        return
+                    self.frqA = frq
+                    #return
 
                 # Update up and down link freqs 
                 self.track_freqs()
@@ -1133,8 +1140,7 @@ if __name__ == "__main__":
     app  = QApplication(sys.argv)
     gui  = SAT_GUI()
     monitor = WatchDog(gui,5)
-    if True:
-        rig_ctrl = RigControl(P,gui,1)
+    ctrl = RigControl(P,gui,1)
     
     date = gui.date_changed()
 
