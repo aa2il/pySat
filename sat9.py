@@ -214,7 +214,7 @@ def MouseClick(event):
 def plot_sky_track(self,sat,ttt):
 
     self.Selected=sat
-    self.New_Selection=True
+    self.New_Sat_Selection=True
 
     # Turn off rig tracking when we select a new sat
     gui.rig_ctrl = False
@@ -256,13 +256,44 @@ def plot_sky_track(self,sat,ttt):
     # Save data for rotor tracking
     self.track_az=np.array(az)
     self.track_el=np.array(el)
+
+    # Determine if we need to flip the antenna to avoid crossing 180-deg
+    # First, see if the track transists into both the 2nd and 3rd quadrants
     quad2 = np.logical_and(self.track_az>90 , self.track_az<180)
     quad3 = np.logical_and(self.track_az>180 , self.track_az<270)
     self.flipper = any(quad2) and any(quad3)
 
-    #print('az=',az)
-    #print('el=',el)
+    # If it does, check how far from 180-deg it goes
+    if self.flipper:
+        print('New Sat Selected:',sat)
+        #print('Track: az,el')
+        min2=360
+        #max2=0
+        #nquad2=0
+        #min3=360
+        max3=0
+        #nquad3=0
+        for i in range(len(az)):
+            #print(i,az[i],el[i],quad2[i],quad3[i])
+            if quad2[i]:
+                min2=min(min2,az[i])
+                #max2=max(max2,az[i])
+                #nquad2+=1
+            elif quad3[i]:
+                #min3=min(min3,az[i])
+                max3=max(max3,az[i])
+                #nquad3+=1
+        #print('Min/Max2=',min2,max2,nquad2)
+        #print('Min/Max3=',min3,max3,nquad3)
+        print('Min2=',min2,'\tMax3=',max3)
+        THRESH=15
+        if max3<180+THRESH or min2>180-THRESH:
+        #if max3-min3<10 or max2-min2<10:
+            print("\n######### Probably don't need the old flip-a-roo-ski ##############")
+            self.flipper = False
+    print('### Flip-a-roo-ski=',self.flipper)
 
+    # Convert data to polar format
     RADIANS=np.pi/180.
     az=(90-self.track_az)*RADIANS
     r=90.-self.track_el
@@ -498,7 +529,7 @@ class SAT_GUI(QMainWindow):
         self.now=None
         self.sky=None
         self.Selected=None
-        self.New_Selection=False
+        self.New_Sat_Selection=False
         self.flipper = False
         
         # Start by putting up the root window
@@ -931,7 +962,7 @@ class RigControl:
         if gui.rig_ctrl and gui.Selected:
 
             # Tune to middle of transponder BW if we've selected a new sat
-            if gui.New_Selection:
+            if gui.New_Sat_Selection:
                 print('\nNew Sat Selected:',gui.Selected)
                 self.satellite = gui.Satellites[gui.Selected]
                 self.transp    = self.satellite.transponders[self.satellite.main]
@@ -985,7 +1016,7 @@ class RigControl:
                 self.fdown = 0.5*(self.transp['fdn1']+self.transp['fdn2'])
                 self.track_freqs()
                 
-                gui.New_Selection=False
+                gui.New_Sat_Selection=False
 
             else:
 
