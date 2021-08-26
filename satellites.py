@@ -218,7 +218,7 @@ def plot_sky_track(self,sat,ttt):
     print('### Plot Sky Track: flipper=',self.flipper)
 
     # Turn off rig tracking when we select a new sat
-    gui.rig_ctrl = False
+    gui.rig_engaged = False
     if gui.btn2.isChecked():
         gui.btn2.toggle()
     
@@ -237,8 +237,10 @@ def plot_sky_track(self,sat,ttt):
     
     # Update GUI
     self.SatName.setText( sat )
-    self.AOS.setText( time.strftime('%H:%M:%S', time.localtime(transit.start) ))
-    self.LOS.setText( time.strftime('%H:%M:%S', time.localtime(transit.end)   ))
+    self.aos=transit.start
+    self.los=transit.end
+    self.AOS.setText( time.strftime('%H:%M:%S', time.localtime(self.aos) ))
+    self.LOS.setText( time.strftime('%H:%M:%S', time.localtime(self.los) ))
     self.PeakEl.setText( '%6.1f deg.' % transit.peak()['elevation'] )
     self.SRng.setText( '%d miles' % transit.peak()['slant_range'] )
 
@@ -322,9 +324,8 @@ def plot_position(self,az,el):
 
     RADIANS=np.pi/180.
     az90 = 90.-az
-    #el90 = 90.-el
     el90 = 90.-max(0.,el)
-    print('Setting black star - az,el=:',az,el,'\n\tAdjusted=',az90,el90)
+    #print('Setting black star - az,el=:',az,el,'\n\tAdjusted=',az90,el90)
     self.sky.set_data( (az90)*RADIANS, el90)
     self.canv2.draw()
     return
@@ -541,8 +542,8 @@ class SAT_GUI(QMainWindow):
 
         # We use a simple grid to layout controls
         self.grid = QGridLayout(self.win)
-        nrows=7
-        ncols=6
+        nrows=8
+        ncols=9
 
         # Create a calendar widget and add it to our layout
         row=0
@@ -576,7 +577,7 @@ class SAT_GUI(QMainWindow):
         # but make is always visible
         #self.canv2.setSizePolicy(sizePolicy)
 
-        # The Canvas where we will put the map
+        # The Canvas where we will put the graph with the pass times
         row=1
         col=0
         self.fig = Figure()
@@ -607,8 +608,6 @@ class SAT_GUI(QMainWindow):
         # User selections
         row=0
         col+=1
-        #btn = QToolButton()
-        #btn.setArrowType(QtCore.Qt.LeftArrow)
         btn = QPushButton('')
         btn.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_MediaSeekBackward')))
@@ -616,8 +615,6 @@ class SAT_GUI(QMainWindow):
         btn.clicked.connect(self.Regress)
         self.grid.addWidget(btn,row,col)
 
-        #btn = QToolButton()
-        #btn.setArrowType(QtCore.Qt.RightArrow)
         btn = QPushButton('')
         btn.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_MediaSeekForward')))
@@ -648,7 +645,32 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.EndTime_cb,row,col+1)
 
-        # Place to put the pass details when the user clicks on a pass
+        row+=1
+        self.btn2 = QPushButton('Engage')
+        self.btn2.setToolTip('Click to engange Rig Control')
+        self.btn2.clicked.connect(self.ToggleRigControl)
+        self.btn2.setCheckable(True)
+        self.grid.addWidget(self.btn2,row,col,1,2)
+        self.rig_engaged=False
+
+        row+=1
+        self.btn3 = QPushButton('ReCenter')
+        self.btn3.setToolTip('Click to Tune to Center of Transponder passband')
+        self.btn3.clicked.connect(self.ReCenter)
+        self.grid.addWidget(self.btn3,row,col,1,2)
+
+        # Add Mode selector
+        row+=1
+        MODES=['USB','LSB','CW','FM']
+        self.mode_cb = QComboBox()
+        #self.mode_cb.setEditable(True)
+        self.mode_cb.addItems(MODES)
+        #self.mode_cb.lineEdit().setAlignment(QtCore.Qt.AlignCenter)
+        #self.mode_cb.lineEdit().setReadOnly(True)
+        self.mode_cb.currentIndexChanged.connect(self.ModeSelect)
+        self.grid.addWidget(self.mode_cb,row,col,1,2)
+
+        # Pannel to put the pass details when the user clicks on a pass
         row=0
         col+=2
         lb=QLabel("Satellite:")
@@ -691,32 +713,94 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.SRng,row,col+1)
 
         row+=1
-        self.btn2 = QPushButton('Track')
-        self.btn2.setToolTip('Click to engange Rig Control')
-        self.btn2.clicked.connect(self.ToggleRigControl)
-        self.btn2.setCheckable(True)
-        self.grid.addWidget(self.btn2,row,col,1,2)
-        self.rig_ctrl=False
+        self.txt9 = QLabel(self)
+        self.txt9.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt9.setText("Hey!")
+        self.grid.addWidget(self.txt9,row,col,1,2)
+        
+        # Panel to display tuning info
+        col+=2
+        row=0
+        lb=QLabel("Transp Up:")
+        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        #self.txt1 = QLineEdit(self)
+        self.txt1 = QLabel(self)
+        self.txt1.setText("Hey!")
+        self.grid.addWidget(lb,row,col)
+        self.grid.addWidget(self.txt1,row,col+1,1,2)
 
+        row+=1
+        lb=QLabel("Transp Dn:")
+        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        #self.txt2 = QLineEdit(self)
+        self.txt2 = QLabel(self)
+        self.txt2.setText("Hey!")
+        self.grid.addWidget(lb,row,col)
+        self.grid.addWidget(self.txt2,row,col+1,1,2)
+
+        row+=1
+        lb=QLabel("Radio Up:")
+        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.txt3 = QLabel(self)
+        self.txt3.setText("Hey!")
+        self.grid.addWidget(lb,row,col)
+        self.grid.addWidget(self.txt3,row,col+1,1,2)
+
+        row+=1
+        lb=QLabel("Radio Dn:")
+        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.txt4 = QLabel(self)
+        self.txt4.setText("Hey!")
+        self.grid.addWidget(lb,row,col)
+        self.grid.addWidget(self.txt4,row,col+1,1,2)
+
+        row+=1
+        self.txt5 = QLabel(self)
+        self.txt5.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt5.setText("Hey!")
+        self.grid.addWidget(self.txt5,row,col)
+
+        self.txt6 = QLabel(self)
+        self.txt6.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt6.setText("Hey!")
+        self.grid.addWidget(self.txt6,row,col+1)
+
+        row+=1
+        self.txt7 = QLabel(self)
+        self.txt7.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt7.setText("Hey!")
+        self.grid.addWidget(self.txt7,row,col,1,3)
+        
         # Let's roll!
         self.show()
 
+    # Function to set rig mode
+    def ModeSelect(self):
+        mode = gui.mode_cb.currentText()
+        print('MODE SELECT:',mode)
+        ctrl.set_rig_mode( mode )
+        
+    # Function to re-tune to center of transponder passband
+    def ReCenter(self):
+        # Set down link freq to center of transp passband - uplink will follow
+        self.fdown = 0.5*(self.transp['fdn1']+self.transp['fdn2'])
+        self.track_freqs()
+        
     # Function to engage/disengange rig control
     def ToggleRigControl(self):
         if self.Selected:
-            self.rig_ctrl = not self.rig_ctrl
-        print('Rig Control is',self.rig_ctrl)
+            self.rig_engaged = not self.rig_engaged
+        print('Rig Control is',self.rig_engaged)
 
-        if True:
-            if self.rig_ctrl:
-                self.btn2.setStyleSheet("color : red")
-                P.sock.split_mode(1)
-            else:
-                self.btn2.setStyleSheet("color : green")
-                P.sock.split_mode(0)
+        if self.rig_engaged:
+            self.btn2.setStyleSheet("color : red")
+            P.sock.split_mode(1)
+        else:
+            self.btn2.setStyleSheet("color : green")
+            P.sock.split_mode(0)
             
         # Put up a reminder for something that is not availabe via CAT
-        if self.rig_ctrl and P.sock.rig_type2=='IC9700':
+        if self.rig_engaged and P.sock.rig_type2=='IC9700':
             #msgBox = QMessageBox('Reminder!')
             msgBox = QMessageBox()
             msgBox.setIcon(QMessageBox.Information)
@@ -958,6 +1042,8 @@ class RigControl:
         self.P=P
         self.gui=gui
         self.frqA=0
+        
+        self.fp_log = open("/tmp/satellites.txt", "w")
 
     def Updater(self):
         P=self.P
@@ -966,7 +1052,7 @@ class RigControl:
             if P.sock2.active:
                 print('RIG CONTROL UPDATER: Rotor=',P.sock2.rig_type1,P.sock2.rig_type2)
         
-        if gui.rig_ctrl and gui.Selected:
+        if gui.Selected:
 
             # Tune to middle of transponder BW if we've selected a new sat
             if gui.New_Sat_Selection:
@@ -1008,17 +1094,8 @@ class RigControl:
                     #sys.exit(0)
                         
                 # Set proper mode on both VFOs
-                mode=self.transp['mode']
-                P.sock.set_mode(mode,VFO=self.vfos[0])
-                if len(self.vfos)>1:
-                    if self.transp['Inverting']:
-                        if mode=='USB':
-                            P.sock.set_mode('LSB',VFO=self.vfos[1])
-                        else:
-                            P.sock.set_mode('USB',VFO=self.vfos[1])
-                    else:
-                        P.sock.set_mode(mode,VFO=self.vfos[1])
-
+                self.set_rig_mode( self.transp['mode'] )
+                
                 # Set down link freq to center of transp passband - uplink will follow
                 self.fdown = 0.5*(self.transp['fdn1']+self.transp['fdn2'])
                 self.track_freqs()
@@ -1029,7 +1106,7 @@ class RigControl:
 
                 # Check if op has spun main dial - if so, compute new downlink freq
                 frq = int( P.sock.get_freq(VFO=self.vfos[0]) )
-                if frq!=self.frqA:
+                if frq>0 and frq!=self.frqA:
                     #print('========================================================================')
                     #print('================================ Rig freq change: old frq=',self.frqA,'\tnew frq=',frq)
                     #print('========================================================================')
@@ -1043,6 +1120,23 @@ class RigControl:
                 self.track_freqs()
                 
 
+    # Routine to set rig mode on both VFOs
+    def set_rig_mode(self,mode):
+        P.sock.set_mode(mode,VFO=self.vfos[0])
+        if len(self.vfos)>1:
+            if self.transp['Inverting']:
+                if mode=='USB':
+                    P.sock.set_mode('LSB',VFO=self.vfos[1])
+                elif mode=='LSB':
+                    P.sock.set_mode('USB',VFO=self.vfos[1])
+                elif mode=='CW':
+                    P.sock.set_mode('CW-R',VFO=self.vfos[1])
+                elif mode=='CW-R':
+                    P.sock.set_mode('CW',VFO=self.vfos[1])
+            else:
+                P.sock.set_mode(mode,VFO=self.vfos[1])
+
+                
     # Function to set up & downlink freqs on rig
     def track_freqs(self):
         P=self.P
@@ -1067,28 +1161,31 @@ class RigControl:
         # Set up and down link freqs
         if len(self.vfos)>1:
             self.frqB = int(self.fup+fdop2)
-            P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1])
+            if gui.rig_engaged:
+                P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1])
+                
         self.frqA = int(self.fdown+self.fdop1)
-        P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
+        if gui.rig_engaged:
+            P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
         #print(self.frqA,self.frqB)
 
-        # Check & update rotor 
+        # Form new rotor position
+        if el>=0:
+            # Sat is above the horizon so point to calculated sat position
+            new_pos=[az,el]
+        else:
+            # Sat is below the horizon so point to starting point on track
+            new_pos=[gui.track_az[0] , 0]
+
+        # Flip antenna if needed to avoid ambiquity at 180-deg
+        if gui.flipper:
+            print('*** NEED a Flip-a-roo-ski ***')
+            new_pos = [new_pos[0]-180. , 180.-new_pos[1]]
+
+        # Update rotor 
         if P.sock2.active:
             # Current rotor position
             pos=P.sock2.get_position()
-
-            # Form new rotor position
-            if el>=0:
-                # Sat is above the horizon so point to calculated sat position
-                new_pos=[az,el]
-            else:
-                # Sat is below the horizon so point to starting point on track
-                new_pos=[gui.track_az[0] , 0]
-
-            # Flip antenna if needed to avoid ambiquity at 180-deg
-            if gui.flipper:
-                print('*** NEED a Flip-a-roo-ski ***')
-                new_pos = [new_pos[0]-180. , 180.-new_pos[1]]
 
             # Compute pointing error & adjust rotor if the error is large enough
             daz=pos[0]-new_pos[0]
@@ -1111,7 +1208,55 @@ class RigControl:
             on_off=P.sock.recorder(False)
         #print('=== buf=',on_off)
             
+        # Update gui
+        gui.txt1.setText("{:,}".format(int(self.fup)))
+        gui.txt2.setText("{:,}".format(int(self.fdown)))
+        gui.txt3.setText("{:,}".format(int(self.frqA)))
+        gui.txt4.setText("{:,}".format(int(self.frqB)))
+
+        gui.txt5.setText("Az: {: 3d}".format(int(new_pos[0])))
+        gui.txt6.setText("El: {: 3d}".format(int(new_pos[1])))
+        if gui.flipper:
+            gui.txt7.setText('Flip-a-roo-ski!')
+        else:
+            gui.txt7.setText('Not flipped')
+
+        now = time.mktime( datetime.now().timetuple() )
+        #print('now=',now,'\taos=',gui.aos,'\tlos=',gui.los)
+        daos=gui.aos-now
+        dlos=gui.los-now
+        #print('d-aos=',daos,'\td-los=',dlos)
+        
+        if daos>0:
+            if daos<60.:
+                gui.txt9.setText("AOS in {: 6.1f} sec".format(daos))
+            elif daos<3600.:
+                gui.txt9.setText("AOS in {: 6.1f} min".format(daos/60.))
+            else:
+                gui.txt9.setText("AOS in {: 6.1f} hr".format(daos/3600.))
+                    
+        elif dlos>0:
+            if dlos<60.:
+                gui.txt9.setText("LOS in {: 6.1f} sec".format(dlos))
+            elif dlos<3600.:
+                gui.txt9.setText("LOS in {: 6.1f} min".format(dlos/60.))
+            else:
+                gui.txt9.setText("LOS in {: 6.1f} hr".format(dlos/3600.))
+
+        else:
+            gui.txt9.setText("Past Event")
+
+        # Save log file to assist in further developmetn
+        row=[gui.Selected,
+             self.fup,self.fdown,df,self.fdop1,fdop2,
+             self.frqA,self.frqB,
+             az,el,new_pos,gui.flipper,gui.rig_engaged]
+        for item in row:
+            self.fp_log.write(str(item)+',')
+        self.fp_log.write('\n')
+        self.fp_log.flush()
             
+                    
 ################################################################################
 
 # If the program is run directly or passed as an argument to the python
@@ -1187,9 +1332,8 @@ if __name__ == "__main__":
     plot_sky_track(gui,sat,ttt)
     
     print('And away we go ...')
-    #sys.exit(app.exec_())
     app.exec_()
-    print('... Out of app exec ...')
+    print('Leaving app ...')
     P.sock.split_mode(0)
     sys.exit(0)
 
