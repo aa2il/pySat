@@ -71,6 +71,9 @@ COLORS=['b','g','r','c','m','y','k',
         'dodgerblue','lime','orange','aqua','indigo','gold','gray',
         'navy','limegreen','tomato','cyan','purple','yellow','dimgray']
 
+RIT_DELTA=100
+XIT_DELTA=100
+
 ################################################################################
 
 import predict
@@ -533,6 +536,8 @@ class SAT_GUI(QMainWindow):
         self.Selected=None
         self.New_Sat_Selection=False
         self.flipper = False
+        self.rit = 0
+        self.xit = 0
         
         # Start by putting up the root window
         print('Init GUI ...')
@@ -543,7 +548,7 @@ class SAT_GUI(QMainWindow):
         # We use a simple grid to layout controls
         self.grid = QGridLayout(self.win)
         nrows=8
-        ncols=9
+        ncols=13
 
         # Create a calendar widget and add it to our layout
         row=0
@@ -661,16 +666,13 @@ class SAT_GUI(QMainWindow):
 
         # Add Mode selector
         row+=1
-        MODES=['USB','LSB','CW','FM']
+        self.MODES=['USB','LSB','CW','FM']
         self.mode_cb = QComboBox()
-        #self.mode_cb.setEditable(True)
-        self.mode_cb.addItems(MODES)
-        #self.mode_cb.lineEdit().setAlignment(QtCore.Qt.AlignCenter)
-        #self.mode_cb.lineEdit().setReadOnly(True)
+        self.mode_cb.addItems(self.MODES)
         self.mode_cb.currentIndexChanged.connect(self.ModeSelect)
         self.grid.addWidget(self.mode_cb,row,col,1,2)
-
-        # Pannel to put the pass details when the user clicks on a pass
+        
+        # Panel to put the pass details when the user clicks on a pass
         row=0
         col+=2
         lb=QLabel("Satellite:")
@@ -717,10 +719,10 @@ class SAT_GUI(QMainWindow):
         self.txt9.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
         self.txt9.setText("Hey!")
         self.grid.addWidget(self.txt9,row,col,1,2)
-        
+
         # Panel to display tuning info
-        col+=2
         row=0
+        col+=2
         lb=QLabel("Transp Up:")
         lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         #self.txt1 = QLineEdit(self)
@@ -770,6 +772,86 @@ class SAT_GUI(QMainWindow):
         self.txt7.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
         self.txt7.setText("Hey!")
         self.grid.addWidget(self.txt7,row,col,1,3)
+
+        # Panel to implement RIT
+        row=0
+        col+=3
+        self.txt10 = QLabel(self)
+        self.txt10.setText(str(self.rit))
+        self.txt10.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt10.setText("- RIT -")
+        self.grid.addWidget(self.txt10,row,col,1,2)
+
+        row+=1
+        self.txt11 = QLineEdit(self)
+        self.txt11.setText(str(self.rit))
+        self.txt11.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.grid.addWidget(self.txt11,row,col,1,2)
+
+        row+=1
+        btn = QPushButton('')
+        btn.setIcon(self.style().standardIcon(
+            getattr(QStyle, 'SP_TitleBarShadeButton')))
+#            getattr(QStyle, 'SP_ArrowUp')))
+        btn.setToolTip('Click to increase RIT')
+        btn.clicked.connect(self.RITup)
+        self.grid.addWidget(btn,row,col)
+
+        row+=1
+        btn = QPushButton('')
+        btn.setIcon(self.style().standardIcon(
+            getattr(QStyle, 'SP_TitleBarUnshadeButton')))
+#            getattr(QStyle, 'SP_ArrowDown')))
+        btn.setToolTip('Click to decrease RIT')
+        btn.clicked.connect(self.RITdn)
+        self.grid.addWidget(btn,row,col)
+
+        row+=1
+        btn = QPushButton('')
+        btn.setIcon(self.style().standardIcon(
+            getattr(QStyle, 'SP_DialogCloseButton')))
+        btn.setToolTip('Click to clear RIT')
+        btn.clicked.connect(self.RITclear)
+        self.grid.addWidget(btn,row,col)
+        
+        # Panel to implement XIT
+        row=0
+        col+=2
+        self.txt12 = QLabel(self)
+        self.txt12.setText(str(self.xit))
+        self.txt12.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt12.setText("- XIT -")
+        self.grid.addWidget(self.txt12,row,col,1,2)
+
+        row+=1
+        self.txt13 = QLineEdit(self)
+        self.txt13.setText(str(self.xit))
+        self.txt13.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.grid.addWidget(self.txt13,row,col,1,2)
+
+        row+=1
+        btn = QPushButton('')
+        btn.setIcon(self.style().standardIcon(
+            getattr(QStyle, 'SP_TitleBarShadeButton')))
+        btn.setToolTip('Click to increase XIT')
+        btn.clicked.connect(self.XITup)
+        self.grid.addWidget(btn,row,col)
+
+        row+=1
+        btn = QPushButton('')
+        btn.setIcon(self.style().standardIcon(
+            getattr(QStyle, 'SP_TitleBarUnshadeButton')))
+        btn.setToolTip('Click to decrease XIT')
+        btn.clicked.connect(self.XITdn)
+        self.grid.addWidget(btn,row,col)
+
+        row+=1
+        btn = QPushButton('')
+        btn.setIcon(self.style().standardIcon(
+            getattr(QStyle, 'SP_DialogCloseButton')))
+        btn.setToolTip('Click to clear XIT')
+        btn.clicked.connect(self.XITclear)
+        self.grid.addWidget(btn,row,col)
         
         # Let's roll!
         self.show()
@@ -783,9 +865,13 @@ class SAT_GUI(QMainWindow):
     # Function to re-tune to center of transponder passband
     def ReCenter(self):
         # Set down link freq to center of transp passband - uplink will follow
-        self.fdown = 0.5*(self.transp['fdn1']+self.transp['fdn2'])
-        self.track_freqs()
-        
+        try:
+            ctrl.fdown = 0.5*(ctrl.transp['fdn1']+ctrl.transp['fdn2'])
+            print('================== ReCenter:',ctrl.fdown)
+            ctrl.track_freqs(True)
+        except:
+            print('================== ReCenter - Failure')
+            
     # Function to engage/disengange rig control
     def ToggleRigControl(self):
         if self.Selected:
@@ -814,6 +900,42 @@ class SAT_GUI(QMainWindow):
             if returnValue == QMessageBox.Ok:
                 print('OK clicked')
 
+        
+    # Function to increase RIT
+    def RITup(self):
+        self.rit += RIT_DELTA
+        print('\nRITup:',self.rit)
+        self.txt11.setText(str(self.rit))
+        ctrl.track_freqs(True)
+        
+    def RITdn(self):
+        self.rit -= RIT_DELTA
+        print('\nRITdn:',self.rit)
+        self.txt11.setText(str(self.rit))
+        ctrl.track_freqs(True)
+        
+    def RITclear(self):
+        print('\nRITclear:')
+        self.rit = 0
+        self.txt11.setText(str(self.rit))
+        
+    # Function to increase XIT
+    def XITup(self):
+        self.xit += XIT_DELTA
+        print('\nXITup:',self.xit)
+        self.txt13.setText(str(self.xit))
+        ctrl.track_freqs(True)
+        
+    def XITdn(self):
+        self.xit -= XIT_DELTA
+        print('\nXITdn:',self.xit)
+        self.txt13.setText(str(self.xit))
+        ctrl.track_freqs(True)
+        
+    def XITclear(self):
+        print('\nXITclear:')
+        self.xit = 0
+        self.txt13.setText(str(self.xit))
         
     # Function to advance in time
     def Advance(self):
@@ -1043,7 +1165,7 @@ class RigControl:
         self.gui=gui
         self.frqA=0
         
-        self.fp_log = open("/tmp/satellites.txt", "w")
+        self.fp_log = open("/tmp/satellites.log", "w")
 
     def Updater(self):
         P=self.P
@@ -1052,7 +1174,8 @@ class RigControl:
             if P.sock2.active:
                 print('RIG CONTROL UPDATER: Rotor=',P.sock2.rig_type1,P.sock2.rig_type2)
         
-        if gui.Selected:
+        if gui.rig_engaged and gui.Selected:
+        #if gui.Selected:
 
             # Tune to middle of transponder BW if we've selected a new sat
             if gui.New_Sat_Selection:
@@ -1095,7 +1218,13 @@ class RigControl:
                         
                 # Set proper mode on both VFOs
                 self.set_rig_mode( self.transp['mode'] )
-                
+                #try:
+                idx = gui.MODES.index( self.transp['mode'] )
+                gui.mode_cb.setCurrentIndex(idx)
+                #except:
+                #    print('Problem setting gui')
+                #    print('mode=',self.transp['mode'] )
+                    
                 # Set down link freq to center of transp passband - uplink will follow
                 self.fdown = 0.5*(self.transp['fdn1']+self.transp['fdn2'])
                 self.track_freqs()
@@ -1118,11 +1247,17 @@ class RigControl:
 
                 # Update up and down link freqs 
                 self.track_freqs()
-                
+
+        # Update AOS/LOS indicator
+        self.update_aos_los()
 
     # Routine to set rig mode on both VFOs
     def set_rig_mode(self,mode):
-        P.sock.set_mode(mode,VFO=self.vfos[0])
+        if mode[0:2]=='CW':
+            filter='Wide'
+        else:
+            filter=None
+        P.sock.set_mode(mode,VFO=self.vfos[0],Filter=filter)
         if len(self.vfos)>1:
             if self.transp['Inverting']:
                 if mode=='USB':
@@ -1130,15 +1265,15 @@ class RigControl:
                 elif mode=='LSB':
                     P.sock.set_mode('USB',VFO=self.vfos[1])
                 elif mode=='CW':
-                    P.sock.set_mode('CW-R',VFO=self.vfos[1])
+                    P.sock.set_mode('CW-R',VFO=self.vfos[1],Filter=filter)
                 elif mode=='CW-R':
-                    P.sock.set_mode('CW',VFO=self.vfos[1])
+                    P.sock.set_mode('CW',VFO=self.vfos[1],Filter=filter)
             else:
-                P.sock.set_mode(mode,VFO=self.vfos[1])
+                P.sock.set_mode(mode,VFO=self.vfos[1],Filter=filter)
 
                 
     # Function to set up & downlink freqs on rig
-    def track_freqs(self):
+    def track_freqs(self,Force=False):
         P=self.P
         gui=self.gui
         
@@ -1160,12 +1295,12 @@ class RigControl:
 
         # Set up and down link freqs
         if len(self.vfos)>1:
-            self.frqB = int(self.fup+fdop2)
-            if gui.rig_engaged:
+            self.frqB = int(self.fup+fdop2 + gui.xit)
+            if gui.rig_engaged or Force:
                 P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1])
                 
-        self.frqA = int(self.fdown+self.fdop1)
-        if gui.rig_engaged:
+        self.frqA = int(self.fdown+self.fdop1 + gui.rit)
+        if gui.rig_engaged or Force:
             P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
         #print(self.frqA,self.frqB)
 
@@ -1179,11 +1314,16 @@ class RigControl:
 
         # Flip antenna if needed to avoid ambiquity at 180-deg
         if gui.flipper:
-            print('*** NEED a Flip-a-roo-ski ***')
-            new_pos = [new_pos[0]-180. , 180.-new_pos[1]]
+            print('*** Need a Flip-a-roo-ski ***')
+            if new_pos[0]<180:
+                new_pos = [new_pos[0]+180. , 180.-new_pos[1]]
+            else:
+                new_pos = [new_pos[0]-180. , 180.-new_pos[1]]
 
         # Update rotor 
+        rotor_updated=False
         if P.sock2.active:
+            
             # Current rotor position
             pos=P.sock2.get_position()
 
@@ -1193,7 +1333,14 @@ class RigControl:
             print('pos=',pos,'\taz/el=',az,el,'\tdaz/del=',daz,de, \
                   '\n\tnew_pos=',new_pos)
             if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
-                P.sock2.set_position(new_pos)
+                if gui.rig_engaged or Force:
+                    P.sock2.set_position(new_pos)
+                    rotor_updated=True
+                
+        else:
+            pos=[np.nan,np.nan]
+            daz=np.nan
+            de=np.nan
 
         # Update sky track
         plot_position(gui,az,el)
@@ -1211,8 +1358,8 @@ class RigControl:
         # Update gui
         gui.txt1.setText("{:,}".format(int(self.fup)))
         gui.txt2.setText("{:,}".format(int(self.fdown)))
-        gui.txt3.setText("{:,}".format(int(self.frqA)))
-        gui.txt4.setText("{:,}".format(int(self.frqB)))
+        gui.txt3.setText("{:,}".format(int(self.frqB)))
+        gui.txt4.setText("{:,}".format(int(self.frqA)))
 
         gui.txt5.setText("Az: {: 3d}".format(int(new_pos[0])))
         gui.txt6.setText("El: {: 3d}".format(int(new_pos[1])))
@@ -1220,7 +1367,36 @@ class RigControl:
             gui.txt7.setText('Flip-a-roo-ski!')
         else:
             gui.txt7.setText('Not flipped')
+        #self.update_aos_los()
 
+        # Save log file to assist in further development
+        row=[gui.Selected,
+             self.fup,self.fdown,df,self.fdop1,fdop2,
+             self.frqA,self.frqB,
+             az,el,pos[0],pos[1],new_pos[0],new_pos[1],daz,de,
+             gui.flipper,gui.rig_engaged,rotor_updated]
+        for item in row:
+            self.fp_log.write(str(item)+',')
+        self.fp_log.write('\n')
+        self.fp_log.flush()
+
+
+
+    def hms(self,dt):
+
+        hrs  = int( dt/3600. )
+        dt2  = dt-3600*hrs
+        mins = int( dt2/60. )
+        secs = int( dt2-60*mins )
+
+        txt = "{:02d}:{:02d}:{:02d}".format(hrs,mins,secs)
+        #print(dt,dt2,dt3,'\t',hrs,mins,secs,'\t',txt)
+        
+        return txt
+        
+
+    # Function to update portion of gui related to AOS/LOS
+    def update_aos_los(self):
         now = time.mktime( datetime.now().timetuple() )
         #print('now=',now,'\taos=',gui.aos,'\tlos=',gui.los)
         daos=gui.aos-now
@@ -1228,35 +1404,13 @@ class RigControl:
         #print('d-aos=',daos,'\td-los=',dlos)
         
         if daos>0:
-            if daos<60.:
-                gui.txt9.setText("AOS in {: 6.1f} sec".format(daos))
-            elif daos<3600.:
-                gui.txt9.setText("AOS in {: 6.1f} min".format(daos/60.))
-            else:
-                gui.txt9.setText("AOS in {: 6.1f} hr".format(daos/3600.))
-                    
+            gui.txt9.setText("AOS in\t"+self.hms(daos))
         elif dlos>0:
-            if dlos<60.:
-                gui.txt9.setText("LOS in {: 6.1f} sec".format(dlos))
-            elif dlos<3600.:
-                gui.txt9.setText("LOS in {: 6.1f} min".format(dlos/60.))
-            else:
-                gui.txt9.setText("LOS in {: 6.1f} hr".format(dlos/3600.))
-
+            gui.txt9.setText("LOS in\t"+self.hms(dlos))
         else:
             gui.txt9.setText("Past Event")
 
-        # Save log file to assist in further developmetn
-        row=[gui.Selected,
-             self.fup,self.fdown,df,self.fdop1,fdop2,
-             self.frqA,self.frqB,
-             az,el,new_pos,gui.flipper,gui.rig_engaged]
-        for item in row:
-            self.fp_log.write(str(item)+',')
-        self.fp_log.write('\n')
-        self.fp_log.flush()
-            
-                    
+        
 ################################################################################
 
 # If the program is run directly or passed as an argument to the python
