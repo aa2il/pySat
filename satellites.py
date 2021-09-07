@@ -134,6 +134,8 @@ class PARAMS:
                               type=int,default=0)
         arg_proc.add_argument("-sat", help="Sat to Track",
                               type=str,default=None)
+        arg_proc.add_argument('-sdr', action='store_true',
+                              help='Command SDR also')
         
         args = arg_proc.parse_args()
         self.NDAYS2     = args.n
@@ -152,7 +154,11 @@ class PARAMS:
             
         self.ROTOR_CONNECTION = args.rotor
         self.PORT2            = args.port2
-
+        
+        self.USE_SDR          = args.sdr
+        self.SDR_CONNECTION   = 'HAMLIB'
+        self.PORT3            = 4633            # Should be 4533 but rotor uses this! ugh!
+        
         # Read config file
         self.RCFILE=os.path.expanduser("~/.satrc")
         self.SETTINGS=None
@@ -544,6 +550,7 @@ class SAT_GUI(QMainWindow):
         self.win  = QWidget()
         self.setCentralWidget(self.win)
         self.setWindowTitle('Satellite Pass Predictions by AA2IL')
+        ##self.win.setMinimumSize(1200,600)
 
         # We use a simple grid to layout controls
         self.grid = QGridLayout(self.win)
@@ -567,6 +574,7 @@ class SAT_GUI(QMainWindow):
         self.fig2  = Figure()
         self.canv2 = FigureCanvas(self.fig2)
         self.grid.addWidget(self.canv2,row,ncols-1,nrows-1,1)
+        self.canv2.setMinimumSize(200,200)
 
         # Polar axis for sky track plot
         self.ax2 = self.fig2.add_subplot(111, projection='polar')
@@ -655,6 +663,16 @@ class SAT_GUI(QMainWindow):
         self.btn2.setToolTip('Click to engange Rig Control')
         self.btn2.clicked.connect(self.ToggleRigControl)
         self.btn2.setCheckable(True)
+
+        self.btn2.setStyleSheet('QPushButton { \
+        background-color: limegreen; \
+        border :1px outset ; \
+        border-radius: 5px; \
+        border-color: gray; \
+        font: bold 14px; \
+        padding: 4px; \
+        }')
+        
         self.grid.addWidget(self.btn2,row,col,1,2)
         self.rig_engaged=False
 
@@ -852,9 +870,23 @@ class SAT_GUI(QMainWindow):
         btn.setToolTip('Click to clear XIT')
         btn.clicked.connect(self.XITclear)
         self.grid.addWidget(btn,row,col)
-        
+
         # Let's roll!
         self.show()
+        
+        # This doesn't seem to be working quite right - idea is to limit size of window
+        self.win.resize(self.win.sizeHint())
+        screen = QDesktopWidget().screenGeometry()
+        print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ screen=',screen)
+        widget = self.geometry()
+        print('win=',widget)
+        #self.setMinimumSize( widget.width() , widget.height() )    # Set minimum size of gui window
+          
+        #screen_resolution = app.desktop().screenGeometry()
+        #width, height = screen_resolution.width(), screen_resolution.height()
+        #print("Screen Res:",screen_resolution,width, height)
+
+        
 
     # Function to set rig mode
     def ModeSelect(self):
@@ -879,10 +911,28 @@ class SAT_GUI(QMainWindow):
         print('Rig Control is',self.rig_engaged)
 
         if self.rig_engaged:
-            self.btn2.setStyleSheet("color : red")
+            #self.btn2.setStyleSheet("color : red")
+            self.btn2.setStyleSheet('QPushButton { \
+            background-color: red; \
+            border :1px inset ; \
+            border-radius: 5px; \
+            border-color: gray; \
+            font: bold 14px; \
+            padding: 4px; \
+            }')
+            self.btn2.setText('Dis-Engage')
             P.sock.split_mode(1)
         else:
-            self.btn2.setStyleSheet("color : green")
+            #self.btn2.setStyleSheet("color : green")
+            self.btn2.setStyleSheet('QPushButton { \
+            background-color: limegreen; \
+            border :1px outset ; \
+            border-radius: 5px; \
+            border-color: gray; \
+            font: bold 14px; \
+            padding: 4px; \
+            }')
+            self.btn2.setText('Engage')
             P.sock.split_mode(0)
             
         # Put up a reminder for something that is not availabe via CAT
@@ -1164,6 +1214,7 @@ class RigControl:
         self.P=P
         self.gui=gui
         self.frqA=0
+        self.fdown = None
         
         self.fp_log = open("/tmp/satellites.log", "w")
 
@@ -1174,9 +1225,10 @@ class RigControl:
             if P.sock2.active:
                 print('RIG CONTROL UPDATER: Rotor=',P.sock2.rig_type1,P.sock2.rig_type2)
         
-        if gui.rig_engaged and gui.Selected:
+        if (gui.rig_engaged or self.fdown==None) and gui.Selected:
+        #if gui.rig_engaged and gui.Selected:
         #if gui.Selected:
-
+        
             # Tune to middle of transponder BW if we've selected a new sat
             if gui.New_Sat_Selection:
                 print('\nNew Sat Selected:',gui.Selected)
@@ -1302,6 +1354,8 @@ class RigControl:
         self.frqA = int(self.fdown+self.fdop1 + gui.rit)
         if gui.rig_engaged or Force:
             P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
+            if P.USE_SDR:
+                P.sock3.set_freq(1e-3*self.frqA)
         #print(self.frqA,self.frqB)
 
         # Form new rotor position
@@ -1439,6 +1493,17 @@ if __name__ == "__main__":
         if P.sock2.active:
             print('Rotor found!!\t',P.sock2.rig_type1,P.sock2.rig_type2)
 
+    # Open connection to SDR
+    if P.USE_SDR:
+        P.sock3 = socket_io.open_rig_connection(P.SDR_CONNECTION,0,P.PORT3,0,'SATELLITES')
+        if not P.sock3.active:
+            print('*** No connection available to SDR ***')
+            sys.exit(0)
+        else:
+            print(P.sock3.connection)
+            print('SDR found!!\t',P.sock3.rig_type1,P.sock3.rig_type2)
+            sys.exit(0)
+    
     # Get my qth
     lat, lon = locator_to_latlong(P.MY_GRID)
     my_qth = (lat,-lon,0)
