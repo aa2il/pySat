@@ -157,7 +157,7 @@ class PARAMS:
         
         self.USE_SDR          = args.sdr
         self.SDR_CONNECTION   = 'HAMLIB'
-        self.PORT3            = 4633            # Should be 4533 but rotor uses this! ugh!
+        self.PORT3            = 4575            # Needs to be same port SDR is listening on
         
         # Read config file
         self.RCFILE=os.path.expanduser("~/.satrc")
@@ -1355,6 +1355,7 @@ class RigControl:
         if gui.rig_engaged or Force:
             P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
             if P.USE_SDR:
+                print('Setting SDR freq to:',1e-3*self.frqA)
                 P.sock3.set_freq(1e-3*self.frqA)
         #print(self.frqA,self.frqB)
 
@@ -1495,6 +1496,7 @@ if __name__ == "__main__":
 
     # Open connection to SDR
     if P.USE_SDR:
+        print('Looking for the SDR ...')
         P.sock3 = socket_io.open_rig_connection(P.SDR_CONNECTION,0,P.PORT3,0,'SATELLITES')
         if not P.sock3.active:
             print('*** No connection available to SDR ***')
@@ -1502,7 +1504,7 @@ if __name__ == "__main__":
         else:
             print(P.sock3.connection)
             print('SDR found!!\t',P.sock3.rig_type1,P.sock3.rig_type2)
-            sys.exit(0)
+            #sys.exit(0)
     
     # Get my qth
     lat, lon = locator_to_latlong(P.MY_GRID)
