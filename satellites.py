@@ -677,7 +677,7 @@ class SAT_GUI(QMainWindow):
         self.rig_engaged=False
 
         row+=1
-        self.btn3 = QPushButton('ReCenter')
+        self.btn3 = QPushButton('Re-Center')
         self.btn3.setToolTip('Click to Tune to Center of Transponder passband')
         self.btn3.clicked.connect(self.ReCenter)
         self.grid.addWidget(self.btn3,row,col,1,2)
@@ -875,12 +875,14 @@ class SAT_GUI(QMainWindow):
         self.show()
         
         # This doesn't seem to be working quite right - idea is to limit size of window
-        self.win.resize(self.win.sizeHint())
-        screen = QDesktopWidget().screenGeometry()
-        print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ screen=',screen)
-        widget = self.geometry()
-        print('win=',widget)
-        #self.setMinimumSize( widget.width() , widget.height() )    # Set minimum size of gui window
+        #self.win.resize(size_hint)
+        #self.win.resize(900,720)
+        #screen = QDesktopWidget().screenGeometry()
+        #print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ screen=',screen)
+        #widget = self.geometry()
+        #print('win=',widget)
+        #print('hint=',self.win.sizeHint())
+        #self.setMainimumSize( widget.width() , widget.height() )    # Set minimum size of gui window
           
         #screen_resolution = app.desktop().screenGeometry()
         #width, height = screen_resolution.width(), screen_resolution.height()
@@ -901,6 +903,9 @@ class SAT_GUI(QMainWindow):
             ctrl.fdown = 0.5*(ctrl.transp['fdn1']+ctrl.transp['fdn2'])
             print('================== ReCenter:',ctrl.fdown)
             ctrl.track_freqs(True)
+
+            # Also reset mode
+            self.ModeSelect()
         except:
             print('================== ReCenter - Failure')
             
@@ -1464,6 +1469,12 @@ class RigControl:
             gui.txt9.setText("LOS in\t"+self.hms(dlos))
         else:
             gui.txt9.setText("Past Event")
+
+        screen = QDesktopWidget().screenGeometry()
+        print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ screen=',screen)
+        widget = gui.win.geometry()
+        print('win=',widget)
+        print('hint=',gui.win.sizeHint())
 
         
 ################################################################################
