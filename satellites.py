@@ -901,13 +901,25 @@ class SAT_GUI(QMainWindow):
         # Set down link freq to center of transp passband - uplink will follow
         try:
             ctrl.fdown = 0.5*(ctrl.transp['fdn1']+ctrl.transp['fdn2'])
-            print('================== ReCenter:',ctrl.fdown)
             ctrl.track_freqs(True)
 
             # Also reset mode
             self.ModeSelect()
-        except:
+            return
+
+            # Tis isn't effective until we actually select the sat 
+            mode=ctrl.transp['mode']
+            ctrl.set_rig_mode( mode )
+            print('================== ReCenter: downlink=',ctrl.fdown,
+                  '\tmde=',mode)
+            print('transp=',ctrl.transp)
+
+            idx = gui.MODES.index( mode )
+            gui.mode_cb.setCurrentIndex(idx)
+            
+        except Exception as e: 
             print('================== ReCenter - Failure')
+            print(e)
             
     # Function to engage/disengange rig control
     def ToggleRigControl(self):
@@ -1275,12 +1287,8 @@ class RigControl:
                         
                 # Set proper mode on both VFOs
                 self.set_rig_mode( self.transp['mode'] )
-                #try:
                 idx = gui.MODES.index( self.transp['mode'] )
                 gui.mode_cb.setCurrentIndex(idx)
-                #except:
-                #    print('Problem setting gui')
-                #    print('mode=',self.transp['mode'] )
                     
                 # Set down link freq to center of transp passband - uplink will follow
                 self.fdown = 0.5*(self.transp['fdn1']+self.transp['fdn2'])
