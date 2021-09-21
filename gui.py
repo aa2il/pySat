@@ -80,6 +80,7 @@ class SAT_GUI(QMainWindow):
         self.flipper = False
         self.rit = 0
         self.xit = 0
+        self.Ready=False
         
         # Start by putting up the root window
         print('Init GUI ...')
@@ -180,7 +181,7 @@ class SAT_GUI(QMainWindow):
         self.StartTime_cb = QComboBox()
         self.StartTime_cb.addItems(Times)
         self.StartTime_cb.currentIndexChanged.connect(self.date_changed)
-        self.StartTime_cb.setCurrentIndex(0)
+        self.StartTime_cb.setCurrentIndex(P.TSTART)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.StartTime_cb,row,col+1)
 
@@ -189,7 +190,7 @@ class SAT_GUI(QMainWindow):
         self.EndTime_cb = QComboBox()
         self.EndTime_cb.addItems(Times)
         self.EndTime_cb.currentIndexChanged.connect(self.date_changed)
-        self.EndTime_cb.setCurrentIndex(len(Times)-1)
+        self.EndTime_cb.setCurrentIndex(P.TEND)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.EndTime_cb,row,col+1)
 
@@ -276,7 +277,7 @@ class SAT_GUI(QMainWindow):
         # Panel to display tuning info
         row=0
         col+=2
-        lb=QLabel("Transp Up:")
+        lb=QLabel("Downlink:")
         lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         #self.txt1 = QLineEdit(self)
         self.txt1 = QLabel(self)
@@ -285,7 +286,7 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.txt1,row,col+1,1,2)
 
         row+=1
-        lb=QLabel("Transp Dn:")
+        lb=QLabel("Uplink:")
         lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         #self.txt2 = QLineEdit(self)
         self.txt2 = QLabel(self)
@@ -294,7 +295,7 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.txt2,row,col+1,1,2)
 
         row+=1
-        lb=QLabel("Radio Up:")
+        lb=QLabel("VFO A:")
         lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         self.txt3 = QLabel(self)
         self.txt3.setText("Hey!")
@@ -302,7 +303,7 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.txt3,row,col+1,1,2)
 
         row+=1
-        lb=QLabel("Radio Dn:")
+        lb=QLabel("VFO B:")
         lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         self.txt4 = QLabel(self)
         self.txt4.setText("Hey!")
@@ -408,6 +409,7 @@ class SAT_GUI(QMainWindow):
 
         # Let's roll!
         self.show()
+        self.Ready=True
         
         # This doesn't seem to be working quite right - idea is to limit size of window
         #self.win.resize(size_hint)
@@ -430,6 +432,8 @@ class SAT_GUI(QMainWindow):
         mode = self.P.gui.mode_cb.currentText()
         print('MODE SELECT:',mode)
         self.P.ctrl.set_rig_mode( mode )
+
+        return mode
         
     # Function to re-tune to center of transponder passband
     def ReCenter(self):
@@ -443,7 +447,7 @@ class SAT_GUI(QMainWindow):
             ctrl.track_freqs(True)
 
             # Also reset mode
-            self.ModeSelect()
+            mode=self.ModeSelect()
             print('================== ReCenter: downlink=',ctrl.fdown,
                   '\tmde=',mode)
             return
@@ -480,6 +484,9 @@ class SAT_GUI(QMainWindow):
             }')
             self.btn2.setText('Dis-Engage')
             self.P.sock.split_mode(1)
+
+            # Retune the rig
+            self.ReCenter()
         else:
             #self.btn2.setStyleSheet("color : green")
             self.btn2.setStyleSheet('QPushButton { \
@@ -669,6 +676,8 @@ class SAT_GUI(QMainWindow):
     # Function to draw spots on the map
     def UpdateMap(self):
         print('UpdateMap...')
+        if not self.Ready:
+            return
 
         # Draw line showing current time
         if self.now:

@@ -24,6 +24,7 @@ import os
 from rig_io.ft_tables import SATELLITE_LIST,CONNECTIONS,SAT_RIGS
 import argparse
 from settings import *
+import datetime
 
 ################################################################################
 
@@ -45,13 +46,17 @@ class PARAMS:
                               type=int,default=0)
         arg_proc.add_argument("-rotor", help="Rotor connection Type",
                               type=str,default="NONE",
-                              choices=['HAMLIB','NONE'])
+                              choices=['HAMLIB','DIRECT','NONE'])
         arg_proc.add_argument("-port2", help="Rotor onnection Port",
                               type=int,default=0)
         arg_proc.add_argument("-sat", help="Sat to Track",
                               type=str,default=None)
         arg_proc.add_argument('-sdr', action='store_true',
                               help='Command SDR also')
+        arg_proc.add_argument("-tstart", help="Start Time",
+                              type=int,default=0)
+        arg_proc.add_argument("-tend", help="End Time",
+                              type=int,default=24)
         
         args = arg_proc.parse_args()
         self.NDAYS2     = args.n
@@ -70,10 +75,23 @@ class PARAMS:
             
         self.ROTOR_CONNECTION = args.rotor
         self.PORT2            = args.port2
-        
+        if self.PORT2==0:
+            if self.ROTOR_CONNECTION=='HAMLIB':
+                self.PORT2==433
+            elif self.ROTOR_CONNECTION=='DIRECT':
+                self.PORT2==232
+
         self.USE_SDR          = args.sdr
         self.SDR_CONNECTION   = 'HAMLIB'
         self.PORT3            = 4575            # Needs to be same port SDR is listening on
+
+        self.TSTART           = args.tstart
+        if self.TSTART<0:
+            now = datetime.datetime.now()
+            self.TSTART       = now.hour
+        self.TEND             = args.tend
+        if self.TEND<0 or self.TEND>24:
+            self.TEND         = 24
         
         # Read config file
         self.RCFILE=os.path.expanduser("~/.satrc")

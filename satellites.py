@@ -136,6 +136,10 @@ class PARAMS:
                               type=str,default=None)
         arg_proc.add_argument('-sdr', action='store_true',
                               help='Command SDR also')
+        arg_proc.add_argument("-tstart", help="Start Time",
+                              type=int,default=0)
+        arg_proc.add_argument("-tend", help="End Time",
+                              type=int,default=24)
         
         args = arg_proc.parse_args()
         self.NDAYS2     = args.n
@@ -483,7 +487,13 @@ class SATELLITE:
 
             # Find the main transponder
             transp2=transp.upper()
-            if ('PE0SAT' in transp2) or ('L/V' in transp2):
+            if self.name=='ISS':
+                if 'VOICE REPEATER' in transp2:
+                    self.main=transp
+                    flagged='*****'
+                else:
+                    flagged=''
+            elif ('PE0SAT' in transp2) or ('L/V' in transp2):
                 flagged=''
             elif ('FM VOICE' in transp2) or ('MODE U/V (B) LIN' == transp2) or \
                  ('MODE U/V LINEAR' == transp2) or ('MODE V/U FM' == transp2) or \

@@ -46,6 +46,16 @@ class RigControl:
         self.fdown = None
         
         self.fp_log = open("/tmp/satellites.log", "w")
+        row=['Time Stamp','Selected',
+             'fup','fdown','df','fdop1','fdop2',
+             'frqA','frqB',
+             'az','el','pos[0]','pos[1]','new_pos[0]','new_pos[1]','daz','de',
+             'flipper','rig_engaged','rotor_updated']
+        for item in row:
+            self.fp_log.write(str(item)+',')
+        self.fp_log.write('\n')
+        self.fp_log.flush()
+
 
     def Updater(self):
         P=self.P
@@ -116,13 +126,14 @@ class RigControl:
                 frq = int( P.sock.get_freq(VFO=self.vfos[0]) )
                 if frq>0 and frq!=self.frqA:
                     #print('========================================================================')
-                    #print('================================ Rig freq change: old frq=',self.frqA,'\tnew frq=',frq)
+                    #print('=============================== Rig freq change: old frq=',self.frqA,'\tnew frq=',frq)
                     #print('========================================================================')
                     self.fdown = frq - self.fdop1
 
                     # Don't do anything until op stops spinning the dial
                     self.frqA = frq
-                    #return
+                    if gui.rit!=0:
+                        return
 
                 # Update up and down link freqs 
                 self.track_freqs()
@@ -171,8 +182,8 @@ class RigControl:
             
         # Compute Doppler shifts for up and down links
         [self.fdop1,fdop2,az,el] = P.satellite.Doppler_Shifts(self.fdown,self.fup,P.my_qth)
-        print('TRACK_FREQS:',int(self.fdown),int(self.fdop1),
-              int(self.fup),int(fdop2),'\t',int(az),int(el))
+        #print('TRACK_FREQS:',int(self.fdown),int(self.fdop1),
+        #      int(self.fup),int(fdop2),'\t',int(az),int(el))
 
         # Set up and down link freqs
         if len(self.vfos)>1:
@@ -214,8 +225,8 @@ class RigControl:
             # Compute pointing error & adjust rotor if the error is large enough
             daz=pos[0]-new_pos[0]
             de =pos[1]-new_pos[1]
-            print('pos=',pos,'\taz/el=',az,el,'\tdaz/del=',daz,de, \
-                  '\n\tnew_pos=',new_pos)
+            #print('pos=',pos,'\taz/el=',az,el,'\tdaz/del=',daz,de, \
+            #      '\n\tnew_pos=',new_pos)
             if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
                 if gui.rig_engaged or Force:
                     P.sock2.set_position(new_pos)
@@ -240,10 +251,10 @@ class RigControl:
         #print('=== buf=',on_off)
             
         # Update gui
-        gui.txt1.setText("{:,}".format(int(self.fup)))
-        gui.txt2.setText("{:,}".format(int(self.fdown)))
-        gui.txt3.setText("{:,}".format(int(self.frqB)))
-        gui.txt4.setText("{:,}".format(int(self.frqA)))
+        gui.txt1.setText("{:,}".format(int(self.fdown)))
+        gui.txt2.setText("{:,}".format(int(self.fup)))
+        gui.txt3.setText("{:,}".format(int(self.frqA)))
+        gui.txt4.setText("{:,}".format(int(self.frqB)))
 
         gui.txt5.setText("Az: {: 3d}".format(int(new_pos[0])))
         gui.txt6.setText("El: {: 3d}".format(int(new_pos[1])))
@@ -254,7 +265,9 @@ class RigControl:
         #self.update_aos_los()
 
         # Save log file to assist in further development
-        row=[gui.Selected,
+        now = datetime.now()
+        #print('NOW=',now)
+        row=[now,gui.Selected,
              self.fup,self.fdown,df,self.fdop1,fdop2,
              self.frqA,self.frqB,
              az,el,pos[0],pos[1],new_pos[0],new_pos[1],daz,de,

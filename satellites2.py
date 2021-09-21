@@ -103,7 +103,14 @@ else:
     print(P.sock2.active)
     print(P.sock2.connection)
     if P.sock2.active:
-        print('Rotor found!!\t',P.sock2.rig_type1,P.sock2.rig_type2)
+        print('Rotor found!!\t',
+              P.sock2.rig_type1,P.sock2.rig_type2,P.sock2.connection)
+
+        if P.sock2.connection=='DIRECT':
+            print('Testing it ...')
+            pos=P.sock2.get_position()
+            print('pos=',pos)
+            sys.exit(0)        
 
 # Open connection to SDR
 if P.USE_SDR:
