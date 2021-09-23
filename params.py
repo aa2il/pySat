@@ -57,6 +57,8 @@ class PARAMS:
                               type=int,default=0)
         arg_proc.add_argument("-tend", help="End Time",
                               type=int,default=24)
+        arg_proc.add_argument('-udp', action='store_true',
+                              help='Start UDP client')
         
         args = arg_proc.parse_args()
         self.NDAYS2     = args.n
@@ -72,6 +74,7 @@ class PARAMS:
         else:
             self.rig       = None
         self.PORT          = args.port
+        self.UDP_CLIENT   = args.udp
             
         self.ROTOR_CONNECTION = args.rotor
         self.PORT2            = args.port2

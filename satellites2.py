@@ -81,6 +81,7 @@ from rig_control import RigControl
 from sat_class import SATELLITE
 from gui import SAT_GUI
 from rig_io.ft_tables import SATELLITE_LIST
+from tcp_client import *
 
 ################################################################################
 
@@ -159,6 +160,21 @@ if False:
     sys.exit(0)
 print(" ")
 
+# Open UDP client
+if P.UDP_CLIENT:
+    try:
+        print('Opening TCP client ...')
+        P.udp_client = TCP_Client(None,7474)
+        #worker = Thread(target=P.udp_client.Listener, args=(), name='UDP Server' )
+        #worker.setDaemon(True)
+        #worker.start()
+        #P.THREADS.append(worker)
+        print('... TCP Client Opened.')
+    except Exception as e: 
+        print(e)
+        print('--- Unable to connect to UDP socket ---')
+        sys.exit(0)        
+                
 P.app  = QApplication(sys.argv)
 P.gui  = SAT_GUI(P)
 P.monitor = WatchDog(P,5)

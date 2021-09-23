@@ -75,6 +75,7 @@ class SAT_GUI(QMainWindow):
         self.P=P
         self.now=None
         self.sky=None
+        self.rot=None
         self.Selected=None
         self.New_Sat_Selection=False
         self.flipper = False
@@ -101,7 +102,8 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.cal,row,col,nrows-1,1)
         self.cal.clicked.connect(self.date_changed)
         self.cal.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)   # Delete week numbers
-     
+        self.cal.setGridVisible(True)
+
         # Don't allow calendar size to change when we resize the window
         sizePolicy = QSizePolicy( QSizePolicy.Fixed,
                                   QSizePolicy.Fixed)
@@ -487,6 +489,7 @@ class SAT_GUI(QMainWindow):
 
             # Retune the rig
             self.ReCenter()
+
         else:
             #self.btn2.setStyleSheet("color : green")
             self.btn2.setStyleSheet('QPushButton { \
@@ -599,6 +602,12 @@ class SAT_GUI(QMainWindow):
         tafter  = time.mktime(date1.timetuple())
         date2   = date1 + timedelta(days=self.P.NDAYS2+NDAYS1)
         tbefore = time.mktime(date2.timetuple())
+
+        # Reflect these onto the calendar
+        self.start_date = date1
+        self.end_date   = date2
+        self.cal.setMinimumDate(self.start_date)
+        self.cal.setMaximumDate(self.end_date)
         
         # Loop over list of sats
         self.Satellites = OrderedDict()
@@ -833,6 +842,7 @@ class SAT_GUI(QMainWindow):
         self.ax2.plot(az, r)
         self.ax2.plot(az[0], r[0],'go')
         self.ax2.plot(az[-1], r[-1],'ro')    
+        self.rot, = self.ax2.plot(0,0,'mo')
         self.sky, = self.ax2.plot(0,0,'k*')
         self.ax2.set_rmax(90)
         #xtics = np.roll( np.arange(0,360,45) ,2 )
@@ -847,15 +857,20 @@ class SAT_GUI(QMainWindow):
 
     
     # Plot sat position
-    def plot_position(self,az,el):
-
+    def plot_position(self,az,el,pos):
+        RADIANS=np.pi/180.
         #print('\nPLOT_POSITION: az,el=',az,el,'\tflipper=',self.flipper)
 
-        RADIANS=np.pi/180.
+        if pos[0]!=np.nan:
+            az90 = 90.-pos[0]
+            el90 = 90.-max(0.,pos[1])
+            self.rot.set_data( (az90)*RADIANS, el90)
+            
         az90 = 90.-az
         el90 = 90.-max(0.,el)
         #print('Setting black star - az,el=:',az,el,'\n\tAdjusted=',az90,el90)
         self.sky.set_data( (az90)*RADIANS, el90)
+
         self.canv2.draw()
         return
     

@@ -27,25 +27,31 @@ from datetime import timedelta,datetime
 
 # Watch Dog Timer - Called every min minutes to monitor health of app
 class WatchDog:
-    def __init__(self,P,min):
+    def __init__(self,P,sec):
 
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.Monitor)
-        msec=min*60*1000
+        msec=1000*sec
         self.timer.start(msec)
-        self.gui=P.gui
+        self.P=P
 
     # Check health of app in here
     def Monitor(self):
-        print('WatchDog...')
+        gui=self.P.gui
+        print('WatchDog...',gui.date1)
         
         # Draw line showing current time
-        gui=self.gui
         if gui.now:
             gui.now.remove()
         now=datetime.now()
         #print('now=',now)
         tt=[now,now]
         yy=gui.ax.get_ylim()
-        gui.now,=self.gui.ax.plot(tt,yy,'b--')
+        gui.now,=gui.ax.plot(tt,yy,'b--')
+
+        # Trying to maintain date selection
+        #gui.cal.setSelectedDate(gui.date1)
+        #gui.cal.updateCell(gui.date1)
+        gui.cal.repaint()
+        
         gui.canv.draw()

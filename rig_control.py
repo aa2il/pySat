@@ -120,6 +120,10 @@ class RigControl:
                 
                 gui.New_Sat_Selection=False
 
+                # Tell keyer name of new sat
+                if self.P.UDP_CLIENT:
+                    self.P.udp_client.Send('Sat:'+gui.Selected)
+            
             else:
 
                 # Check if op has spun main dial - if so, compute new downlink freq
@@ -238,7 +242,7 @@ class RigControl:
             de=np.nan
 
         # Update sky track
-        gui.plot_position(az,el)
+        gui.plot_position(az,el,pos)
 
         # Toggle voice recorder (if available)
         visible = el>0
