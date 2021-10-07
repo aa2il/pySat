@@ -611,10 +611,21 @@ class SAT_GUI(QMainWindow):
         
         # Loop over list of sats
         self.Satellites = OrderedDict()
+        if self.P.GRID2:
+            self.Satellites2 = OrderedDict()
         self.pass_times=[]
         for isat in range(1,len(SATELLITE_LIST) ):
             name=SATELLITE_LIST[isat]
-            self.Satellites[name]=SATELLITE(isat,name,self.P.my_qth,tbefore,tafter,self.P.TLE)
+            self.Satellites[name]=SATELLITE(isat,name,self.P.my_qth,
+                                            tbefore,tafter,self.P.TLE)
+            if self.P.GRID2:
+                #print('\nHEY!!!!!!!!!!!!',name,self.P.my_qth,self.P.other_qth)
+                self.Satellites2[name]=SATELLITE(isat,name,self.P.other_qth,
+                                                tbefore,tafter,self.P.TLE)
+                sat2=self.Satellites2[name]
+                #print(sat2.t)
+
+        #sys.exit(0)
 
         
     # Plot passes for all sats
@@ -636,6 +647,16 @@ class SAT_GUI(QMainWindow):
             self.ax.plot(Sat.t,Sat.y,'-',label=name,linewidth=8,color=c)
             c2='w'
             self.ax.plot(Sat.t2,Sat.y2,'*',color=c2,markersize=12)
+
+            if self.P.GRID2:
+                Sat2=self.Satellites2[name]
+                #print('HEY!!!!!!!!!!!!',self.P.GRID2)
+                #print(Sat.t)
+                #print(Sat2.t)
+                c3='k'
+                self.ax.plot(Sat2.t,Sat2.y,'-',label=name,linewidth=4,color=c3)
+                #self.ax.plot(Sat2.t2,Sat2.y2,'x',color=c3,markersize=6)
+                
 
         # Beautify the x-labels
         self.fig.autofmt_xdate()
@@ -862,8 +883,19 @@ class SAT_GUI(QMainWindow):
         #print('\nPLOT_POSITION: az,el=',az,el,'\tflipper=',self.flipper)
 
         if pos[0]!=np.nan:
-            az90 = 90.-pos[0]
-            el90 = 90.-max(0.,pos[1])
+            if self.flipper:
+                if pos[0]<180:
+                    #pos = [pos[0]+180. , 180.-pos[1]]
+                    #az90 = 90.-(pos[0]+180.)
+                    az90 = -90.-pos[0]
+                else:
+                    #pos = [pos[0]-180. , 180.-pos[1]]
+                    #az90 = 90.-(pos[0]-180.)
+                    az90 = 270.-pos[0]
+                el90 = 90.-max(0.,180.-pos[1])
+            else:
+                az90 = 90.-pos[0]
+                el90 = 90.-max(0.,pos[1])
             self.rot.set_data( (az90)*RADIANS, el90)
             
         az90 = 90.-az

@@ -51,6 +51,8 @@ class PARAMS:
                               type=int,default=0)
         arg_proc.add_argument("-sat", help="Sat to Track",
                               type=str,default=None)
+        arg_proc.add_argument("-grid2", help="Show passes covering another grid",
+                              type=str,default=None)
         arg_proc.add_argument('-sdr', action='store_true',
                               help='Command SDR also')
         arg_proc.add_argument("-tstart", help="Start Time",
@@ -74,7 +76,9 @@ class PARAMS:
         else:
             self.rig       = None
         self.PORT          = args.port
-        self.UDP_CLIENT   = args.udp
+        self.UDP_CLIENT    = args.udp
+
+        self.GRID2         = args.grid2
             
         self.ROTOR_CONNECTION = args.rotor
         self.PORT2            = args.port2

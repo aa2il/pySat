@@ -148,6 +148,7 @@ class RigControl:
     # Routine to set rig mode on both VFOs
     def set_rig_mode(self,mode):
         P=self.P
+        print('================== RIG_SET_MODE:',mode,self.vfos,P.transp['Inverting'],'================')
         
         if mode[0:2]=='CW':
             filter='Wide'
@@ -156,7 +157,9 @@ class RigControl:
         P.sock.set_mode(mode,VFO=self.vfos[0],Filter=filter)
         if len(self.vfos)>1:
             if P.transp['Inverting']:
-                if mode=='USB':
+                if mode=='FM':
+                    P.sock.set_mode('FM',VFO=self.vfos[1])
+                elif mode=='USB':
                     P.sock.set_mode('LSB',VFO=self.vfos[1])
                 elif mode=='LSB':
                     P.sock.set_mode('USB',VFO=self.vfos[1])
