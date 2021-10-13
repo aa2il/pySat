@@ -60,7 +60,7 @@
 
 # User params - most of these are now available as command line args
 URL1 = "http://www.amsat.org/amsat/ftp/keps/current/nasa.all"    # AMSAT latest & greatest
-URL2 = "~/Python/predict/nasa.txt"                               # Local copy
+URL2 = "~/Python/satellites/nasa.txt"                               # Local copy
 
 ################################################################################
 
