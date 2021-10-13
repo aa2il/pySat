@@ -159,19 +159,22 @@ class SAT_GUI(QMainWindow):
         # User selections
         row=0
         col+=1
-        btn = QPushButton('')
-        btn.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_MediaSeekBackward')))
-        btn.setToolTip('Click to regress 1 day')
-        btn.clicked.connect(self.Regress)
-        self.grid.addWidget(btn,row,col)
 
-        btn = QPushButton('')
-        btn.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_MediaSeekForward')))
-        btn.setToolTip('Click to advance 1 day')
-        btn.clicked.connect(self.Advance)
-        self.grid.addWidget(btn,row,col+1)
+        # Push buttons to go forwarnd and backward one day
+        if False:
+            btn = QPushButton('')
+            btn.setIcon(self.style().standardIcon(
+                getattr(QStyle, 'SP_MediaSeekBackward')))
+            btn.setToolTip('Click to regress 1 day')
+            btn.clicked.connect(self.Regress)
+            self.grid.addWidget(btn,row,col)
+
+            btn = QPushButton('')
+            btn.setIcon(self.style().standardIcon(
+                getattr(QStyle, 'SP_MediaSeekForward')))
+            btn.setToolTip('Click to advance 1 day')
+            btn.clicked.connect(self.Advance)
+            self.grid.addWidget(btn,row,col+1)
 
         row+=1
         Times=[]
@@ -219,6 +222,24 @@ class SAT_GUI(QMainWindow):
         self.btn3.setToolTip('Click to Tune to Center of Transponder passband')
         self.btn3.clicked.connect(self.ReCenter)
         self.grid.addWidget(self.btn3,row,col,1,2)
+
+        row+=1
+        self.btn4 = QPushButton('Rotor')
+        self.btn4.setToolTip('Click to engange Rotor Control')
+        self.btn4.clicked.connect(self.ToggleRotorControl)
+        self.btn4.setCheckable(True)
+
+        self.btn4.setStyleSheet('QPushButton { \
+        background-color: limegreen; \
+        border :1px outset ; \
+        border-radius: 5px; \
+        border-color: gray; \
+        font: bold 14px; \
+        padding: 4px; \
+        }')
+        
+        self.grid.addWidget(self.btn4,row,col,1,2)
+        self.rotor_engaged=False
 
         # Add Mode selector
         row+=1
@@ -445,6 +466,9 @@ class SAT_GUI(QMainWindow):
         
         # Set down link freq to center of transp passband - uplink will follow
         try:
+            if P.sock.rig_type2=='IC9700':
+                ctrl.check_ic9700_bands(P)
+            
             ctrl.fdown = 0.5*(P.transp['fdn1']+P.transp['fdn2'])
             ctrl.track_freqs(True)
 
@@ -467,6 +491,37 @@ class SAT_GUI(QMainWindow):
         except Exception as e: 
             print('================== ReCenter - Failure')
             print(e)
+
+
+
+    # Function to engage/disengange rig control
+    def ToggleRotorControl(self):
+        if self.Selected:
+            self.rotor_engaged = not self.rotor_engaged
+        print('Rotor Control is',self.rotor_engaged)
+
+        if self.rotor_engaged:
+            self.btn4.setStyleSheet('QPushButton { \
+            background-color: red; \
+            border :1px inset ; \
+            border-radius: 5px; \
+            border-color: gray; \
+            font: bold 14px; \
+            padding: 4px; \
+            }')
+            #self.btn4.setText('Dis-Engage')
+
+        else:
+            self.btn4.setStyleSheet('QPushButton { \
+            background-color: limegreen; \
+            border :1px outset ; \
+            border-radius: 5px; \
+            border-color: gray; \
+            font: bold 14px; \
+            padding: 4px; \
+            }')
+            #self.btn4.setText('Engage')
+            
             
     # Function to engage/disengange rig control
     def ToggleRigControl(self):
@@ -475,7 +530,6 @@ class SAT_GUI(QMainWindow):
         print('Rig Control is',self.rig_engaged)
 
         if self.rig_engaged:
-            #self.btn2.setStyleSheet("color : red")
             self.btn2.setStyleSheet('QPushButton { \
             background-color: red; \
             border :1px inset ; \
@@ -491,7 +545,6 @@ class SAT_GUI(QMainWindow):
             self.ReCenter()
 
         else:
-            #self.btn2.setStyleSheet("color : green")
             self.btn2.setStyleSheet('QPushButton { \
             background-color: limegreen; \
             border :1px outset ; \
@@ -504,8 +557,7 @@ class SAT_GUI(QMainWindow):
             self.P.sock.split_mode(0)
             
         # Put up a reminder for something that is not availabe via CAT
-        if self.rig_engaged and self.P.sock.rig_type2=='IC9700':
-            #msgBox = QMessageBox('Reminder!')
+        if self.rig_engaged and self.P.sock.rig_type2=='IC9700' and False:
             msgBox = QMessageBox()
             msgBox.setIcon(QMessageBox.Information)
             msgBox.setText("Be sure REVERSE mode is set !!!\n\nKeep RF GAIN Centered !!!")
@@ -777,8 +829,11 @@ class SAT_GUI(QMainWindow):
 
         # Turn off rig tracking when we select a new sat
         self.rig_engaged = False
+        self.rotor_engaged = False
         if self.btn2.isChecked():
             self.btn2.toggle()
+        if self.btn4.isChecked():
+            self.btn4.toggle()
     
         # Pull out info for this sat
         tle  = self.Satellites[sat].tle

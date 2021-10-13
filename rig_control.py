@@ -50,7 +50,7 @@ class RigControl:
              'fup','fdown','df','fdop1','fdop2',
              'frqA','frqB',
              'az','el','pos[0]','pos[1]','new_pos[0]','new_pos[1]','daz','de',
-             'flipper','rig_engaged','rotor_updated']
+             'flipper','rig_engaged','rotor_engaged','rotor_updated']
         for item in row:
             self.fp_log.write(str(item)+',')
         self.fp_log.write('\n')
@@ -66,7 +66,8 @@ class RigControl:
             if P.sock2.active:
                 print('RIG CONTROL UPDATER: Rotor=',P.sock2.rig_type1,P.sock2.rig_type2)
         
-        if (gui.rig_engaged or self.fdown==None) and gui.Selected:
+        if (gui.rig_engaged or gui.rotor_engaged or self.fdown==None) \
+           and gui.Selected:
         #if gui.rig_engaged and gui.Selected:
         #if gui.Selected:
         
@@ -87,6 +88,7 @@ class RigControl:
                     print('Putting IC9700 into SAT mode ...')
                     P.sock.sat_mode(1)
                     self.vfos=['M','S']
+                    self.check_ic9700_bands(P)
                 elif P.sock.rig_type2=='pySDR':
                     self.vfos=['A']
                 elif P.sock.rig_type2==None or P.sock.rig_type2=='Dummy':
@@ -95,20 +97,6 @@ class RigControl:
                     print('UPDATER: Unknown rig',P.sock.rig_type2,' - Aborting')
                     sys.exit(0)
 
-                # Check VFO bands - the IC9700 is quirky if the bands are reversed
-                if P.sock.rig_type2=='IC9700':
-                    frq1 = int( P.sock.get_freq(VFO=self.vfos[0]) )
-                    band1 = P.sock.get_band(1e-6*frq1)
-                    print('frq1=',frq1,band1)
-                    #frq2 = int( P.sock.get_freq(VFO=self.vfos[1]) )
-                    frq2 = P.transp['fdn1']
-                    band2 = P.sock.get_band(1e-6*frq2)
-                    print('frq2=',frq2,band2)
-                    if band1!=band2:
-                        print('Flipping VFOs')
-                        P.sock.select_vfo('X')
-                    #sys.exit(0)
-                        
                 # Set proper mode on both VFOs
                 self.set_rig_mode( P.transp['mode'] )
                 idx = gui.MODES.index( P.transp['mode'] )
@@ -145,6 +133,21 @@ class RigControl:
         # Update AOS/LOS indicator
         self.update_aos_los()
 
+    # Routine to check VFO bands - the IC9700 is quirky if the bands are reversed
+    def check_ic9700_bands(self,P):
+        frq1 = int( P.sock.get_freq(VFO=self.vfos[0]) )
+        band1 = P.sock.get_band(1e-6*frq1)
+        print('frq1=',frq1,band1)
+
+        frq2 = P.transp['fdn1']
+        band2 = P.sock.get_band(1e-6*frq2)
+        print('frq2=',frq2,band2)
+        if band1!=band2:
+            print('Flipping VFOs')
+            P.sock.select_vfo('X')
+        #sys.exit(0)
+                        
+        
     # Routine to set rig mode on both VFOs
     def set_rig_mode(self,mode):
         P=self.P
@@ -235,7 +238,7 @@ class RigControl:
             #print('pos=',pos,'\taz/el=',az,el,'\tdaz/del=',daz,de, \
             #      '\n\tnew_pos=',new_pos)
             if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
-                if gui.rig_engaged or Force:
+                if gui.rig_engaged or gui.rotor_engaged or Force:
                     P.sock2.set_position(new_pos)
                     rotor_updated=True
                 
@@ -278,7 +281,7 @@ class RigControl:
              self.fup,self.fdown,df,self.fdop1,fdop2,
              self.frqA,self.frqB,
              az,el,pos[0],pos[1],new_pos[0],new_pos[1],daz,de,
-             gui.flipper,gui.rig_engaged,rotor_updated]
+             gui.flipper,gui.rig_engaged,gui.rotor_engaged,rotor_updated]
         for item in row:
             self.fp_log.write(str(item)+',')
         self.fp_log.write('\n')
