@@ -120,12 +120,14 @@ class RigControl:
                     #print('========================================================================')
                     #print('=============================== Rig freq change: old frq=',self.frqA,'\tnew frq=',frq)
                     #print('========================================================================')
-                    self.fdown = frq - self.fdop1
+
+                    # Compute new downlink freq at the sat
+                    self.fdown = frq -gui.rit - self.fdop1
 
                     # Don't do anything until op stops spinning the dial
                     self.frqA = frq
-                    if gui.rit!=0:
-                        return
+                    #if gui.rit!=0:
+                    return
 
                 # Update up and down link freqs 
                 self.track_freqs()
@@ -200,7 +202,8 @@ class RigControl:
             self.frqB = int(self.fup+fdop2 + gui.xit)
             if gui.rig_engaged or Force:
                 P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1])
-                
+
+        # Compute downlink freq at rig = frq at sat + Doppler
         self.frqA = int(self.fdown+self.fdop1 + gui.rit)
         if gui.rig_engaged or Force:
             P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
