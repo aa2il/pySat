@@ -40,7 +40,7 @@ class PARAMS:
         arg_proc.add_argument("-grid", help="Grid Square",
                               type=str,default=None)
         arg_proc.add_argument("-rig", help="Connection Type",
-                              type=str,default=["ANY"],nargs='+',
+                              type=str,default=["NONE"],nargs='+',
                               choices=CONNECTIONS+['NONE']+SAT_RIGS)
         arg_proc.add_argument("-port", help="Connection Port",
                               type=int,default=0)
@@ -108,16 +108,16 @@ class PARAMS:
                 self.SETTINGS = json.load(json_data_file)
         except:
             print(self.RCFILE,' not found - need call!\n')
-            s=SETTINGS(None,self)
-            while not self.SETTINGS:
-                try:
-                    s.win.update()
-                except:
-                    pass
-                time.sleep(.01)
-            print('Settings:',self.SETTINGS)
 
         self.MY_GRID    = args.grid
         if self.MY_GRID==None:
-            self.MY_GRID = self.SETTINGS['MY_GRID']
-        
+            try:
+                self.MY_GRID = self.SETTINGS['MY_GRID']
+            except:
+                self.MY_GRID = 'DM12'
+                
+        try:
+            self.SATELLITE_LIST = self.SETTINGS['ACTIVE']
+        except:
+            self.SATELLITE_LIST = SATELLITE_LIST
+

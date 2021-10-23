@@ -80,8 +80,8 @@ from watchdog import WatchDog
 from rig_control import RigControl
 from sat_class import SATELLITE
 from gui import SAT_GUI
-from rig_io.ft_tables import SATELLITE_LIST
 from tcp_client import *
+from latlon2maiden import *
 
 ################################################################################
 
@@ -126,9 +126,37 @@ if P.USE_SDR:
         #sys.exit(0)
     
 # Get my qth
-lat, lon = locator_to_latlong(P.MY_GRID)
+
+# Got thesse numbers from the GPS
+#lat = 32.982545833
+#lon = -116.797740833
+#alt = 602.2
+
+lat,lon=maidenhead2latlon(P.MY_GRID)
 P.my_qth = (lat,-lon,0)
-print('My QTH:',P.MY_GRID,P.my_qth)
+print('Based on grid square: \tMy QTH:',P.MY_GRID,P.my_qth)
+
+lat = P.SETTINGS['MY_LAT']
+lon = P.SETTINGS['MY_LON']
+alt = P.SETTINGS['MY_ALT']
+
+P.MY_GRID = latlon2maidenhead(lat,lon,12)
+    
+P.my_qth = (lat,-lon,alt)
+print('Based on GPS: \t\tMy QTH:',P.MY_GRID,P.my_qth)
+
+if False:
+    # Experiment with various precisions - locator in pyhamtools doesn't
+    # provide a whole lot of accuracy
+    for n in [4,6,8,10,12]:
+        gridsq=P.MY_GRID[:n]
+        print(gridsq)
+        lat, lon = locator_to_latlong(gridsq)
+        my_qth = (lat,-lon,0)
+        print('My QTH:',gridsq,my_qth)
+
+    sys.exit(0)
+    
 
 if P.GRID2:
     lat2, lon2 = locator_to_latlong(P.GRID2)

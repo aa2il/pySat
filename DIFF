@@ -27,7 +27,7 @@ echo OLD=$old
 #set OLD="work2"
 
 rm -f DIFFS
-foreach i (*.py *.txt pypredict/*.c  pypredict/*.py  pypredict/JBA )
+foreach i (*.py *.txt pypredict/*.c  pypredict/*.py  pypredict/JBA work/*)
     echo $i
     set n=`diff -w $old/$i $i | wc -l`
     if( $n>0 ) then

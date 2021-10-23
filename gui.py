@@ -37,6 +37,7 @@ import sys
 import numpy as np
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
+from PyQt5.QtGui import QIcon
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -61,10 +62,12 @@ from params import PARAMS
 from watchdog import WatchDog
 from rig_control import RigControl
 from sat_class import SATELLITE
-from rig_io.ft_tables import SATELLITE_LIST
+#from rig_io.ft_tables import SATELLITE_LIST
+
+from settings import *
 
 ################################################################################
-
+        
 # The GUI
 class SAT_GUI(QMainWindow):
 
@@ -82,6 +85,7 @@ class SAT_GUI(QMainWindow):
         self.rit = 0
         self.xit = 0
         self.Ready=False
+        self.SettingsWin=SETTINGS(P)
         
         # Start by putting up the root window
         print('Init GUI ...')
@@ -95,6 +99,10 @@ class SAT_GUI(QMainWindow):
         nrows=8
         ncols=13
 
+        # Add menu bar
+        row=0
+        self.create_menu_bar()
+        
         # Create a calendar widget and add it to our layout
         row=0
         col=0
@@ -434,6 +442,14 @@ class SAT_GUI(QMainWindow):
         self.show()
         self.Ready=True
         
+        # Check if we have a valid set of settings
+        if not P.SETTINGS:
+            self.SettingsWin.show()
+            print('\n*** Need to re-start ***\n')
+            self.Ready=False
+            #return
+            #sys.exit(0)
+        
         # This doesn't seem to be working quite right - idea is to limit size of window
         #self.win.resize(size_hint)
         #self.win.resize(900,720)
@@ -470,7 +486,7 @@ class SAT_GUI(QMainWindow):
                 ctrl.check_ic9700_bands(P)
             
             ctrl.fdown = 0.5*(P.transp['fdn1']+P.transp['fdn2'])
-            ctrl.track_freqs(True)
+            ctrl.track_freqs(True,tag='Re-Center')
 
             # Also reset mode
             mode=self.ModeSelect()
@@ -576,36 +592,38 @@ class SAT_GUI(QMainWindow):
         self.rit += RIT_DELTA
         print('\nRITup:',self.rit)
         self.txt11.setText(str(self.rit))
-        self.P.ctrl.track_freqs(True)
+        #self.P.ctrl.track_freqs(True,tag='RIT-UP')
         
     def RITdn(self):
         self.rit -= RIT_DELTA
         print('\nRITdn:',self.rit)
         self.txt11.setText(str(self.rit))
-        self.P.ctrl.track_freqs(True)
+        #self.P.ctrl.track_freqs(True,tag='RIT-DN')
         
     def RITclear(self):
         print('\nRITclear:')
         self.rit = 0
         self.txt11.setText(str(self.rit))
+        #self.P.ctrl.track_freqs(True,tag='RIT-CLR')
         
     # Function to increase XIT
     def XITup(self):
         self.xit += XIT_DELTA
         print('\nXITup:',self.xit)
         self.txt13.setText(str(self.xit))
-        self.P.ctrl.track_freqs(True)
+        #self.P.ctrl.track_freqs(True,tag='XIT-UP')
         
     def XITdn(self):
         self.xit -= XIT_DELTA
         print('\nXITdn:',self.xit)
         self.txt13.setText(str(self.xit))
-        self.P.ctrl.track_freqs(True)
+        #self.P.ctrl.track_freqs(True,tag='XIT-DN')
         
     def XITclear(self):
         print('\nXITclear:')
         self.xit = 0
         self.txt13.setText(str(self.xit))
+        #self.P.ctrl.track_freqs(True,tag='XIT-CLR')
         
     # Function to advance in time
     def Advance(self):
@@ -666,18 +684,14 @@ class SAT_GUI(QMainWindow):
         if self.P.GRID2:
             self.Satellites2 = OrderedDict()
         self.pass_times=[]
-        for isat in range(1,len(SATELLITE_LIST) ):
-            name=SATELLITE_LIST[isat]
+        for isat in range(1,len(self.P.SATELLITE_LIST) ):
+            name=self.P.SATELLITE_LIST[isat]
             self.Satellites[name]=SATELLITE(isat,name,self.P.my_qth,
                                             tbefore,tafter,self.P.TLE)
             if self.P.GRID2:
-                #print('\nHEY!!!!!!!!!!!!',name,self.P.my_qth,self.P.other_qth)
                 self.Satellites2[name]=SATELLITE(isat,name,self.P.other_qth,
                                                 tbefore,tafter,self.P.TLE)
                 sat2=self.Satellites2[name]
-                #print(sat2.t)
-
-        #sys.exit(0)
 
         
     # Plot passes for all sats
@@ -721,10 +735,10 @@ class SAT_GUI(QMainWindow):
 
         # Fix-up vertical axis
         self.ax.grid()
-        nsats = len(SATELLITE_LIST)-1
+        nsats = len(self.P.SATELLITE_LIST)-1
         self.ax.set_ylim(1-.1,nsats+.1)
         self.ax.set_yticks(range(1,nsats+1))
-        self.ax.set_yticklabels(SATELLITE_LIST[1:])
+        self.ax.set_yticklabels(self.P.SATELLITE_LIST[1:])
         self.ax.invert_yaxis()
 
         if False:
@@ -738,19 +752,6 @@ class SAT_GUI(QMainWindow):
             self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, -2*p),
                            fancybox=True, shadow=True, ncol=5)
 
-        # Fiddling
-        if False:
-            print('-----------------------------')
-            locs, labels = plt.yticks()
-            print(locs)
-            print(labels)
-            plt.yticks(np.arange(6), ('Tom', 'Dick', 'Harry', 'Sally', 'Sue','Joe'))
-        if False:
-            print('-----------------------------')
-            print(self.ax.get_yticklabels())
-            print(SATELLITE_LIST[1:])
-            self.ax.set_yticklabels(SATELLITE_LIST)
-        
         # Re-draw the canvas
         self.canv.draw()
 
@@ -917,14 +918,13 @@ class SAT_GUI(QMainWindow):
         self.ax2.clear()
         self.ax2.plot(az, r)
         self.ax2.plot(az[0], r[0],'go')
-        self.ax2.plot(az[-1], r[-1],'ro')    
+        self.ax2.plot(az[-1], r[-1],'ro')
+        
         self.rot, = self.ax2.plot(0,0,'mo')
         self.sky, = self.ax2.plot(0,0,'k*')
         self.ax2.set_rmax(90)
-        #xtics = np.roll( np.arange(0,360,45) ,2 )
-        #xtics = ['E','NE','N','NW','W','SW','S','SE']
+
         xtics = ['E','','N','','W','','S','']
-        #print('xtics=',xtics)
         self.ax2.set_xticklabels(xtics) 
         self.ax2.set_yticks([30, 60, 90])          # Less radial ticks
         self.ax2.set_yticklabels(3*[''])          # Less radial ticks
@@ -940,17 +940,20 @@ class SAT_GUI(QMainWindow):
         if pos[0]!=np.nan:
             if self.flipper:
                 if pos[0]<180:
-                    #pos = [pos[0]+180. , 180.-pos[1]]
-                    #az90 = 90.-(pos[0]+180.)
                     az90 = -90.-pos[0]
                 else:
-                    #pos = [pos[0]-180. , 180.-pos[1]]
-                    #az90 = 90.-(pos[0]-180.)
                     az90 = 270.-pos[0]
                 el90 = 90.-max(0.,180.-pos[1])
             else:
-                az90 = 90.-pos[0]
-                el90 = 90.-max(0.,pos[1])
+                if pos[1]<=90:
+                    az90 = 90.-pos[0]
+                    el90 = 90.-max(0.,pos[1])
+                else:
+                    if pos[0]<180:
+                        az90 = -90.-pos[0]
+                    else:
+                        az90 = 270.-pos[0]
+                    el90 = 90.-max(0.,180-pos[1])
             self.rot.set_data( (az90)*RADIANS, el90)
             
         az90 = 90.-az
@@ -977,7 +980,7 @@ class SAT_GUI(QMainWindow):
 
         # Decode sat name and time
         isat = int( round( event.ydata ) )
-        sat = SATELLITE_LIST[isat]
+        sat = self.P.SATELLITE_LIST[isat]
         print('sat:',isat,sat)
 
         xx = self.ax.get_xlim()
@@ -997,4 +1000,58 @@ class SAT_GUI(QMainWindow):
         # Plot sky track
         self.plot_sky_track(sat,ttt)
     
+        
+
+
+    # Function to create menu bar
+    def create_menu_bar(self):
+        print('Creating Menubar ...')
+
+        """
+        menubar = QMenuBar()
+        self.grid.addWidget(menubar, 0, 0)
+        actionFile = menubar.addMenu("File")
+        actionFile.addAction("New")
+        actionFile.addAction("Open")
+        actionFile.addAction("Exit")
+        actionFile.triggered.connect(self.Settings)
+        """
+
+        exitAct = QAction(QIcon('exit.png'), '&Exit', self)
+        #exitAct.setShortcut('Ctrl+Q')
+        exitAct.setStatusTip('Exit Application')
+        exitAct.triggered.connect(qApp.quit)
+        
+        settingsAct = QAction(QIcon('exit.png'), '&Settings...', self)
+        #exitAct.setShortcut('Ctrl+Q')
+        settingsAct.setStatusTip('Settings Dialog')
+        settingsAct.triggered.connect(self.Settings)
+        
+        self.statusBar()
+        
+        menubar = self.menuBar()
+        fileMenu = menubar.addMenu('&File')
+        fileMenu.addAction(settingsAct)
+        fileMenu.addAction(exitAct)
+        
+
+    def Settings(self):
+        self.SettingsWin.show()
+
+        """
+
+
+
+
+        s=SETTINGS(None,self)
+
+        while not self.SETTINGS:
+            try:
+                s.win.update()
+            except:
+                pass
+            time.sleep(.01)
+        print('Settings:',self.SETTINGS)
+        """
+
         

@@ -40,15 +40,21 @@ class RigControl:
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.Updater)
         self.timer.start(1000*sec)
-        self.P=P
-        self.gui=P.gui
-        self.frqA=0
+        self.P     = P
+        self.gui   = P.gui
+        self.frqA  = 0
+        self.frqB  = 0
         self.fdown = None
+        self.fdop1 = None
+        self.fdop2 = None
+        self.az    = None
+        self.el    = None
         
         self.fp_log = open("/tmp/satellites.log", "w")
-        row=['Time Stamp','Selected',
+        row=['Time Stamp','Source','Selected',
+             'Inverting','dn1','dn2','up1','up2','Mode',
              'fup','fdown','df','fdop1','fdop2',
-             'frqA','frqB',
+             'frqA','frqB','RIT','XIT',
              'az','el','pos[0]','pos[1]','new_pos[0]','new_pos[1]','daz','de',
              'flipper','rig_engaged','rotor_engaged','rotor_updated']
         for item in row:
@@ -104,7 +110,7 @@ class RigControl:
                     
                 # Set down link freq to center of transp passband - uplink will follow
                 self.fdown = 0.5*(P.transp['fdn1']+P.transp['fdn2'])
-                self.track_freqs()
+                self.track_freqs(tag='Selection')
                 
                 gui.New_Sat_Selection=False
 
@@ -116,6 +122,7 @@ class RigControl:
 
                 # Check if op has spun main dial - if so, compute new downlink freq
                 frq = int( P.sock.get_freq(VFO=self.vfos[0]) )
+                #print('++++++++++++++++++++++++++--------------- frq=',frq,'\tfrqA=',self.frqA)
                 if frq>0 and frq!=self.frqA:
                     #print('========================================================================')
                     #print('=============================== Rig freq change: old frq=',self.frqA,'\tnew frq=',frq)
@@ -126,11 +133,12 @@ class RigControl:
 
                     # Don't do anything until op stops spinning the dial
                     self.frqA = frq
-                    #if gui.rit!=0:
+                    nan=np.nan
+                    self.save_diagnostics('Spin',nan,[nan,nan],[nan,nan],nan,nan,nan)
                     return
 
                 # Update up and down link freqs 
-                self.track_freqs()
+                self.track_freqs(tag='Update')
 
         # Update AOS/LOS indicator
         self.update_aos_los()
@@ -147,7 +155,6 @@ class RigControl:
         if band1!=band2:
             print('Flipping VFOs')
             P.sock.select_vfo('X')
-        #sys.exit(0)
                         
         
     # Routine to set rig mode on both VFOs
@@ -177,7 +184,7 @@ class RigControl:
 
                 
     # Function to set up & downlink freqs on rig
-    def track_freqs(self,Force=False):
+    def track_freqs(self,Force=False,tag='Track'):
         P=self.P
         gui=self.gui
         
@@ -189,17 +196,13 @@ class RigControl:
         else:
             self.fup = P.transp['fup1'] + df
             #print('Non:',P.transp['fup1'],df,self.fup)
-        #print('fdown=',self.fdown,'\tdf=',df,'\tfup=',self.fup, \
-        #'\tInv=', P.transp['Inverting'])
             
         # Compute Doppler shifts for up and down links
-        [self.fdop1,fdop2,az,el] = P.satellite.Doppler_Shifts(self.fdown,self.fup,P.my_qth)
-        #print('TRACK_FREQS:',int(self.fdown),int(self.fdop1),
-        #      int(self.fup),int(fdop2),'\t',int(az),int(el))
+        [self.fdop1,self.fdop2,self.az,self.el] = P.satellite.Doppler_Shifts(self.fdown,self.fup,P.my_qth)
 
         # Set up and down link freqs
         if len(self.vfos)>1:
-            self.frqB = int(self.fup+fdop2 + gui.xit)
+            self.frqB = int(self.fup+self.fdop2 + gui.xit)
             if gui.rig_engaged or Force:
                 P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1])
 
@@ -213,9 +216,9 @@ class RigControl:
         #print(self.frqA,self.frqB)
 
         # Form new rotor position
-        if el>=0:
+        if self.el>=0:
             # Sat is above the horizon so point to calculated sat position
-            new_pos=[az,el]
+            new_pos=[self.az,self.el]
         else:
             # Sat is below the horizon so point to starting point on track
             new_pos=[gui.track_az[0] , 0]
@@ -251,11 +254,10 @@ class RigControl:
             de=np.nan
 
         # Update sky track
-        gui.plot_position(az,el,pos)
+        gui.plot_position(self.az,self.el,pos)
 
         # Toggle voice recorder (if available)
-        visible = el>0
-        if visible:
+        if self.el>0:
             #print('=== ',gui.Selected,' is VISIBLE ===',az,el)
             on_off=P.sock.recorder(True)
         else:
@@ -278,12 +280,21 @@ class RigControl:
         #self.update_aos_los()
 
         # Save log file to assist in further development
+        self.save_diagnostics(tag,df,pos,new_pos,daz,de,rotor_updated)
+        
+        
+    # Save log file to assist in further development
+    def save_diagnostics(self,source,df,pos,new_pos,daz,de,rotor_updated):
+        P=self.P
+        gui=self.gui
+        
         now = datetime.now()
-        #print('NOW=',now)
-        row=[now,gui.Selected,
-             self.fup,self.fdown,df,self.fdop1,fdop2,
-             self.frqA,self.frqB,
-             az,el,pos[0],pos[1],new_pos[0],new_pos[1],daz,de,
+        row=[now,source,gui.Selected,
+             P.transp['Inverting'],P.transp['fdn1'],P.transp['fdn2'],
+             P.transp['fup1'],P.transp['fup2'],P.transp['mode'],
+             self.fup,self.fdown,df,self.fdop1,self.fdop2,
+             self.frqA,self.frqB,gui.rit,gui.xit,
+             self.az,self.el,pos[0],pos[1],new_pos[0],new_pos[1],daz,de,
              gui.flipper,gui.rig_engaged,gui.rotor_engaged,rotor_updated]
         for item in row:
             self.fp_log.write(str(item)+',')
