@@ -1,6 +1,31 @@
 #!/usr/bin/python3
+#########################################################################################
+#
+# latlon2maiden.py - Rev. 1.0
+# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+#
+# Routines for converting between lat/lon coordinates and maidenhead grid
+# squares.  These convserions can be done to arbitrary precision, not just
+# 4- or 6-characters like most readily available codes.  This helps
+# to improve the accuracy of our Doppler shift projections.
+#
+############################################################################################
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+#########################################################################################
 
 import sys
+
+#########################################################################################
 
 # Function to compute maidnhead grid square to apecified precision
 # from lat & lon
@@ -46,31 +71,36 @@ def latlon2maidenhead(lat,lon,nchar):
     return gridsq
 
 
-# Routine to conver maidenhead grid square back to lat,lon
+# Routine to convert maidenhead grid square back to lat,lon
 def maidenhead2latlon(gridsq):
 
+    # Error checking
     if len(gridsq)%2:
         print('ERROR - length of grid square must be event - gridsq=',gridsq)
         sys.exit(-1)
     
-    A=ord('A');
-    lonch = gridsq[0::2]
-    latch = gridsq[1::2]
+    A=ord('A');                  # Ascii 65
+    lonch = gridsq[0::2]         # Pull out chars related to longitude
+    latch = gridsq[1::2]         # Pull out chars related to latitude
 
-    step=10*24
-    lon=-180
+    # Convert lat and lon locators into lat & lon in degrees
+    step=10*24                   # At the coursest level, there are 24 10-deg lat squares
+                                 # There are 24 20-deg lon square - see below
+    lon=-180                     # Offset for lon and lat
     lat=-90
     for i in range(len(lonch)):
         if i%2:
+            # The odd chars are numbers 0-9
             x=int( lonch[i] )
             y=int( latch[i] )
             step/=10
         else:
+            # The even chars are letters A-X
             x=ord( lonch[i] )-A
             y=ord( latch[i] )-A
             step/=24
         
-        lon+=x*step*2
+        lon+=x*step*2              # Lon squares in deg. are twice as big as lat
         lat+=y*step
         #print(x,lon_step,lon)
 

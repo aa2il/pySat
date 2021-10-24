@@ -21,14 +21,6 @@
 
 import sys
 import json
-"""
-if sys.version_info[0]==3:
-    from tkinter import *
-    import tkinter.font
-else:
-    from Tkinter import *
-    import tkFont
-"""
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 from rig_io.ft_tables import SATELLITE_LIST
@@ -39,21 +31,40 @@ class SETTINGS(QMainWindow):
     def __init__(self,P,parent=None):
         super(SETTINGS, self).__init__(parent)
 
+        # Init
         self.P=P
-
         self.win  = QWidget()
         self.setCentralWidget(self.win)
-        self.setWindowTitle('Settings')
+        self.setWindowTitle('pySat Settings')
         self.grid = QGridLayout(self.win)
 
+        # Boxes to hold geographic info (i.e. gps data)
         row=0
         col=0
-        self.gridsq = self.newEntry('My Grid:     ','MY_GRID',row,col)
-        self.lat    = self.newEntry('Latitude:    ','MY_LAT' ,row+1,col)
-        self.lon    = self.newEntry('Longitude:   ','MY_LON' ,row+2,col)
-        self.alt    = self.newEntry('Altitude (m):','MY_ALT' ,row+3,col)
+        labels=['My Grid:','Latitude:','Longitude:','Altitude (m):']
+        self.items=['MY_GRID','MY_LAT','MY_LON','MY_ALT']
+        self.eboxes=[] 
+        for label,item in zip(labels,self.items):
+            #ebox = self.newEntry(label,item,row,col)
 
-        row+=4
+            lab = QLabel(self)
+            lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            lab.setText(label)
+            self.grid.addWidget(lab,row,col,1,1)
+
+            ebox = QLineEdit(self)
+            try:
+                txt=str(self.P.SETTINGS[item])
+            except:
+                txt=''
+            ebox.setText(txt)
+            ebox.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            self.grid.addWidget(ebox,row,col+1,1,1)
+            
+            self.eboxes.append(ebox)            
+            row+=1
+
+        # Separater for next section
         lab = QLabel(self)
         lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
         lab.setText('-----------')
@@ -65,7 +76,11 @@ class SETTINGS(QMainWindow):
         lab.setText('Known Satellites:')
         self.grid.addWidget(lab,row,col,1,1)
 
+        # List of available satellites and whether we want them
         self.cboxes=[]
+        self.eboxes2=[]
+        isat=0
+        OFFSETS=self.P.SETTINGS['OFFSETS']
         for sat in SATELLITE_LIST:
             row+=1
             cbox = QCheckBox(sat)
@@ -73,7 +88,19 @@ class SETTINGS(QMainWindow):
             self.cboxes.append(cbox)
             if sat in P.SATELLITE_LIST:
                 cbox.setChecked(True)
-        
+                
+            ebox = QLineEdit(self)
+            self.eboxes2.append(ebox)
+            try:
+                txt=str(OFFSETS[isat])
+            except:
+                txt="0"
+            ebox.setText(txt)
+            ebox.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            self.grid.addWidget(ebox,row,col+1,1,1)
+            isat+=1
+                
+        # Buttons to complete or abandon the update
         row+=1
         col=0
         button1 = QPushButton('OK')
@@ -89,86 +116,33 @@ class SETTINGS(QMainWindow):
         
         self.hide()
 
-
-    def newEntry(self,label,item,row,col):
-        lab = QLabel(self)
-        lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        lab.setText(label)
-        self.grid.addWidget(lab,row,col,1,1)
-
-        box = QLineEdit(self)
-        try:
-            txt=str(self.P.SETTINGS[item])
-        except:
-            txt=''
-        box.setText(txt)
-        box.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.grid.addWidget(box,row,col+1,1,1)
-
-        return box
-
+    # Function to update settings and write them to resource file
     def Update(self):
+
+        # Collect things related to the list of sats
         ACTIVE=[]
-        for sat,cbox in zip(SATELLITE_LIST,self.cboxes):
+        OFFSETS=[]
+        for sat,cbox,ebox in zip(SATELLITE_LIST,self.cboxes,self.eboxes2):
+            OFFSETS.append( int(ebox.text()) )
             if cbox.isChecked():
                 ACTIVE.append(sat)
-        
-        self.P.SETTINGS = {'MY_GRID': self.gridsq.text().upper() , \
-                           'MY_LAT' : float(self.lat.text())      , \
-                           'MY_LON' : float(self.lon.text())      , \
-                           'MY_ALT' : float(self.alt.text())      , \
-                           'ACTIVE' : ACTIVE  }
 
+        # Bundle all into a common structure
+        self.P.SETTINGS = {}
+        for item,ebox in zip(self.items,self.eboxes):
+            self.P.SETTINGS[item]=ebox.text()
+        self.P.SETTINGS['ACTIVE']=ACTIVE
+        self.P.SETTINGS['OFFSETS']=OFFSETS
         self.P.SATELLITE_LIST=ACTIVE
-
+        
+        # Write out the resource file
         with open(self.P.RCFILE, "w") as outfile:
             json.dump(self.P.SETTINGS, outfile)
-        
+
+        # Hide the sub-window
         self.hide()
 
+    # Abaondon the update, just close the sub-window
     def Cancel(self):
         self.hide()
         
-        
-################################################################################
-        
-"""
-# Tk version - surprisingly seemed to work b4 put up Qt window!
-        
-class SETTINGS():
-    def __init__(self,root,P):
-        self.P = P
-        
-        if root:
-            self.win=Toplevel(root)
-        else:
-            self.win = Tk()
-        self.win.title("Settings")
-
-        row=0
-        Label(self.win, text='My Grid:').grid(row=row, column=0)
-        self.call = Entry(self.win)
-        self.call.grid(row=row,column=1,sticky=E+W)
-        #self.call.delete(0, END)
-        try:
-            self.call.insert(0,P.MY_GRID)
-        except:
-            pass
-
-        row+=1
-        button = Button(self.win, text="OK",command=self.Dismiss)
-        button.grid(row=row,column=1,sticky=E+W)
-
-        self.win.update()
-        self.win.deiconify()
-
-    def Dismiss(self):
-        self.P.SETTINGS = {'MY_GRID' : self.call.get().upper()}
-        
-        with open(self.P.RCFILE, "w") as outfile:
-            json.dump(self.P.SETTINGS, outfile)
-        
-        self.win.destroy()
-
-        
-"""

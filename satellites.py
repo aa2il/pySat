@@ -136,9 +136,9 @@ lat,lon=maidenhead2latlon(P.MY_GRID)
 P.my_qth = (lat,-lon,0)
 print('Based on grid square: \tMy QTH:',P.MY_GRID,P.my_qth)
 
-lat = P.SETTINGS['MY_LAT']
-lon = P.SETTINGS['MY_LON']
-alt = P.SETTINGS['MY_ALT']
+lat = float( P.SETTINGS['MY_LAT'] )
+lon = float( P.SETTINGS['MY_LON'] )
+alt = float( P.SETTINGS['MY_ALT'] )
 
 P.MY_GRID = latlon2maidenhead(lat,lon,12)
     
