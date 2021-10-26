@@ -82,6 +82,7 @@ class SAT_GUI(QMainWindow):
         self.Selected=None
         self.New_Sat_Selection=False
         self.flipper = False
+        self.cross180 = False
         self.rit = 0
         self.xit = 0
         self.Ready=False
@@ -879,29 +880,18 @@ class SAT_GUI(QMainWindow):
         quad2 = np.logical_and(self.track_az>90 , self.track_az<180)
         quad3 = np.logical_and(self.track_az>180 , self.track_az<270)
         self.flipper = any(quad2) and any(quad3)
+        self.cross180 = self.flipper
 
         # If it does, check how far from 180-deg it goes
         if self.flipper:
             print('Flipper - New Sat Selected:',sat)
-            #print('Track: az,el')
             min2=360
-            #max2=0
-            #nquad2=0
-            #min3=360
             max3=0
-            #nquad3=0
             for i in range(len(az)):
-                #print(i,az[i],el[i],quad2[i],quad3[i])
                 if quad2[i]:
                     min2=min(min2,az[i])
-                    #max2=max(max2,az[i])
-                    #nquad2+=1
                 elif quad3[i]:
-                    #min3=min(min3,az[i])
                     max3=max(max3,az[i])
-                    #nquad3+=1
-            #print('Min/Max2=',min2,max2,nquad2)
-            #print('Min/Max3=',min3,max3,nquad3)
             print('Min2=',min2,'\tMax3=',max3)
             THRESH=15
             if max3<180+THRESH or min2>180-THRESH:
@@ -1025,7 +1015,8 @@ class SAT_GUI(QMainWindow):
         settingsAct = QAction(QIcon('exit.png'), '&Settings...', self)
         #exitAct.setShortcut('Ctrl+Q')
         settingsAct.setStatusTip('Settings Dialog')
-        settingsAct.triggered.connect(self.Settings)
+        #settingsAct.triggered.connect(self.Settings)
+        settingsAct.triggered.connect( self.SettingsWin.show )
         
         self.statusBar()
         
@@ -1035,23 +1026,5 @@ class SAT_GUI(QMainWindow):
         fileMenu.addAction(exitAct)
         
 
-    def Settings(self):
-        self.SettingsWin.show()
-
-        """
-
-
-
-
-        s=SETTINGS(None,self)
-
-        while not self.SETTINGS:
-            try:
-                s.win.update()
-            except:
-                pass
-            time.sleep(.01)
-        print('Settings:',self.SETTINGS)
-        """
-
-        
+    #def Settings(self):
+    #    self.SettingsWin.show()

@@ -92,7 +92,7 @@ class SETTINGS(QMainWindow):
             ebox = QLineEdit(self)
             self.eboxes2.append(ebox)
             try:
-                txt=str(OFFSETS[isat])
+                txt=str(OFFSETS[sat])
             except:
                 txt="0"
             ebox.setText(txt)
@@ -121,9 +121,9 @@ class SETTINGS(QMainWindow):
 
         # Collect things related to the list of sats
         ACTIVE=[]
-        OFFSETS=[]
+        OFFSETS={}
         for sat,cbox,ebox in zip(SATELLITE_LIST,self.cboxes,self.eboxes2):
-            OFFSETS.append( int(ebox.text()) )
+            OFFSETS[sat] = int(ebox.text())
             if cbox.isChecked():
                 ACTIVE.append(sat)
 

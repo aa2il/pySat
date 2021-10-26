@@ -8,6 +8,31 @@ import matplotlib.pyplot as plt
 
 ###############################################################################
 
+#sat='JO-97'
+#fname='satellites.log_jo97_ao91'
+
+#sat='RS-44'
+#fname='satellites.log_rs44'
+#fname='satellites.log_rs44_2'
+#fname='satellites.log_rs44_3'
+
+# Problem with flipper
+sat='CAS-4A'
+fname='satellites.log_cas4a'
+
+sat='CAS-4B'
+fname='satellites.log_cas4b'               # Also has problem with flipper
+fname='satellites.log_cas4b_2'             # Not sure what rotor is doing here?
+fname='satellites.log_cas4b_3'             # Needs a flip-a-roo-ski
+
+#sat='CAS-6'
+#fname='satellites.log_cas6'
+
+#sat='PO-101'
+#fname='satellites.log_po101'
+
+###############################################################################
+
 def get_values(x,key,typ):
     if typ=='seconds':
         vals=[d[key] for d in data];
@@ -29,28 +54,6 @@ def get_values(x,key,typ):
 
 ###############################################################################
 
-#sat='JO-97'
-#fname='satellites.log_jo97_ao91'
-
-sat='RS-44'
-fname='satellites.log_rs44'
-fname='satellites.log_rs44_2'
-fname='satellites.log_rs44_3'
-
-sat='CAS-4A'
-fname='satellites.log_cas4a'
-
-#sat='CAS-4B'
-#fname='satellites.log_cas4b'
-
-#sat='CAS-6'
-#fname='satellites.log_cas6'
-
-#sat='PO-101'
-#fname='satellites.log_po101'
-
-###############################################################################
-
 data=read_csv_file(fname)
 
 keys=data[0].keys()
@@ -65,17 +68,20 @@ sat_name = get_values(data,'Selected',str)
 #print(sat_name)
 
 # Freq data
-fdn1 = get_values(data,'dn1',float)*1e-6
-fdn2 = get_values(data,'dn2',float)*1e-6
-fup1 = get_values(data,'up1',float)*1e-6
-fup2 = get_values(data,'up2',float)*1e-6
+try:
+    fdn1 = get_values(data,'dn1',float)*1e-6
+    fdn2 = get_values(data,'dn2',float)*1e-6
+    fup1 = get_values(data,'up1',float)*1e-6
+    fup2 = get_values(data,'up2',float)*1e-6
 
-fdop1 = get_values(data,'fdop1',float)
-fdop2 = get_values(data,'fdop2',float)
+    fdop1 = get_values(data,'fdop1',float)
+    fdop2 = get_values(data,'fdop2',float)
 
-df    = get_values(data,'df',float)
-rit    = get_values(data,'RIT',float)
-xit    = get_values(data,'XIT',float)
+    df    = get_values(data,'df',float)
+    rit    = get_values(data,'RIT',float)
+    xit    = get_values(data,'XIT',float)
+except:
+    pass
 
 fup   = get_values(data,'fup',float)*1e-6
 fdown = get_values(data,'fdown',float)*1e-6
@@ -120,6 +126,9 @@ print(len(idx))
 
 fig, ax = plt.subplots()
 ax2 = ax.twinx()
+#fig, (ax1, ax2) = plt.subplots(1, 2, sharex=True, sharey=True)
+
+times2=np.take(times,idx)
 
 if False:
     # Tranpsonder up & down link freqs
@@ -128,7 +137,7 @@ if False:
     ax2.plot(np.take(times,idx), np.take(fup1,idx),color='blue')
     ax2.plot(np.take(times,idx), np.take(fup2,idx),color='cyan')
 
-elif True:
+elif False:
     # Doppler shifts
     ax.plot(np.take(times,idx), np.take(fdop1,idx),color='red')
     ax2.plot(np.take(times,idx), np.take(fdop2,idx),color='orange')
@@ -139,12 +148,12 @@ elif False:
     ax.plot(np.take(times,idx), np.take(rit,idx),color='blue')
     ax.plot(np.take(times,idx), np.take(xit,idx),color='orange')
 
-elif True:
+elif False:
     # Freqs at transp
     ax.plot(np.take(times,idx), np.take(fdown,idx),color='red')
     ax2.plot(np.take(times,idx), np.take(fup,idx),color='orange')
 
-elif True:
+elif False:
     # VFO Freqs
     ax.plot(np.take(times,idx), np.take(frqA,idx),color='red')
     #ax.plot(np.take(times,idx), np.take(fdown,idx),color='orange')
@@ -152,9 +161,30 @@ elif True:
     #ax2.plot(np.take(times,idx), np.take(fup,idx),color='cyan')
 
 else:
-    ax.plot(np.take(times,idx), np.take(az,idx),color='red')
-    ax.plot(np.take(times,idx), np.take(paz,idx),color='orange')
-    ax2.plot(np.take(times,idx), np.take(el,idx),color='blue')
-    ax2.plot(np.take(times,idx), np.take(pel,idx),color='cyan')
+    # Rotor positioning
+    az2=np.take(az,idx)
+    paz2=np.take(paz,idx)
+    el2=np.take(el,idx)
+    pel2=np.take(pel,idx)
+    ax.plot(times2 , az2 ,color='red',label='Sat')
+    ax.plot(times2 , paz2,color='orange',label='Rotor')
+    ax2.plot(times2, el2 ,color='blue',label='Sat')
+    ax2.plot(times2, pel2,color='cyan',label='Rotor')
+    
+    ax.set_xlabel('Time (?)')
+    ax.set_ylabel('Az (deg)')
+    ax2.set_ylabel('El (deg)')
+    fig.suptitle('Rotor Data')
+    ax.legend(loc='lower left')
+    ax2.legend(loc='lower right')
 
+    with open('rotor.dat', 'wb') as fp:
+        np.save(fp, times2)
+        np.save(fp, az2)
+        np.save(fp, paz2)
+        np.save(fp, el2)
+        np.save(fp, pel2)
+
+    
+ax.grid(True)    
 plt.show()

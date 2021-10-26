@@ -30,6 +30,7 @@ from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 import time
 from datetime import timedelta,datetime
+from rig_io.ft_tables import SATELLITE_LIST
 
 ################################################################################
 
@@ -117,7 +118,13 @@ class RigControl:
                 # Tell keyer name of new sat
                 if self.P.UDP_CLIENT:
                     self.P.udp_client.Send('Sat:'+gui.Selected)
-            
+
+                # Set XIT for this sat
+                OFFSETS=self.P.SETTINGS['OFFSETS']
+                idx = SATELLITE_LIST.index(gui.Selected)
+                gui.xit=OFFSETS[idx]
+                gui.txt13.setText(str(gui.xit))
+ 
             else:
 
                 # Check if op has spun main dial - if so, compute new downlink freq
