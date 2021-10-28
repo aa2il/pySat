@@ -55,7 +55,8 @@ def get_tle(TLE,sat):
 class SATELLITE:
     def __init__(self,isat,name,qth,tbefore,tafter,TLE):
 
-        print('\n',isat,'-\tSat:',name,'\ttb-ta:',tbefore,tafter,'\tqth:',qth)
+        print('\nSATELLITE CLASS: isat=',isat,'-\tSat:',name, \
+              '\ttb-ta:',tbefore,tafter,'\tqth:',qth)
         #print(tafter,tbefore)
         self.name = name
         self.isat = isat

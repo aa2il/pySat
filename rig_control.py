@@ -121,8 +121,15 @@ class RigControl:
 
                 # Set XIT for this sat
                 OFFSETS=self.P.SETTINGS['OFFSETS']
-                idx = SATELLITE_LIST.index(gui.Selected)
-                gui.xit=OFFSETS[idx]
+                try:
+                    gui.xit=OFFSETS[gui.Selected]
+                except Exception as e: 
+                    print(e)
+                    print('--- Unable to set XIT ---\tsat=',\
+                          gui.Selected)
+                    print('OFFSETS=',OFFSETS)
+                    gui.it=0
+                    #sys.exit(0)        
                 gui.txt13.setText(str(gui.xit))
  
             else:

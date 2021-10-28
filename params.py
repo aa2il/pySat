@@ -118,6 +118,11 @@ class PARAMS:
                 
         try:
             self.SATELLITE_LIST = self.SETTINGS['ACTIVE']
+
+            # There is a goofy legacy thing that I need to look into
+            # that requires the first "sat" in the list be 'None'
+            if 'None' not in self.SATELLITE_LIST:
+                self.SATELLITE_LIST = ['None'] + self.SATELLITE_LIST
         except:
             self.SATELLITE_LIST = SATELLITE_LIST
 

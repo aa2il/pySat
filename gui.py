@@ -666,7 +666,8 @@ class SAT_GUI(QMainWindow):
     # Load satellite data
     def load_sat_data(self):
 
-        print('Computing orbits ...')
+        print('\nLoad Sat Data - Computing orbits ...')
+        print(self.P.SATELLITE_LIST)
         
         # Set time limits
         date1   = datetime.now() - timedelta(days=NDAYS1)
@@ -698,14 +699,14 @@ class SAT_GUI(QMainWindow):
     # Plot passes for all sats
     def draw_passes(self):
 
-        print('Draw passes...')
+        print('\nDraw passes - self.sats=',self.Satellites)
         self.ax = self.fig.add_subplot(111)
         #self.fig.tight_layout(pad=0)
 
         # Loop over list of sats
         self.pass_times=[]
         for name in list(self.Satellites.keys()):
-            print(name)
+            print('Draw Passes - name=',name)
             Sat=self.Satellites[name]
 
             # Plot passes for this sat
@@ -717,12 +718,8 @@ class SAT_GUI(QMainWindow):
 
             if self.P.GRID2:
                 Sat2=self.Satellites2[name]
-                #print('HEY!!!!!!!!!!!!',self.P.GRID2)
-                #print(Sat.t)
-                #print(Sat2.t)
                 c3='k'
                 self.ax.plot(Sat2.t,Sat2.y,'-',label=name,linewidth=4,color=c3)
-                #self.ax.plot(Sat2.t2,Sat2.y2,'x',color=c3,markersize=6)
                 
 
         # Beautify the x-labels
@@ -732,7 +729,7 @@ class SAT_GUI(QMainWindow):
         self.ax.set_xlim(self.date1,self.date1+timedelta(hours=24))
 
         self.ax.set_xlabel('Local Time', fontsize=18)
-        self.ax.set_ylabel('Satellite', fontsize=16)
+        #self.ax.set_ylabel('Satellite', fontsize=16)
 
         # Fix-up vertical axis
         self.ax.grid()

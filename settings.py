@@ -86,7 +86,7 @@ class SETTINGS(QMainWindow):
             cbox = QCheckBox(sat)
             self.grid.addWidget(cbox,row,col,1,1)
             self.cboxes.append(cbox)
-            if sat in P.SATELLITE_LIST:
+            if sat!='None' and sat in P.SATELLITE_LIST:
                 cbox.setChecked(True)
                 
             ebox = QLineEdit(self)
@@ -123,9 +123,10 @@ class SETTINGS(QMainWindow):
         ACTIVE=[]
         OFFSETS={}
         for sat,cbox,ebox in zip(SATELLITE_LIST,self.cboxes,self.eboxes2):
-            OFFSETS[sat] = int(ebox.text())
-            if cbox.isChecked():
-                ACTIVE.append(sat)
+            if sat!='None':
+                OFFSETS[sat] = int(ebox.text())
+                if cbox.isChecked():
+                    ACTIVE.append(sat)
 
         # Bundle all into a common structure
         self.P.SETTINGS = {}
