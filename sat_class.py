@@ -184,7 +184,14 @@ class SATELLITE:
                     flagged='*****'
                 else:
                     flagged=''
-            elif ('PE0SAT' in transp2) or ('L/V' in transp2):
+            #elif self.name=='JO-97':
+            #    if 'U/V SSB' in transp2:
+            #        self.main=transp
+            #        flagged='*****'
+            #    else:
+            #        flagged=''
+            elif ('PE0SAT' in transp2) or ('L/V' in transp2) or ('U/V CW' in transp):
+                print('*** Skipping',transp)
                 flagged=''
             elif ('FM VOICE' in transp2) or ('MODE U/V (B) LIN' == transp2) or \
                  ('MODE U/V LINEAR' == transp2) or ('MODE V/U FM' == transp2) or \

@@ -33,6 +33,7 @@ XIT_DELTA=100
 import predict
 import requests
 import sys
+import functools
 
 import numpy as np
 from PyQt5 import QtCore
@@ -87,6 +88,8 @@ class SAT_GUI(QMainWindow):
         self.xit = 0
         self.Ready=False
         self.SettingsWin=SETTINGS(P)
+        self.MODES=['USB','CW','FM','LSB']
+        self.ax=None
         
         # Start by putting up the root window
         print('Init GUI ...')
@@ -250,14 +253,16 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.btn4,row,col,1,2)
         self.rotor_engaged=False
 
-        # Add Mode selector
-        row+=1
-        self.MODES=['USB','LSB','CW','FM']
-        self.mode_cb = QComboBox()
-        self.mode_cb.addItems(self.MODES)
-        self.mode_cb.currentIndexChanged.connect(self.ModeSelect)
-        self.grid.addWidget(self.mode_cb,row,col,1,2)
-        
+        # Add Mode selector - this is in the menubar now
+        if False:
+            row+=1
+            self.mode_cb = QComboBox()
+            self.mode_cb.addItems(self.MODES)
+            self.mode_cb.currentIndexChanged.connect(self.ModeSelect)
+            self.grid.addWidget(self.mode_cb,row,col,1,2)
+        else:
+            self.mode_cb = None
+            
         # Panel to put the pass details when the user clicks on a pass
         row=0
         col+=2
@@ -400,6 +405,12 @@ class SAT_GUI(QMainWindow):
         btn.clicked.connect(self.RITclear)
         self.grid.addWidget(btn,row,col)
         
+        row+=1
+        self.txt15 = QLabel(self)
+        self.txt15.setText(str('HEY!'))
+        self.txt15.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.grid.addWidget(self.txt15,row,col,1,4)
+
         # Panel to implement XIT
         row=0
         col+=2
@@ -468,11 +479,19 @@ class SAT_GUI(QMainWindow):
         
 
     # Function to set rig mode
-    def ModeSelect(self):
-        mode = self.P.gui.mode_cb.currentText()
+    def ModeSelect(self,mode=None):
+        #print('MODE SELECT:',mode)
+        if not mode or type(mode)==int:
+            mode = self.P.gui.mode_cb.currentText()
         print('MODE SELECT:',mode)
         self.P.ctrl.set_rig_mode( mode )
 
+        self.txt15.setText(mode)
+        self.statusBar.showMessage('Set rig mode to '+mode)
+        if self.mode_cb:
+            idx = self.MODES.index( mode )
+            self.mode_cb.setCurrentIndex(idx)
+        
         return mode
         
     # Function to re-tune to center of transponder passband
@@ -732,7 +751,7 @@ class SAT_GUI(QMainWindow):
         #self.ax.set_ylabel('Satellite', fontsize=16)
 
         # Fix-up vertical axis
-        self.ax.grid()
+        self.ax.grid(True)
         nsats = len(self.P.SATELLITE_LIST)-1
         self.ax.set_ylim(1-.1,nsats+.1)
         self.ax.set_yticks(range(1,nsats+1))
@@ -994,34 +1013,27 @@ class SAT_GUI(QMainWindow):
     def create_menu_bar(self):
         print('Creating Menubar ...')
 
-        """
-        menubar = QMenuBar()
-        self.grid.addWidget(menubar, 0, 0)
-        actionFile = menubar.addMenu("File")
-        actionFile.addAction("New")
-        actionFile.addAction("Open")
-        actionFile.addAction("Exit")
-        actionFile.triggered.connect(self.Settings)
-        """
+        self.statusBar=self.statusBar()
+        menubar = self.menuBar()
 
-        exitAct = QAction(QIcon('exit.png'), '&Exit', self)
+        # The File Menu
+        fileMenu = menubar.addMenu('&File')
+
+        settingsAct = QAction('&Settings...', self)
+        settingsAct.setStatusTip('Settings Dialog')
+        settingsAct.triggered.connect( self.SettingsWin.show )
+        fileMenu.addAction(settingsAct)
+
+        exitAct = QAction('&Exit', self)
         #exitAct.setShortcut('Ctrl+Q')
         exitAct.setStatusTip('Exit Application')
         exitAct.triggered.connect(qApp.quit)
-        
-        settingsAct = QAction(QIcon('exit.png'), '&Settings...', self)
-        #exitAct.setShortcut('Ctrl+Q')
-        settingsAct.setStatusTip('Settings Dialog')
-        #settingsAct.triggered.connect(self.Settings)
-        settingsAct.triggered.connect( self.SettingsWin.show )
-        
-        self.statusBar()
-        
-        menubar = self.menuBar()
-        fileMenu = menubar.addMenu('&File')
-        fileMenu.addAction(settingsAct)
         fileMenu.addAction(exitAct)
-        
 
-    #def Settings(self):
-    #    self.SettingsWin.show()
+        # The Mode Mendu
+        modeMenu = menubar.addMenu('&Mode')
+        for m in self.MODES:
+            Act = QAction('&'+m, self)
+            Act.setStatusTip('Set uplink mode to '+m)
+            Act.triggered.connect( functools.partial( self.ModeSelect,mode=m ))
+            modeMenu.addAction(Act)

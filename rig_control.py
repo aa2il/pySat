@@ -105,9 +105,12 @@ class RigControl:
                     sys.exit(0)
 
                 # Set proper mode on both VFOs
-                self.set_rig_mode( P.transp['mode'] )
-                idx = gui.MODES.index( P.transp['mode'] )
-                gui.mode_cb.setCurrentIndex(idx)
+                mode=P.transp['mode']
+                self.set_rig_mode( mode )
+                gui.txt15.setText(mode)
+                if gui.mode_cb:
+                    idx = gui.MODES.index( mode )
+                    gui.mode_cb.setCurrentIndex(idx)
                     
                 # Set down link freq to center of transp passband - uplink will follow
                 self.fdown = 0.5*(P.transp['fdn1']+P.transp['fdn2'])

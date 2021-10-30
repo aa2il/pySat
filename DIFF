@@ -10,6 +10,7 @@
 set ROOT="/media/${USER}/pi2"
 #set ROOT="/media/${USER}/pi"
 set ROOT="/media/${USER}/marconi"
+set ROOT="/media/${USER}/3D76-ECB1/Xfer"
 if( !(-e $ROOT) )then
     set ROOT="${ROOT}2"
 endif
@@ -29,7 +30,7 @@ echo OLD=$old
 rm -f DIFFS
 foreach i (*.py *.txt pypredict/*.c  pypredict/*.py  pypredict/JBA work/*)
     echo $i
-    set n=`diff -w $old/$i $i | wc -l`
+    set n=`diff $old/$i $i | wc -l`
     if( $n>0 ) then
         echo ---------------------------------- >> DIFFS
         echo $i >> DIFFS
