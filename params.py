@@ -34,7 +34,7 @@ class PARAMS:
 
         # Process command line args
         arg_proc = argparse.ArgumentParser()
-        arg_proc.add_argument("-n", help="No. Days",type=int,default=30)
+        arg_proc.add_argument("-n", help="No. Days",type=int,default=10)
         arg_proc.add_argument('-update', action='store_true',\
                               help='Update TLE Data from Internet')
         arg_proc.add_argument("-grid", help="Grid Square",
@@ -47,7 +47,7 @@ class PARAMS:
         arg_proc.add_argument("-rotor", help="Rotor connection Type",
                               type=str,default="NONE",
                               choices=['HAMLIB','DIRECT','NONE'])
-        arg_proc.add_argument("-port2", help="Rotor onnection Port",
+        arg_proc.add_argument("-port2", help="Rotor connection Port",
                               type=int,default=0)
         arg_proc.add_argument("-sat", help="Sat to Track",
                               type=str,default=None)
@@ -61,6 +61,8 @@ class PARAMS:
                               type=int,default=24)
         arg_proc.add_argument('-udp', action='store_true',
                               help='Start UDP client')
+        arg_proc.add_argument('-test', action='store_true',
+                              help='Test Mode')
         
         args = arg_proc.parse_args()
         self.NDAYS2     = args.n
@@ -77,6 +79,7 @@ class PARAMS:
             self.rig       = None
         self.PORT          = args.port
         self.UDP_CLIENT    = args.udp
+        self.TEST_MODE     = args.test
 
         self.GRID2         = args.grid2
             

@@ -42,6 +42,9 @@ def get_tle(TLE,sat):
     elif sat=='AO-7':
         sat='AO-07'
         print('GET_TLE: Warning - name change for AO-7 to AO-07')
+    elif sat=='FS-3':
+        sat='Falconsat-3'
+        print('GET_TLE: Warning - name change for FS-3 to Falconsat-3')
     idx  = TLE.index(sat)
     tle  = TLE[idx]   + '\n'
     tle += TLE[idx+1] + '\n' 
@@ -178,22 +181,18 @@ class SATELLITE:
 
             # Find the main transponder
             transp2=transp.upper()
+            print('name=',self.name,'\ttransp2=',transp2)
             if self.name=='ISS':
                 if 'VOICE REPEATER' in transp2:
                     self.main=transp
                     flagged='*****'
                 else:
                     flagged=''
-            #elif self.name=='JO-97':
-            #    if 'U/V SSB' in transp2:
-            #        self.main=transp
-            #        flagged='*****'
-            #    else:
-            #        flagged=''
             elif ('PE0SAT' in transp2) or ('L/V' in transp2) or ('U/V CW' in transp):
                 print('*** Skipping',transp)
                 flagged=''
-            elif ('FM VOICE' in transp2) or ('MODE U/V (B) LIN' == transp2) or \
+            elif ('FM VOICE' in transp2) or ('FM TRANSCEIVER' in transp2) or \
+                 ('MODE U/V (B) LIN' == transp2) or \
                  ('MODE U/V LINEAR' == transp2) or ('MODE V/U FM' == transp2) or \
                  ('TRANSPONDER' in transp2) or ('TRANSPODER' in transp2):
                 if not self.main:
@@ -210,6 +209,9 @@ class SATELLITE:
             self.transponders[transp] = items
             
             #sys.exit(0)
+
+        if not self.main:
+            print('Hmmmmm - never found main transponder for this sat :-(')
 
 
     # Function to compute current Doppler shifts for a specific sat
@@ -232,7 +234,8 @@ class SATELLITE:
 
         az = obs['azimuth']
         el = obs['elevation']
+        rng = obs['slant_range']
         
-        return [fdop1,fdop2,az,el]
+        return [fdop1,fdop2,az,el,rng]
 
             

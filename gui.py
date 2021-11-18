@@ -66,6 +66,7 @@ from sat_class import SATELLITE
 #from rig_io.ft_tables import SATELLITE_LIST
 
 from settings import *
+from rotor import *
 
 ################################################################################
         
@@ -90,6 +91,7 @@ class SAT_GUI(QMainWindow):
         self.SettingsWin=SETTINGS(P)
         self.MODES=['USB','CW','FM','LSB']
         self.ax=None
+        self.event_type = None
         
         # Start by putting up the root window
         print('Init GUI ...')
@@ -117,15 +119,20 @@ class SAT_GUI(QMainWindow):
         self.cal.setGridVisible(True)
 
         # Don't allow calendar size to change when we resize the window
-        sizePolicy = QSizePolicy( QSizePolicy.Fixed,
-                                  QSizePolicy.Fixed)
-        self.cal.setSizePolicy(sizePolicy)
+        if False:
+            sizePolicy = QSizePolicy( QSizePolicy.Fixed,
+                                      QSizePolicy.Fixed)
+            self.cal.setSizePolicy(sizePolicy)
 
         # The Canvas where we will plot sky track
         self.fig2  = Figure()
         self.canv2 = FigureCanvas(self.fig2)
         self.grid.addWidget(self.canv2,row,ncols-1,nrows-1,1)
-        self.canv2.setMinimumSize(200,200)
+        #self.canv2.setMinimumSize(200,200)
+        #self.canv2.setFixedSize(200,200)
+        self.canv2.setFixedHeight(200)
+        self.canv2.setMinimumWidth(210)
+        #self.canv2.setGeometry(0,0,200,210)
 
         # Polar axis for sky track plot
         self.ax2 = self.fig2.add_subplot(111, projection='polar')
@@ -139,7 +146,12 @@ class SAT_GUI(QMainWindow):
 
         # Allow canvas size to change when we resize the window
         # but make is always visible
-        #self.canv2.setSizePolicy(sizePolicy)
+        if False:
+            sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, 
+                                      QSizePolicy.MinimumExpanding)
+            sizePolicy = QSizePolicy( QSizePolicy.Preferred,
+                                      QSizePolicy.Preferred)
+            self.canv2.setSizePolicy(sizePolicy)
 
         # The Canvas where we will put the graph with the pass times
         row=1
@@ -150,9 +162,15 @@ class SAT_GUI(QMainWindow):
 
         # Allow canvas size to change when we resize the window
         # but make is always visible
-        sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, 
-                                  QSizePolicy.MinimumExpanding)
-        self.canv.setSizePolicy(sizePolicy)
+        if False:
+            sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, 
+                                      QSizePolicy.MinimumExpanding)
+            sizePolicy = QSizePolicy( QSizePolicy.Preferred, 
+                                      QSizePolicy.Preferred)
+            #sizePolicy = QSizePolicy( QSizePolicy.Preferred, 
+            #                          QSizePolicy.Maximum)
+            self.canv.setSizePolicy(sizePolicy)
+        self.grid.setRowStretch(nrows,10)
 
         # Attach mouse click to handler
         cid = self.canv.mpl_connect('button_press_event', self.MouseClick)
@@ -173,6 +191,7 @@ class SAT_GUI(QMainWindow):
         col+=1
 
         # Push buttons to go forwarnd and backward one day
+        # These are disabled since I never seemed to use them
         if False:
             btn = QPushButton('')
             btn.setIcon(self.style().standardIcon(
@@ -187,8 +206,9 @@ class SAT_GUI(QMainWindow):
             btn.setToolTip('Click to advance 1 day')
             btn.clicked.connect(self.Advance)
             self.grid.addWidget(btn,row,col+1)
+            row+=1
 
-        row+=1
+        # Combo-boxes to set start end end times of graph
         Times=[]
         for i in range(25):
             t = '%2.2d:00' % i
@@ -262,6 +282,20 @@ class SAT_GUI(QMainWindow):
             self.grid.addWidget(self.mode_cb,row,col,1,2)
         else:
             self.mode_cb = None
+
+        # Buttons to quickly select CW & Phone
+        if True:
+            row+=1
+            btn = QPushButton('CW')
+            btn.setToolTip('Click to select CW')
+            btn.clicked.connect( functools.partial( self.ModeSelect,mode='CW' ))
+            self.grid.addWidget(btn,row,col,1,1)
+            
+            btn = QPushButton('Phone')
+            btn.setToolTip('Click to select Phone')
+            #btn.clicked.connect(self.ModeSelect)
+            btn.clicked.connect( functools.partial( self.ModeSelect,mode='Phone' ))
+            self.grid.addWidget(btn,row,col+1,1,1)
             
         # Panel to put the pass details when the user clicks on a pass
         row=0
@@ -368,9 +402,9 @@ class SAT_GUI(QMainWindow):
         row=0
         col+=3
         self.txt10 = QLabel(self)
-        self.txt10.setText(str(self.rit))
-        self.txt10.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        #self.txt10.setText(str(self.rit))
         self.txt10.setText("- RIT -")
+        self.txt10.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
         self.grid.addWidget(self.txt10,row,col,1,2)
 
         row+=1
@@ -415,9 +449,9 @@ class SAT_GUI(QMainWindow):
         row=0
         col+=2
         self.txt12 = QLabel(self)
-        self.txt12.setText(str(self.xit))
-        self.txt12.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        #self.txt12.setText(str(self.xit))
         self.txt12.setText("- XIT -")
+        self.txt12.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
         self.grid.addWidget(self.txt12,row,col,1,2)
 
         row+=1
@@ -461,6 +495,10 @@ class SAT_GUI(QMainWindow):
             self.Ready=False
             #return
             #sys.exit(0)
+
+        # Put up plotting window
+        if P.TEST_MODE:
+            self.PlotWin=PLOTTING(P)
         
         # This doesn't seem to be working quite right - idea is to limit size of window
         #self.win.resize(size_hint)
@@ -477,13 +515,23 @@ class SAT_GUI(QMainWindow):
         #print("Screen Res:",screen_resolution,width, height)
 
         
+    # Capture 'x' in upper right corner so that we can shut down gracefully
+    def closeEvent(self, event):
+        print("()(()()()()()( User has clicked the red x on the main window ()()()()()))")
+        if self.P.TEST_MODE:
+            self.PlotWin.close()
+        event.accept()
+        qApp.quit()
+        
 
     # Function to set rig mode
     def ModeSelect(self,mode=None):
         #print('MODE SELECT:',mode)
         if not mode or type(mode)==int:
             mode = self.P.gui.mode_cb.currentText()
-        print('MODE SELECT:',mode)
+        if mode=='Phone':
+            mode=self.P.transp['mode']
+        print('MODE SELECT: mode=',mode)
         self.P.ctrl.set_rig_mode( mode )
 
         self.txt15.setText(mode)
@@ -815,6 +863,9 @@ class SAT_GUI(QMainWindow):
         for name in sat_names:
             print('\nFind best:',name)
             Sat=self.Satellites[name]
+            if not Sat.main:
+                print('Hmmmm - no transponder for this sat - skipping')
+                continue
             
             # Observe sat at current time
             now = time.mktime( datetime.now().timetuple() )
@@ -877,49 +928,33 @@ class SAT_GUI(QMainWindow):
 
         # Plot sky track
         t=transit.start
+        tt=[]
         az=[]
         el=[]
         while t<transit.end:
             obs=predict.observe(tle, self.P.my_qth,at=t)
             #print('obs=',obs)
-            #tt.append(t)
+            tt.append(t)
             az.append(obs['azimuth'])
             el.append(obs['elevation'])
             t+=10
 
         # Save data for rotor tracking
-        self.track_az=np.array(az)
-        self.track_el=np.array(el)
+        self.track_t  = np.array(tt)
+        self.track_az = np.array(az)
+        self.track_el = np.array(el)
 
         # Determine if we need to flip the antenna to avoid crossing 180-deg
-        # First, see if the track transists into both the 2nd and 3rd quadrants
-        quad2 = np.logical_and(self.track_az>90 , self.track_az<180)
-        quad3 = np.logical_and(self.track_az>180 , self.track_az<270)
-        self.flipper = any(quad2) and any(quad3)
-        self.cross180 = self.flipper
+        flip_a_roo(self)
 
-        # If it does, check how far from 180-deg it goes
-        if self.flipper:
-            print('Flipper - New Sat Selected:',sat)
-            min2=360
-            max3=0
-            for i in range(len(az)):
-                if quad2[i]:
-                    min2=min(min2,az[i])
-                elif quad3[i]:
-                    max3=max(max3,az[i])
-            print('Min2=',min2,'\tMax3=',max3)
-            THRESH=15
-            if max3<180+THRESH or min2>180-THRESH:
-                #if max3-min3<10 or max2-min2<10:
-                print("\n######### Probably don't need the old flip-a-roo-ski ##############")
-                self.flipper = False
-        print('### Plot sky track: Flip-a-roo-ski=',self.flipper)
-
-        # Convert data to polar format
+        # Convert data to polar format & plot it
+        # Note that track_az & track_el might have been modified so we go back to
+        # the orig data for plotting purposes.
         RADIANS=np.pi/180.
-        az=(90-self.track_az)*RADIANS
-        r=90.-self.track_el
+        #az=(90-self.track_az)*RADIANS
+        #r=90.-self.track_el
+        az=(90.-np.array(az))*RADIANS
+        r=90.-np.array(el)
     
         self.ax2.clear()
         self.ax2.plot(az, r)
@@ -930,6 +965,14 @@ class SAT_GUI(QMainWindow):
         self.sky, = self.ax2.plot(0,0,'k*')
         self.ax2.set_rmax(90)
 
+        if True:
+            [fdop1,fdop2,az,el,rng] = \
+                self.Satellites[sat].Doppler_Shifts(0,0,self.P.my_qth)
+            print('Hey!',az,el,sat)
+            az90 = 90.-az
+            el90 = 90.-max(0.,el)
+            self.sky.set_data( (az90)*RADIANS, el90)
+
         xtics = ['E','','N','','W','','S','']
         self.ax2.set_xticklabels(xtics) 
         self.ax2.set_yticks([30, 60, 90])          # Less radial ticks
@@ -938,10 +981,17 @@ class SAT_GUI(QMainWindow):
         self.canv2.draw()
 
     
-    # Plot sat position
-    def plot_position(self,az,el,pos):
+    # Plot sat an rotor position
+    def plot_position(self,az=np.nan,el=np.nan,pos=[np.nan,np.nan]):
         RADIANS=np.pi/180.
         #print('\nPLOT_POSITION: az,el=',az,el,'\tflipper=',self.flipper)
+
+        P=self.P
+        if P.sock2.active:
+            pos=P.sock2.get_position()
+        else:
+            pos=[np.nan,np.nan]
+        print('\nPLOT_POSITION: az,el=',az,el,'\tpos=',pos)
 
         if pos[0]!=np.nan:
             if self.flipper:
@@ -1005,10 +1055,13 @@ class SAT_GUI(QMainWindow):
 
         # Plot sky track
         self.plot_sky_track(sat,ttt)
-    
-        
 
+        # Rotor diagnostics/alg development
+        if self.P.TEST_MODE:
+            #print('\nTEST_MODE:',self.cross180,self.flipper,self.event_type)
+            simulate_rotor(self)
 
+            
     # Function to create menu bar
     def create_menu_bar(self):
         print('Creating Menubar ...')
@@ -1030,7 +1083,7 @@ class SAT_GUI(QMainWindow):
         exitAct.triggered.connect(qApp.quit)
         fileMenu.addAction(exitAct)
 
-        # The Mode Mendu
+        # The Mode Menu
         modeMenu = menubar.addMenu('&Mode')
         for m in self.MODES:
             Act = QAction('&'+m, self)

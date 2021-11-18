@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 ###############################################################################
 
+# Freq tracking problems - resolved
 #sat='JO-97'
 #fname='satellites.log_jo97_ao91'
 
@@ -17,18 +18,29 @@ import matplotlib.pyplot as plt
 #fname='satellites.log_rs44_3'
 
 # Problem with flipper
-sat='CAS-4A'
-fname='satellites.log_cas4a'
+#sat='AO-7'
+#fname='satellites.log_ao7'                 # Screwy start - starts in 2nd quad close to boundary and moves to 3rd - new alg fixes
 
-sat='CAS-4B'
-fname='satellites.log_cas4b'               # Also has problem with flipper
-fname='satellites.log_cas4b_2'             # Not sure what rotor is doing here?
-fname='satellites.log_cas4b_3'             # Needs a flip-a-roo-ski
+#sat='SO-50'
+#fname='satellites.log_so50'                 # Screwy start - starts in 3rd quad close to boundary and moves to 2nd - new alg fixes
+
+sat='JO-97'                                # Screwy end 1st->2nd->3rd quads - new alg makes worse!!!!
+fname='satellites.log_jo97'
+fname='satellites.log_jo97_2'             # Bad start - new alg should fix
+
+#sat='AO-91'                                # Screwy start - 2nd->3rd->4th  - new alg fixes
+#fname='satellites.log_ao91'
+
+#sat='CAS-4A'
+#fname='satellites.log_cas4a'
+
+#sat='CAS-4B'
+#fname='satellites.log_cas4b'               # High overhead pass the really doesn't need the flipper - not sure what to do when this happens
 
 #sat='CAS-6'
 #fname='satellites.log_cas6'
 
-#sat='PO-101'
+#sat='PO-101'                               # igh overhead pass that lipper ent nuts
 #fname='satellites.log_po101'
 
 ###############################################################################
@@ -85,8 +97,8 @@ except:
 
 fup   = get_values(data,'fup',float)*1e-6
 fdown = get_values(data,'fdown',float)*1e-6
-print('fup  =',fup[:10])
-print('fdown=',fdown[:10])
+#print('fup  =',fup[:10])
+#print('fdown=',fdown[:10])
 
 frqA = get_values(data,'frqA',float)*1e-6
 frqB = get_values(data,'frqB',float)*1e-6
@@ -99,6 +111,8 @@ el = get_values(data,'el',float)
 paz = get_values(data,'pos[0]',float)
 pel = get_values(data,'pos[1]',float)
 flipper=get_values(data,'flipper',bool)
+#print('az  =',az[:10])
+#print('paz  =',paz[:10])
 #print('Flipper=',flipper)
 
 engaged=get_values(data,'rig_engaged',bool)
@@ -166,10 +180,10 @@ else:
     paz2=np.take(paz,idx)
     el2=np.take(el,idx)
     pel2=np.take(pel,idx)
-    ax.plot(times2 , az2 ,color='red',label='Sat')
-    ax.plot(times2 , paz2,color='orange',label='Rotor')
-    ax2.plot(times2, el2 ,color='blue',label='Sat')
-    ax2.plot(times2, pel2,color='cyan',label='Rotor')
+    ax.plot(times2 , az2 ,color='red',label='Sat Az')
+    ax.plot(times2 , paz2,color='orange',label='Rotor Az')
+    ax2.plot(times2, el2 ,color='blue',label='Sat El')
+    ax2.plot(times2, pel2,color='cyan',label='Rotor El')
     
     ax.set_xlabel('Time (?)')
     ax.set_ylabel('Az (deg)')
@@ -185,6 +199,9 @@ else:
         np.save(fp, el2)
         np.save(fp, pel2)
 
+    print('az2  =',az2[:10])
+    print('paz2  =',paz2[:10])
+        
     
 ax.grid(True)    
 plt.show()

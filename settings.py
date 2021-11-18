@@ -45,8 +45,7 @@ class SETTINGS(QMainWindow):
         self.items=['MY_GRID','MY_LAT','MY_LON','MY_ALT']
         self.eboxes=[] 
         for label,item in zip(labels,self.items):
-            #ebox = self.newEntry(label,item,row,col)
-
+            
             lab = QLabel(self)
             lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
             lab.setText(label)
@@ -76,8 +75,9 @@ class SETTINGS(QMainWindow):
         lab.setText('Known Satellites:')
         self.grid.addWidget(lab,row,col,1,1)
 
-        # List of available satellites and whether we want them
+        # List of available satellites, whether we want them & tuning offsets
         self.cboxes=[]
+        self.eboxes1=[]
         self.eboxes2=[]
         isat=0
         OFFSETS=self.P.SETTINGS['OFFSETS']
@@ -90,14 +90,26 @@ class SETTINGS(QMainWindow):
                 cbox.setChecked(True)
                 
             ebox = QLineEdit(self)
-            self.eboxes2.append(ebox)
+            self.eboxes1.append(ebox)
             try:
-                txt=str(OFFSETS[sat])
+                #txt="0"   # str(OFFSETS[sat][0])
+                txt=str(OFFSETS[sat][0])
             except:
                 txt="0"
             ebox.setText(txt)
             ebox.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
             self.grid.addWidget(ebox,row,col+1,1,1)
+            
+            ebox = QLineEdit(self)
+            self.eboxes2.append(ebox)
+            try:
+                txt=str(OFFSETS[sat][1])
+            except:
+                txt="0"
+            ebox.setText(txt)
+            ebox.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            self.grid.addWidget(ebox,row,col+2,1,1)
+            
             isat+=1
                 
         # Buttons to complete or abandon the update
@@ -122,9 +134,9 @@ class SETTINGS(QMainWindow):
         # Collect things related to the list of sats
         ACTIVE=[]
         OFFSETS={}
-        for sat,cbox,ebox in zip(SATELLITE_LIST,self.cboxes,self.eboxes2):
+        for sat,cbox,ebox1,ebox2 in zip(SATELLITE_LIST,self.cboxes,self.eboxes1,self.eboxes2):
             if sat!='None':
-                OFFSETS[sat] = int(ebox.text())
+                OFFSETS[sat] = [int(ebox1.text()) , int(ebox2.text())]
                 if cbox.isChecked():
                     ACTIVE.append(sat)
 

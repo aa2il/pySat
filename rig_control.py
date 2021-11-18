@@ -20,10 +20,6 @@
 #
 ################################################################################
 
-ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
-
-################################################################################
-
 import sys
 import numpy as np
 from PyQt5 import QtCore
@@ -31,6 +27,7 @@ from PyQt5.QtWidgets import *
 import time
 from datetime import timedelta,datetime
 from rig_io.ft_tables import SATELLITE_LIST
+from rotor import *
 
 ################################################################################
 
@@ -82,9 +79,13 @@ class RigControl:
             if gui.New_Sat_Selection:
                 print('\nNew Sat Selected:',gui.Selected)
                 P.satellite = gui.Satellites[gui.Selected]
-                P.transp    = P.satellite.transponders[P.satellite.main]
-                print('main=',P.satellite.main)
-                print('transp=',P.transp)
+                if P.satellite.main:
+                    P.transp    = P.satellite.transponders[P.satellite.main]
+                    print('main=',P.satellite.main)
+                    print('transp=',P.transp)
+                else:
+                    print('Hmmmm - no transponder for this sat')
+                    return
 
                 # Put rig into sat mode
                 if P.sock.rig_type2=='FT991a':
@@ -125,14 +126,17 @@ class RigControl:
                 # Set XIT for this sat
                 OFFSETS=self.P.SETTINGS['OFFSETS']
                 try:
-                    gui.xit=OFFSETS[gui.Selected]
+                    gui.rit=OFFSETS[gui.Selected][0]
+                    gui.xit=OFFSETS[gui.Selected][1]
                 except Exception as e: 
                     print(e)
-                    print('--- Unable to set XIT ---\tsat=',\
+                    print('--- Unable to set RIT/XIT ---\tsat=',\
                           gui.Selected)
                     print('OFFSETS=',OFFSETS)
-                    gui.it=0
+                    gui.rit=0
+                    gui.xit=0
                     #sys.exit(0)        
+                gui.txt11.setText(str(gui.rit))
                 gui.txt13.setText(str(gui.xit))
  
             else:
@@ -215,7 +219,8 @@ class RigControl:
             #print('Non:',P.transp['fup1'],df,self.fup)
             
         # Compute Doppler shifts for up and down links
-        [self.fdop1,self.fdop2,self.az,self.el] = P.satellite.Doppler_Shifts(self.fdown,self.fup,P.my_qth)
+        [self.fdop1,self.fdop2,self.az,self.el,rng] = \
+            P.satellite.Doppler_Shifts(self.fdown,self.fup,P.my_qth)
 
         # Set up and down link freqs
         if len(self.vfos)>1:
@@ -233,42 +238,8 @@ class RigControl:
         #print(self.frqA,self.frqB)
 
         # Form new rotor position
-        if self.el>=0:
-            # Sat is above the horizon so point to calculated sat position
-            new_pos=[self.az,self.el]
-        else:
-            # Sat is below the horizon so point to starting point on track
-            new_pos=[gui.track_az[0] , 0]
-
-        # Flip antenna if needed to avoid ambiquity at 180-deg
-        if gui.flipper:
-            print('*** Need a Flip-a-roo-ski ***')
-            if new_pos[0]<180:
-                new_pos = [new_pos[0]+180. , 180.-new_pos[1]]
-            else:
-                new_pos = [new_pos[0]-180. , 180.-new_pos[1]]
-
-        # Update rotor 
-        rotor_updated=False
-        if P.sock2.active:
-            
-            # Current rotor position
-            pos=P.sock2.get_position()
-
-            # Compute pointing error & adjust rotor if the error is large enough
-            daz=pos[0]-new_pos[0]
-            de =pos[1]-new_pos[1]
-            #print('pos=',pos,'\taz/el=',az,el,'\tdaz/del=',daz,de, \
-            #      '\n\tnew_pos=',new_pos)
-            if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
-                if gui.rig_engaged or gui.rotor_engaged or Force:
-                    P.sock2.set_position(new_pos)
-                    rotor_updated=True
-                
-        else:
-            pos=[np.nan,np.nan]
-            daz=np.nan
-            de=np.nan
+        rotor_updated,pos,daz,de,new_pos = \
+            rotor_positioning_old(gui,self.az,self.el,Force)
 
         # Update sky track
         gui.plot_position(self.az,self.el,pos)
@@ -296,6 +267,8 @@ class RigControl:
             gui.txt7.setText('Not flipped')
         #self.update_aos_los()
 
+        gui.SRng.setText( '%d miles' % rng )
+        
         # Save log file to assist in further development
         self.save_diagnostics(tag,df,pos,new_pos,daz,de,rotor_updated)
         
@@ -345,10 +318,13 @@ class RigControl:
         
         if daos>0:
             gui.txt9.setText("AOS in\t"+self.hms(daos))
+            gui.event_type = 1
         elif dlos>0:
             gui.txt9.setText("LOS in\t"+self.hms(dlos))
+            gui.event_type = 0
         else:
             gui.txt9.setText("Past Event")
+            gui.event_type = -1
 
         if False:
             screen = QDesktopWidget().screenGeometry()
