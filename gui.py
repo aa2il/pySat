@@ -969,9 +969,10 @@ class SAT_GUI(QMainWindow):
             [fdop1,fdop2,az,el,rng] = \
                 self.Satellites[sat].Doppler_Shifts(0,0,self.P.my_qth)
             print('Hey!',az,el,sat)
-            az90 = 90.-az
-            el90 = 90.-max(0.,el)
-            self.sky.set_data( (az90)*RADIANS, el90)
+            self.plot_position(az,el)
+            #az90 = 90.-az
+            #el90 = 90.-max(0.,el)
+            #self.sky.set_data( (az90)*RADIANS, el90)
 
         xtics = ['E','','N','','W','','S','']
         self.ax2.set_xticklabels(xtics) 

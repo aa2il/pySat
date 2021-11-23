@@ -61,6 +61,8 @@ class PARAMS:
                               type=int,default=24)
         arg_proc.add_argument('-udp', action='store_true',
                               help='Start UDP client')
+        arg_proc.add_argument('-gps', action='store_true',
+                              help='Read GPS info from .gpsrc file')
         arg_proc.add_argument('-test', action='store_true',
                               help='Test Mode')
         
@@ -79,6 +81,7 @@ class PARAMS:
             self.rig       = None
         self.PORT          = args.port
         self.UDP_CLIENT    = args.udp
+        self.GPS           = args.gps
         self.TEST_MODE     = args.test
 
         self.GRID2         = args.grid2
@@ -110,7 +113,8 @@ class PARAMS:
             with open(self.RCFILE) as json_data_file:
                 self.SETTINGS = json.load(json_data_file)
         except:
-            print(self.RCFILE,' not found - need call!\n')
+            print(self.RCFILE,' not found!\n')
+            sys.exit(0)
 
         self.MY_GRID    = args.grid
         if self.MY_GRID==None:

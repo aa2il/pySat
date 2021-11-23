@@ -81,6 +81,7 @@ from sat_class import SATELLITE
 from gui import SAT_GUI
 from tcp_client import *
 from latlon2maiden import *
+from fileio import read_gps_coords
 
 ################################################################################
 
@@ -134,12 +135,17 @@ if False:
     print('Based on grid square: \tMy QTH:',P.MY_GRID,P.my_qth)
 else:
     # Based on lat/long/alt from GPS
-    lat = float( P.SETTINGS['MY_LAT'] )
-    lon = float( P.SETTINGS['MY_LON'] )
-    alt = float( P.SETTINGS['MY_ALT'] )
+    if P.GPS:
+        [lat,lon,alt,gridsq]=read_gps_coords()
+        print('loc=',[lat,lon,alt,gridsq])
+    else:
+        lat = float( P.SETTINGS['MY_LAT'] )
+        lon = float( P.SETTINGS['MY_LON'] )
+        alt = float( P.SETTINGS['MY_ALT'] )
     P.MY_GRID = latlon2maidenhead(lat,lon,12)
     P.my_qth = (lat,-lon,alt)
     print('Based on GPS: \t\tMy QTH:',P.MY_GRID,P.my_qth)
+    #sys.exit(0)
 
 if False:
     # Experiment with various precisions - locator in pyhamtools doesn't
