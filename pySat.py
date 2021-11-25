@@ -218,7 +218,8 @@ P.ctrl = RigControl(P,1)
 date = P.gui.date_changed()
 sat,ttt=P.gui.find_next_transit([P.sat_name])
 print('Here we go...')
-P.gui.plot_sky_track(sat,ttt)
+if sat:
+    P.gui.plot_sky_track(sat,ttt)
 
 # Event loop
 print('And away we go ...')

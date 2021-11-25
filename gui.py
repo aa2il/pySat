@@ -38,7 +38,7 @@ import functools
 import numpy as np
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QPixmap
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -92,6 +92,12 @@ class SAT_GUI(QMainWindow):
         self.MODES=['USB','CW','FM','LSB']
         self.ax=None
         self.event_type = None
+
+        # Put up splash screen until we're ready
+        self.splash = QSplashScreen(QPixmap('splash.png'))
+        self.splash.show()
+        time.sleep(.01)
+        self.P.app.processEvents()
         
         # Start by putting up the root window
         print('Init GUI ...')
@@ -487,6 +493,7 @@ class SAT_GUI(QMainWindow):
         # Let's roll!
         self.show()
         self.Ready=True
+        self.splash.destroy()
         
         # Check if we have a valid set of settings
         if not P.SETTINGS:
@@ -535,7 +542,8 @@ class SAT_GUI(QMainWindow):
         self.P.ctrl.set_rig_mode( mode )
 
         self.txt15.setText(mode)
-        self.statusBar.showMessage('Set rig mode to '+mode)
+        if self.statusBar:
+            self.statusBar.showMessage('Set rig mode to '+mode)
         if self.mode_cb:
             idx = self.MODES.index( mode )
             self.mode_cb.setCurrentIndex(idx)
@@ -795,7 +803,7 @@ class SAT_GUI(QMainWindow):
         self.ax.xaxis.set_major_formatter(myFmt)
         self.ax.set_xlim(self.date1,self.date1+timedelta(hours=24))
 
-        self.ax.set_xlabel('Local Time', fontsize=18)
+        #self.ax.set_xlabel('Local Time', fontsize=16)
         #self.ax.set_ylabel('Satellite', fontsize=16)
 
         # Fix-up vertical axis
@@ -847,7 +855,10 @@ class SAT_GUI(QMainWindow):
         # Update Gui
         self.ax.set_xlim(date1,date2)
         DATE = self.date1.strftime('%m/%d/%y')
-        self.ax.set_title('Satellite Passes over '+self.P.MY_GRID+' for '+DATE)
+        grd=self.P.MY_GRID
+        if len(grd)>6:
+            grd=grd[:6]
+        self.ax.set_title('Satellite Passes over '+grd+' for '+DATE+ '(Local Time)')
         self.canv.draw()
 
         self.cal.setSelectedDate(self.date1)
@@ -876,14 +887,21 @@ class SAT_GUI(QMainWindow):
                 #print(now,obs.start,obs.end)
 
             # Look at next transit for this sat
-            p = predict.transits(Sat.tle, self.P.my_qth, ending_after=now)
-            transit = next(p)
-            print('Transit vars:', vars(transit) )
+            try:
+                p = predict.transits(Sat.tle, self.P.my_qth, ending_after=now)
+                transit = next(p)
+                print('Transit vars:', vars(transit) )
 
-            # Keep track of next transit
-            if transit.start<tnext:
-                best=name
-                tnext=transit.start
+                # Keep track of next transit
+                if transit.start<tnext:
+                    best=name
+                    tnext=transit.start
+                    
+            except Exception as e: 
+                print('================== Predict Failure for sat',name)
+                print(e)
+                best=None
+                tnext=None
 
         ttt = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(tnext))
         print('\nNext transit:',best,ttt,'\n')
@@ -1067,7 +1085,9 @@ class SAT_GUI(QMainWindow):
     def create_menu_bar(self):
         print('Creating Menubar ...')
 
-        self.statusBar=self.statusBar()
+        # The status bar is a nice concept but takes up too much room for now
+        #self.statusBar=self.statusBar()
+        self.statusBar=None
         menubar = self.menuBar()
 
         # The File Menu

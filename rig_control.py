@@ -312,9 +312,13 @@ class RigControl:
         
         now = time.mktime( datetime.now().timetuple() )
         #print('now=',now,'\taos=',gui.aos,'\tlos=',gui.los)
-        daos=gui.aos-now
-        dlos=gui.los-now
-        #print('d-aos=',daos,'\td-los=',dlos)
+        try:
+            daos=gui.aos-now
+            dlos=gui.los-now
+            #print('d-aos=',daos,'\td-los=',dlos)
+        except:
+            daos=0
+            dlos=0
         
         if daos>0:
             gui.txt9.setText("AOS in\t"+self.hms(daos))
