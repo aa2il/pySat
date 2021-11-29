@@ -290,18 +290,18 @@ class SAT_GUI(QMainWindow):
             self.mode_cb = None
 
         # Buttons to quickly select CW & Phone
-        if True:
-            row+=1
-            btn = QPushButton('CW')
-            btn.setToolTip('Click to select CW')
-            btn.clicked.connect( functools.partial( self.ModeSelect,mode='CW' ))
-            self.grid.addWidget(btn,row,col,1,1)
+        row+=1
+        self.CWbtn = QPushButton('CW')
+        self.CWbtn.setToolTip('Click to select CW')
+        self.CWbtn.clicked.connect( functools.partial( self.ModeSelect,mode='CW' ))
+        self.grid.addWidget(self.CWbtn,row,col,1,1)
+        self.CWbtn.setCheckable(True)
             
-            btn = QPushButton('Phone')
-            btn.setToolTip('Click to select Phone')
-            #btn.clicked.connect(self.ModeSelect)
-            btn.clicked.connect( functools.partial( self.ModeSelect,mode='Phone' ))
-            self.grid.addWidget(btn,row,col+1,1,1)
+        self.PHbtn = QPushButton('Phone')
+        self.PHbtn.setToolTip('Click to select Phone')
+        self.PHbtn.clicked.connect( functools.partial( self.ModeSelect,mode='Phone' ))
+        self.grid.addWidget(self.PHbtn,row,col+1,1,1)
+        self.PHbtn.setCheckable(True)
             
         # Panel to put the pass details when the user clicks on a pass
         row=0
@@ -534,9 +534,9 @@ class SAT_GUI(QMainWindow):
     # Function to set rig mode
     def ModeSelect(self,mode=None):
         #print('MODE SELECT:',mode)
-        if not mode or type(mode)==int:
-            mode = self.P.gui.mode_cb.currentText()
-        if mode=='Phone':
+        #if self.mode_cb and (not mode or type(mode)==int):
+        #    mode = self.mode_cb.currentText()
+        if not mode or mode=='Phone':
             mode=self.P.transp['mode']
         print('MODE SELECT: mode=',mode)
         self.P.ctrl.set_rig_mode( mode )
@@ -547,7 +547,14 @@ class SAT_GUI(QMainWindow):
         if self.mode_cb:
             idx = self.MODES.index( mode )
             self.mode_cb.setCurrentIndex(idx)
-        
+
+        if mode=='CW':
+            self.CWbtn.setChecked(True)
+            self.PHbtn.setChecked(False)
+        else:
+            self.CWbtn.setChecked(False)
+            self.PHbtn.setChecked(True)
+            
         return mode
         
     # Function to re-tune to center of transponder passband
