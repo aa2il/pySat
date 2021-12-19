@@ -138,11 +138,22 @@ else:
     if P.GPS:
         [lat,lon,alt,gridsq]=read_gps_coords()
         print('loc=',[lat,lon,alt,gridsq])
-    else:
+        P.MY_GRID = latlon2maidenhead(lat,lon,12)
+        
+        P.SETTINGS['MY_LAT'] = lat        
+        P.SETTINGS['MY_LON'] = lon
+        P.SETTINGS['MY_ALT'] = alt        
+        P.SETTINGS['MY_GRID'] = P.MY_GRID        
+    elif 1:
         lat = float( P.SETTINGS['MY_LAT'] )
         lon = float( P.SETTINGS['MY_LON'] )
         alt = float( P.SETTINGS['MY_ALT'] )
-    P.MY_GRID = latlon2maidenhead(lat,lon,12)
+        P.MY_GRID = latlon2maidenhead(lat,lon,12)
+    else:
+        P.MY_GRID = 'DM37QG46ML'
+        lat, lon = maidenhead2latlon(P.MY_GRID)
+        alt=1654
+        
     P.my_qth = (lat,-lon,alt)
     print('Based on GPS: \t\tMy QTH:',P.MY_GRID,P.my_qth)
     #sys.exit(0)

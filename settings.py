@@ -41,8 +41,8 @@ class SETTINGS(QMainWindow):
         # Boxes to hold geographic info (i.e. gps data)
         row=0
         col=0
-        labels=['My Grid:','Latitude:','Longitude:','Altitude (m):']
-        self.items=['MY_GRID','MY_LAT','MY_LON','MY_ALT']
+        labels=['My Call:','My Grid:','Latitude:','Longitude:','Altitude (m):']
+        self.items=['MY_CALL','MY_GRID','MY_LAT','MY_LON','MY_ALT']
         self.eboxes=[] 
         for label,item in zip(labels,self.items):
             
@@ -66,14 +66,15 @@ class SETTINGS(QMainWindow):
         # Separater for next section
         lab = QLabel(self)
         lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        lab.setText('-----------')
+        lab.setText('----- Known Satellites: -----')
         self.grid.addWidget(lab,row,col,1,1)
 
-        row+=1
-        lab = QLabel(self)
-        lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        lab.setText('Known Satellites:')
-        self.grid.addWidget(lab,row,col,1,1)
+        if False:
+            row+=1
+            lab = QLabel(self)
+            lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            lab.setText('Known Satellites:')
+            self.grid.addWidget(lab,row,col,1,1)
 
         # List of available satellites, whether we want them & tuning offsets
         self.cboxes=[]
@@ -81,8 +82,13 @@ class SETTINGS(QMainWindow):
         self.eboxes2=[]
         isat=0
         OFFSETS=self.P.SETTINGS['OFFSETS']
+        row0=row+1
         for sat in SATELLITE_LIST:
             row+=1
+            if row>row0+16:
+                row=row0
+                col+=4
+            
             cbox = QCheckBox(sat)
             self.grid.addWidget(cbox,row,col,1,1)
             self.cboxes.append(cbox)
@@ -113,8 +119,8 @@ class SETTINGS(QMainWindow):
             isat+=1
                 
         # Buttons to complete or abandon the update
-        row+=1
-        col=0
+        row+=2
+        col+=1
         button1 = QPushButton('OK')
         button1.setToolTip('Click to Update Settings')
         button1.clicked.connect(self.Update)

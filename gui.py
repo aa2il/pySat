@@ -66,6 +66,7 @@ from sat_class import SATELLITE
 #from rig_io.ft_tables import SATELLITE_LIST
 
 from settings import *
+from Logging import *
 from rotor import *
 
 ################################################################################
@@ -89,6 +90,7 @@ class SAT_GUI(QMainWindow):
         self.xit = 0
         self.Ready=False
         self.SettingsWin=SETTINGS(P)
+        self.LoggingWin=LOGGING(P)
         self.MODES=['USB','CW','FM','LSB']
         self.ax=None
         self.event_type = None
@@ -496,6 +498,7 @@ class SAT_GUI(QMainWindow):
         self.splash.destroy()
         
         # Check if we have a valid set of settings
+        self.LoggingWin.hide()
         if not P.SETTINGS:
             self.SettingsWin.show()
             print('\n*** Need to re-start ***\n')
@@ -933,30 +936,29 @@ class SAT_GUI(QMainWindow):
         tle  = self.Satellites[sat].tle
         
         p = predict.transits(tle, self.P.my_qth, ending_after=ttt)
-        #print p
-        transit = next(p)
+        self.transit = next(p)
         #print('Transit vars:', vars(transit) )
-        tstart = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(transit.start))
-        tend   = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(transit.end))
+        tstart = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.start))
+        tend   = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.end))
         print(("%s\t%s\t%f\t%f" %
-               (tstart,tend,transit.duration()/60., transit.peak()['elevation'])))
-        print('Transit Peak:',transit.peak())
+               (tstart,tend,self.transit.duration()/60., self.transit.peak()['elevation'])))
+        print('Transit Peak:',self.transit.peak())
     
         # Update GUI
         self.SatName.setText( sat )
-        self.aos=transit.start
-        self.los=transit.end
+        self.aos=self.transit.start
+        self.los=self.transit.end
         self.AOS.setText( time.strftime('%H:%M:%S', time.localtime(self.aos) ))
         self.LOS.setText( time.strftime('%H:%M:%S', time.localtime(self.los) ))
-        self.PeakEl.setText( '%6.1f deg.' % transit.peak()['elevation'] )
-        self.SRng.setText( '%d miles' % transit.peak()['slant_range'] )
+        self.PeakEl.setText( '%6.1f deg.' % self.transit.peak()['elevation'] )
+        self.SRng.setText( '%d miles' % self.transit.peak()['slant_range'] )
 
         # Plot sky track
-        t=transit.start
+        t=self.transit.start
         tt=[]
         az=[]
         el=[]
-        while t<transit.end:
+        while t<self.transit.end:
             obs=predict.observe(tle, self.P.my_qth,at=t)
             #print('obs=',obs)
             tt.append(t)
@@ -1104,6 +1106,11 @@ class SAT_GUI(QMainWindow):
         settingsAct.setStatusTip('Settings Dialog')
         settingsAct.triggered.connect( self.SettingsWin.show )
         fileMenu.addAction(settingsAct)
+
+        loggingAct = QAction('&Logging...', self)
+        loggingAct.setStatusTip('Logging Dialog')
+        loggingAct.triggered.connect( self.LoggingWin.log_qso )
+        fileMenu.addAction(loggingAct)
 
         exitAct = QAction('&Exit', self)
         #exitAct.setShortcut('Ctrl+Q')
