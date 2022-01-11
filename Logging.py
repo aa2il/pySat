@@ -107,28 +107,35 @@ class LOGGING(QMainWindow):
         qso['CALL']=''
         qso['NAME']=''
 
-        # Set fields that re determined by the sat
-        sat=gui.Selected
-        qso['SAT_NAME']=sat
+        # Get transponder for the currently selected sat
+        sat = gui.Satellites[gui.Selected]
+        if sat.main:
+            transp    = sat.transponders[sat.main]
+            print('main=',sat.main)
+            print('transp=',transp)
+        else:
+            print('Hmmmm - no transponder for this sat')
+            sys.exit(0)        
 
-        mode=P.transp['mode']
+        # Set fields that are determined by the sat
+        qso['SAT_NAME']=gui.Selected
+
+        mode=transp['mode']
         qso['MODE']=mode
         
-        fdown = 0.5*(P.transp['fdn1']+P.transp['fdn2'])*1e-6
+        fdown = 0.5*(transp['fdn1']+transp['fdn2'])*1e-6
         qso['FREQ_RX']=round(fdown,3)
         band=str( P.sock.get_band(fdown) )
         if band[-1]!='m':
             band += 'm'
         qso['BAND_RX']=band
-        #print('fdown=',P.transp['fdn1']*1e-6,round(P.transp['fdn2']*1e-6,3))
 
-        fup   = 0.5*(P.transp['fup1']+P.transp['fup2'])*1e-6
+        fup   = 0.5*(transp['fup1']+transp['fup2'])*1e-6
         qso['FREQ']=round(fup,3)
         band=str( P.sock.get_band(fup) )
         if band[-1]!='m':
             band += 'm'
         qso['BAND']=band
-        #print('fup=',P.transp['fup1']*1e-6,round(P.transp['fup2']*1e-6,3))
 
         t = 0.5*(gui.transit.start +gui.transit.end)
         qso['TIME_OFF']=time.strftime('%H:%M:%S', time.gmtime(t))

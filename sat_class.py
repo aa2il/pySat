@@ -36,20 +36,32 @@ from datetime import timedelta,datetime
 
 # Function to assemble TLE data for a particular satellite
 def get_tle(TLE,sat):
+    sat2=sat
     if sat=='CAS-6':
-        sat='TO-108'
+        sat2='TO-108'
         print('GET_TLE: Warning - name change for TO-107 to CAS-6')
     elif sat=='AO-7':
-        sat='AO-07'
+        sat2='AO-07'
         print('GET_TLE: Warning - name change for AO-7 to AO-07')
+    elif sat=='XW-3':
+        sat2='XW 3'
+        print('GET_TLE: Warning - name change for XW-3 to XW 3')
     elif sat=='FS-3':
-        sat='Falconsat-3'
+        sat2='Falconsat-3'
         print('GET_TLE: Warning - name change for FS-3 to Falconsat-3')
-    idx  = TLE.index(sat)
-    tle  = TLE[idx]   + '\n'
-    tle += TLE[idx+1] + '\n' 
-    tle += TLE[idx+2] + '\n'
+        
+    idx  = TLE.index(sat2)
+    
+    #tle  = TLE[idx]   + '\n'
+    #tle += TLE[idx+1] + '\n' 
+    #tle += TLE[idx+2] + '\n'
+    
+    tle = sat + '\n' \
+        + TLE[idx+1] + '\n' \
+        + TLE[idx+2] + '\n'
 
+    #print('GET_TLE: tle=',tle)
+    
     return tle
 
 ################################################################################
@@ -135,11 +147,11 @@ class SATELLITE:
 
         # We use the transponder data that has already been parsed
         # by Gpredict - for this, we need the sat number
+        print('GET_TRANSPONDERS: tle =',self.tle)
         tle2=self.tle.split()
-        #print('tle =',self.tle)
-        #print('tle2=',tle2)
+        print('GET_TRANSPONDERS: tle2=',tle2)
         self.number=int( tle2[2][:-1] )
-        #print(self.number)
+        print('GET_TRANSPONDERS: number=',self.number)
         self.main=None
 
         fname = os.path.expanduser(TRANSP_DATA+'/'+str(self.number)+'.trsp')

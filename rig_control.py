@@ -99,7 +99,8 @@ class RigControl:
                     self.check_ic9700_bands(P)
                 elif P.sock.rig_type2=='pySDR':
                     self.vfos=['A']
-                elif P.sock.rig_type2==None or P.sock.rig_type2=='Dummy':
+                elif P.sock.rig_type2==None or P.sock.rig_type2=='None' \
+                     or P.sock.rig_type2=='Dummy':
                     self.vfos=['A','B']
                 else:
                     print('UPDATER: Unknown rig',P.sock.rig_type2,' - Aborting')
