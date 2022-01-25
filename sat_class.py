@@ -165,7 +165,8 @@ class SATELLITE:
 
             # Get details for this transponder
             items=dict( config.items(transp) )
-            #print(items)
+            if self.name=='HO-113':
+                print('\nitems=',items)
             items['fdn1']=int( items['down_low'] )
             if 'down_high' in items:
                 items['fdn2']=int( items['down_high'] )
@@ -182,18 +183,17 @@ class SATELLITE:
             else:
                 items['fup2']=items['fup1']
 
+            # Decipher info about this transponder
+            transp2=transp.upper()
+            print('name=',self.name,'\ttransp2=',transp2)
             items['Inverting']=False
+            if self.name=='HO-113' and 'MODE V/U' in transp2:
+                items['Inverting']=True
             if 'invert' in items:
                 if items['invert']=='true':
                     items['Inverting']=True
-            if items['Inverting'] and False:
-                tmp=items['fup2']
-                items['fup2']=items['fup1']
-                items['fup1']=tmp                
 
             # Find the main transponder
-            transp2=transp.upper()
-            print('name=',self.name,'\ttransp2=',transp2)
             if self.name=='ISS':
                 if 'VOICE REPEATER' in transp2:
                     self.main=transp

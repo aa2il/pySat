@@ -1089,7 +1089,12 @@ class SAT_GUI(QMainWindow):
             #print('\nTEST_MODE:',self.cross180,self.flipper,self.event_type)
             simulate_rotor(self)
 
-            
+    # Function to send the rotor home
+    def RotorHome(self):
+        print('Sending rotor home ...')
+        self.P.sock2.set_position([0,0])
+        
+                    
     # Function to create menu bar
     def create_menu_bar(self):
         print('Creating Menubar ...')
@@ -1125,3 +1130,12 @@ class SAT_GUI(QMainWindow):
             Act.setStatusTip('Set uplink mode to '+m)
             Act.triggered.connect( functools.partial( self.ModeSelect,mode=m ))
             modeMenu.addAction(Act)
+
+        # Rotor Menu
+        rotorMenu = menubar.addMenu('&Rotor')
+        Act = QAction('&Rotor Home', self)
+        Act.setStatusTip('Send Rotor to (0,0)')
+        Act.triggered.connect( functools.partial( self.RotorHome ))
+        rotorMenu.addAction(Act)
+
+
