@@ -727,8 +727,7 @@ class SAT_GUI(QMainWindow):
 
     # Handler called when the date selection has changed
     def date_changed(self):
-
-        print('Date Changed:')
+        #print('Date Changed:')
 
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
@@ -841,7 +840,7 @@ class SAT_GUI(QMainWindow):
 
     # Function to draw spots on the map
     def UpdateMap(self):
-        print('UpdateMap...')
+        #print('UpdateMap...')
         if not self.Ready:
             return
 
@@ -849,7 +848,7 @@ class SAT_GUI(QMainWindow):
         if self.now:
             self.now.remove()
         now=datetime.now()
-        print('now=',now)
+        #print('now=',now)
         tt=[now,now]
         yy=self.ax.get_ylim()
         self.now,=self.ax.plot(tt,yy,'b--')
@@ -922,7 +921,7 @@ class SAT_GUI(QMainWindow):
     def plot_sky_track(self,sat,ttt):
         self.Selected=sat
         self.New_Sat_Selection=True
-        print('### Plot Sky Track: flipper=',self.flipper)
+        # print('### Plot Sky Track: flipper=',self.flipper)
 
         # Turn off rig tracking when we select a new sat
         self.rig_engaged = False
@@ -978,8 +977,6 @@ class SAT_GUI(QMainWindow):
         # Note that track_az & track_el might have been modified so we go back to
         # the orig data for plotting purposes.
         RADIANS=np.pi/180.
-        #az=(90-self.track_az)*RADIANS
-        #r=90.-self.track_el
         az=(90.-np.array(az))*RADIANS
         r=90.-np.array(el)
     
@@ -992,14 +989,9 @@ class SAT_GUI(QMainWindow):
         self.sky, = self.ax2.plot(0,0,'k*')
         self.ax2.set_rmax(90)
 
-        if True:
-            [fdop1,fdop2,az,el,rng] = \
-                self.Satellites[sat].Doppler_Shifts(0,0,self.P.my_qth)
-            print('Hey!',az,el,sat)
-            self.plot_position(az,el)
-            #az90 = 90.-az
-            #el90 = 90.-max(0.,el)
-            #self.sky.set_data( (az90)*RADIANS, el90)
+        [fdop1,fdop2,az,el,rng] = \
+            self.Satellites[sat].Doppler_Shifts(0,0,self.P.my_qth)
+        self.plot_position(az,el)
 
         xtics = ['E','','N','','W','','S','']
         self.ax2.set_xticklabels(xtics) 
@@ -1058,9 +1050,9 @@ class SAT_GUI(QMainWindow):
             print('\txdat,ydat:',event.xdata, event.ydata)
             return
 
-        print(('\n%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
-               ('double' if event.dblclick else 'single', event.button,
-                event.x, event.y, event.xdata, event.ydata)))
+        # print(('\n%s click: button=%d, x=%d, y=%d, xdata=%f, ydata=%f' %
+        #       ('double' if event.dblclick else 'single', event.button,
+        #        event.x, event.y, event.xdata, event.ydata)))
 
         # Decode sat name and time
         isat = int( round( event.ydata ) )
@@ -1068,10 +1060,10 @@ class SAT_GUI(QMainWindow):
         print('sat:',isat,sat)
 
         xx = self.ax.get_xlim()
-        print('xx=',xx)
+        # print('xx=',xx)
         t = self.date1 + timedelta(days=event.xdata - int(xx[0]) )
         tt = time.mktime(t.timetuple())
-        print('t=',t,tt)
+        # print('t=',t,tt)
 
         # Find closest pass to this time
         pass_times = self.pass_times[isat-1]
@@ -1079,7 +1071,7 @@ class SAT_GUI(QMainWindow):
         dt = abs( pass_times - tt )
         idx = np.argmin(dt)
         ttt = pass_times[idx]
-        print(idx,ttt)
+        # print('idx=',idx,'\tttt=',ttt)
 
         # Plot sky track
         self.plot_sky_track(sat,ttt)

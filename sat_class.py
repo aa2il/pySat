@@ -27,6 +27,7 @@ MIN_PEAK_EL  = 30       # Degrees, minimum elevation to identify overhead passes
 
 import predict
 import os
+import sys
 from configparser import ConfigParser 
 from collections import OrderedDict
 import time
@@ -92,6 +93,8 @@ class SATELLITE:
         self.t2 = []
         self.y2 = []
         tlast=0
+        ts_old=None
+        te_old=None
         while True:
 
             # Move through list of passes & break if we're done
@@ -103,10 +106,23 @@ class SATELLITE:
             # Determine start & end times for this pass
             ts = datetime.fromtimestamp(transit.start)
             te = datetime.fromtimestamp(transit.end)
+            #print('ts=',ts,'\tte=',te)
+
+            # AO-7 seems to have a problem with getting stuck in infinite loops
+            # Avoid this
+            if te_old and te<te_old:
+                print('ts_old=',ts_old,'\tte_old=',te_old)
+                print('ts    =',ts,    '\tte    =',te)
+                print('Hmmm - we seem to be going backwards here !!!')
+                break
+                sys.exit(0)
+            else:
+                ts_old=ts
+                te_old=te
 
             # There is a bug somewhere for AO-7 that gets stuck in an infinite loop - kludge to avoid problem
             if name=='AO-07':
-                #print(transit.start,transit.end,tlast)
+                print(transit.start,transit.end,tlast)
                 #print(ts,te,datetime.fromtimestamp(tafter),datetime.fromtimestamp(tbefore))
                 if tlast>=transit.end:
                     #print('Unexpected result at',ts,'- giving up')
@@ -216,8 +232,8 @@ class SATELLITE:
                 flagged=''
             
             print('Transponder:',transp,flagged)
-            print(items)
-            print(items['mode'])
+            print('items=',items)
+            print('mode=',items['mode'])
             self.transponders[transp] = items
             
             #sys.exit(0)
