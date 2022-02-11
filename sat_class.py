@@ -122,7 +122,7 @@ class SATELLITE:
 
             # There is a bug somewhere for AO-7 that gets stuck in an infinite loop - kludge to avoid problem
             if name=='AO-07':
-                print(transit.start,transit.end,tlast)
+                #print(transit.start,transit.end,tlast)
                 #print(ts,te,datetime.fromtimestamp(tafter),datetime.fromtimestamp(tbefore))
                 if tlast>=transit.end:
                     #print('Unexpected result at',ts,'- giving up')

@@ -3,6 +3,7 @@
 from fileio import read_csv_file
 from datetime import datetime
 import time
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -24,15 +25,15 @@ import matplotlib.pyplot as plt
 #sat='SO-50'
 #fname='satellites.log_so50'                 # Screwy start - starts in 3rd quad close to boundary and moves to 2nd - new alg fixes
 
-sat='JO-97'                                # Screwy end 1st->2nd->3rd quads - new alg makes worse!!!!
-fname='satellites.log_jo97'
-fname='satellites.log_jo97_2'             # Bad start - new alg should fix
+#sat='JO-97'                                # Screwy end 1st->2nd->3rd quads - new alg makes worse!!!!
+#fname='satellites.log_jo97'
+#fname='satellites.log_jo97_2'             # Bad start - new alg should fix
 
 #sat='AO-91'                                # Screwy start - 2nd->3rd->4th  - new alg fixes
 #fname='satellites.log_ao91'
 
-#sat='CAS-4A'
-#fname='satellites.log_cas4a'
+sat='CAS-4A'
+fname='satellites.log_cas4a'
 
 #sat='CAS-4B'
 #fname='satellites.log_cas4b'               # High overhead pass the really doesn't need the flipper - not sure what to do when this happens
@@ -66,18 +67,20 @@ def get_values(x,key,typ):
 
 ###############################################################################
 
-data=read_csv_file(fname)
+data,hdr=read_csv_file(fname)
+#print('\ndata=',data[0])
 
 keys=data[0].keys()
-print('\nkeys=',keys)
-#print('\ndata=',data[0])
+print('\nkeys=',keys,'\n')
 
 times = get_values(data,'Time Stamp','seconds')
 #print('Times=',time_stamps[0])
 #print('times=',times[0:3])
+#print('Start date/time =',times[0])
+#print('End date/time   =',times[-1])
 
 sat_name = get_values(data,'Selected',str)
-#print(sat_name)
+print('Sat name=',sat_name)
 
 # Freq data
 try:
@@ -136,6 +139,12 @@ print(len(idx))
 #B = [sat_name[ind]=='JO-97']
 #print(B)
 
+date1=data[idx[0]]['Time Stamp']
+date2=data[idx[-1]]['Time Stamp']
+print('Start Date/Time=',date1)
+print('End   Date/Time=',date2)
+#sys.exit(0)
+
 ###############################################################################
 
 fig, ax = plt.subplots()
@@ -188,7 +197,8 @@ else:
     ax.set_xlabel('Time (?)')
     ax.set_ylabel('Az (deg)')
     ax2.set_ylabel('El (deg)')
-    fig.suptitle('Rotor Data')
+    fig.suptitle('Rotor Data - For '+sat_name[idx[0]]+' Pass')
+    ax.set_title('Starting at '+date1)
     ax.legend(loc='lower left')
     ax2.legend(loc='lower right')
 
