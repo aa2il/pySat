@@ -243,7 +243,7 @@ class RigControl:
 
         # Form new rotor position
         rotor_updated,pos,daz,de,new_pos = \
-            rotor_positioning_old(gui,self.az,self.el,Force)
+            rotor_positioning(gui,self.az,self.el,Force)
 
         # Update sky track
         gui.plot_position(self.az,self.el,pos)

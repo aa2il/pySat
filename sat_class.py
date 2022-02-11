@@ -255,11 +255,13 @@ class SATELLITE:
         obs = predict.observe(self.tle, my_qth,now)
         if False:
             print('\nobs=',obs,'\n')
-        
+
+        # Compute Doppler shifts
         dop100  = obs['doppler']          # Shift for f=100 MHz
         fdop1 =  1e-8*dop100*fdown        # Downlink
         fdop2 = -1e-8*dop100*fup          # Uplink gets tuned in the opposite direction
 
+        # Return the sat position also
         az = obs['azimuth']
         el = obs['elevation']
         rng = obs['slant_range']

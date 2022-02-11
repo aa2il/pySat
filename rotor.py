@@ -1,4 +1,23 @@
+################################################################################
+#
+# rotor.py - Rev 1.0
+# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+#
 # Routines related to rotor positioning
+#
+################################################################################
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+################################################################################
 
 import numpy as np
 import sys
@@ -22,13 +41,15 @@ def flip_a_roo(self):
     az=self.track_az
     el=self.track_el
     
-    # First, see if the track transists into both the 2nd and 3rd quadrants
+    # First, check if the track transists into both the 2nd and 3rd quadrants
     quad2 = np.logical_and(az>90  , az<=180)
     quad3 = np.logical_and(az>180 , az<=270)
     self.cross180 = any(quad2) and any(quad3)
 
-    # Initially assume that there othing to worry about
-    self.flipper = False
+    # Initially assume that there is nothing to worry about
+    self.flipper      = False
+    self.quads12_only = False
+    self.quads34_only = False
     
     # If we cross the 180-deg boundary, how far do we go?
     if self.cross180:
@@ -47,11 +68,11 @@ def flip_a_roo(self):
                 print("\n######### They call him Flipper Flipper Flipper-a-roo-ski ######")
 
     # If we cross the boundary but not by much, fix up track so rotor is never
-    # commanded to croos boundary
-    if self.cross180 and not self.flipper and True:
+    # commanded to cross boundary
+    if self.cross180 and not self.flipper:
 
-        # Probably need to address what happens in 1st & 5th quads as well, particularly for
-        # the very high overhead passes
+        # Probably need to address what happens in 1st & 4th quads as well, 
+        # particularly for the very high overhead passes
         quad1 = np.logical_and(az>0  , az<=90)
         quad4 = np.logical_and(az>270 , az<=360)
         n1 = np.sum(quad1)
@@ -60,30 +81,44 @@ def flip_a_roo(self):
         n4 = np.sum(quad4)
         print('Quad counts:',n1,n2,n3,n4)
 
-        if n2>n3:
-            # Probably want to add 4th quad points as well
-            idx=np.argwhere(quad3)
-            vals=az[ quad3 ]
-            az[quad3] = 178
-            vals2=az[ quad3 ]
-            print('Adjusting 3rd quadrant track points ...',idx,vals,vals2)
-        elif n3>n2:
-            # Probably want to add 1st quad points as well
-            idx=np.argwhere(quad2)
-            vals=az[ quad2 ]
-            az[quad2] = 182
-            vals2=az[ quad2 ]
-            print('Adjusting 2nd quadrant track points ...',idx,vals,vals2)
+        # This would be the right thing to do but has no effect since track goes back to sat positions
+        if False:
+            if n2>n3:
+                # Probably want to add 4th quad points as well
+                idx=np.argwhere(quad3)
+                vals=az[ quad3 ]
+                az[quad3] = 178
+                vals2=az[ quad3 ]
+                print('Adjusting 3rd quadrant track points ...',idx,vals,vals2)
+            elif n3>n2:
+                # Probably want to add 1st quad points as well
+                idx=np.argwhere(quad2)
+                vals=az[ quad2 ]
+                az[quad2] = 182
+                vals2=az[ quad2 ]
+                print('Adjusting 2nd quadrant track points ...',idx,vals,vals2)
 
+        # Instead, just note what we need to do & take care of it later
+        if n2>n3:
+            self.quads12_only=True
+        else:
+            self.quads34_only=True
 
 
 # Function to compute new position for the rotor
-def rotor_positioning_old(gui,az,el,Force):
+def rotor_positioning(gui,az,el,Force):
 
-    #print('ROTOR_POSITIONING_OLD:',el,gui.event_type)
+    #print('ROTOR_POSITIONING:',el,gui.event_type)
     if el>=0:
+        # NEW!!! Limit az if we cross the boundary but don't want to flipp
+        if gui.quads12_only and az>178:
+            az=178
+        elif gui.quads34_only and az<182:
+            az=182
+        
         # Sat is above the horizon so point to calculated sat position
         new_pos=[az,el]
+
     else:
         # Sat is below the horizon so point to starting or ending point on track
         if gui.event_type==1:
@@ -283,6 +318,7 @@ class PLOTTING(QMainWindow):
         self.ax = self.fig.add_subplot(111)
         self.ax.plot(t, az, color='red',label='Sat Az')
         self.ax.plot(t,paz, color='orange',label='Rotor Az')
+        self.ax.plot(t, len(t)*[180], color='magenta',linestyle='dashed',label='Boundary')
         self.ax.grid(True)    
 
         if self.ax2:
@@ -310,13 +346,13 @@ def simulate_rotor(self):
     pel=[]
     for az,el in zip(self.track_az,self.track_el):
         rotor_updated,pos,daz,de,new_pos = \
-            rotor_positioning_old(self,az,el,False)
+            rotor_positioning(self,az,el,False)
         paz.append(new_pos[0])
         pel.append(new_pos[1])
         
         if np.isnan(prev_az):
             prev_az=new_pos[0]
-        if abs(new_pos[0]-180)<10 and \
+        if False and abs(new_pos[0]-180)<10 and \
            ( (new_pos[0]>180 and prev_az<180) or \
              (new_pos[0]<180 and prev_az>180) ):
             #paz.append(-180)
@@ -324,9 +360,22 @@ def simulate_rotor(self):
             paz[-1]=-180
         prev_az=new_pos[0]
         
-            
+    print('Track t  =',self.track_t)
+    print('Track Az =',self.track_az)
+    print('Track El =',self.track_el)
+    print('Rotor Az =',paz)
+    print('Rotor El =',pel)
+        
     self.PlotWin.plot_az_el(self.track_t,self.track_az,self.track_el, \
                             paz,pel)
-        
 
+    if self.flipper:
+        txt='Flipper'
+    else:
+        txt='Not flipped'
+    print(txt)
+    self.PlotWin.ax.set_title(txt)
+    #self.PlotWin.fig.suptitle('HEY')
+    self.PlotWin.canv.draw()
+    
         

@@ -63,7 +63,6 @@ from params import PARAMS
 from watchdog import WatchDog
 from rig_control import RigControl
 from sat_class import SATELLITE
-#from rig_io.ft_tables import SATELLITE_LIST
 
 from settings import *
 from Logging import *
@@ -969,6 +968,11 @@ class SAT_GUI(QMainWindow):
         self.track_t  = np.array(tt)
         self.track_az = np.array(az)
         self.track_el = np.array(el)
+
+        if self.P.TEST_MODE:
+            print('SKY_TRACK: Track t  =',self.track_t)
+            print('SKY_TRACK: Track Az =',self.track_az)
+            print('SKY_TRACK: Track El =',self.track_el)
 
         # Determine if we need to flip the antenna to avoid crossing 180-deg
         flip_a_roo(self)
