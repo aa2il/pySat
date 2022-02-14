@@ -84,7 +84,8 @@ class SAT_GUI(QMainWindow):
         self.Selected=None
         self.New_Sat_Selection=False
         self.flipper = False
-        self.cross180 = False
+        #self.cross180 = False
+        self.pos=[np.nan,np.nan]
         self.rit = 0
         self.xit = 0
         self.Ready=False
@@ -969,13 +970,15 @@ class SAT_GUI(QMainWindow):
         self.track_az = np.array(az)
         self.track_el = np.array(el)
 
-        if self.P.TEST_MODE:
+        if self.P.TEST_MODE and False:
             print('SKY_TRACK: Track t  =',self.track_t)
             print('SKY_TRACK: Track Az =',self.track_az)
             print('SKY_TRACK: Track El =',self.track_el)
 
         # Determine if we need to flip the antenna to avoid crossing 180-deg
-        flip_a_roo(self)
+        print('PLOT_SKY_TRACK: Current flip state=',self.flipper,self.pos)
+        #flip_a_roo_old(self)
+        flip_a_roo_new(self)
 
         # Convert data to polar format & plot it
         # Note that track_az & track_el might have been modified so we go back to
@@ -1004,8 +1007,24 @@ class SAT_GUI(QMainWindow):
         
         self.canv2.draw()
 
+
+    # Function to convert rotor position to actual pointing position in the sky
+    def resolve_pointing(self,paz,pel):
+
+        if pel<=90:
+            az90 = 90.-paz
+            el90 = 90.-max(0.,pel)
+        else:
+            if paz<180:
+                az90 = -90.-paz
+            else:
+                az90 = 270.-paz
+            el90 = 90.-max(0.,180-pel)
+
+        return az90,el90
+        
     
-    # Plot sat an rotor position
+    # Plot sat and rotor position
     def plot_position(self,az=np.nan,el=np.nan,pos=[np.nan,np.nan]):
         RADIANS=np.pi/180.
         #print('\nPLOT_POSITION: az,el=',az,el,'\tflipper=',self.flipper)
@@ -1016,30 +1035,15 @@ class SAT_GUI(QMainWindow):
         else:
             pos=[np.nan,np.nan]
         print('\nPLOT_POSITION: az,el=',az,el,'\tpos=',pos)
+        self.pos=pos
 
+        # Plot current rotor position (the big magenta blob)
         if pos[0]!=np.nan:
-            if self.flipper:
-                if pos[0]<180:
-                    az90 = -90.-pos[0]
-                else:
-                    az90 = 270.-pos[0]
-                el90 = 90.-max(0.,180.-pos[1])
-            else:
-                if pos[1]<=90:
-                    az90 = 90.-pos[0]
-                    el90 = 90.-max(0.,pos[1])
-                else:
-                    if pos[0]<180:
-                        az90 = -90.-pos[0]
-                    else:
-                        az90 = 270.-pos[0]
-                    el90 = 90.-max(0.,180-pos[1])
+            az90,el90 = self.resolve_pointing(pos[0],pos[1])
             self.rot.set_data( (az90)*RADIANS, el90)
-            
-        az90 = 90.-az
-        el90 = 90.-max(0.,el)
-        #print('Setting black star - az,el=:',az,el,'\n\tAdjusted=',az90,el90)
-        self.sky.set_data( (az90)*RADIANS, el90)
+
+        # Plot sat position (the black star)
+        self.sky.set_data( (90.-az)*RADIANS, 90.-max(0.,el) )
 
         self.canv2.draw()
         return

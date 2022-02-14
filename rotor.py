@@ -36,7 +36,7 @@ ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
 
 # Function to determine if we need the old flip-a-roo-ski
 # I.e. does sky track cross the 180-deg boundary?
-def flip_a_roo(self):    
+def flip_a_roo_old(self):    
 
     az=self.track_az
     el=self.track_el
@@ -105,18 +105,111 @@ def flip_a_roo(self):
             self.quads34_only=True
 
 
+# Function to determine if we need the old flip-a-roo-ski
+# I.e. does sky track cross the 180-deg boundary?
+def flip_a_roo_new(self):
+
+    az=self.track_az
+    el=self.track_el
+
+    # Compute quadrant each point is in
+    quad1 = np.logical_and(az>0  , az<=90)
+    quad2 = np.logical_and(az>90  , az<=180)
+    quad3 = np.logical_and(az>180 , az<=270)
+    quad4 = np.logical_and(az>270 , az<=360)
+
+    n1 = np.sum(quad1)
+    n2 = np.sum(quad2)
+    n3 = np.sum(quad3)
+    n4 = np.sum(quad4)
+    print('Quad counts:',n1,n2,n3,n4)
+    
+    # First, check if the track transists into both the 2nd and 3rd quadrants
+    # or into 1st and 4th quadrants
+    self.cross0   = any(quad1) and any(quad4)
+    self.cross180 = any(quad2) and any(quad3)
+
+    # Initially assume that there is nothing to worry about
+    #self.flipper      = False
+    self.quads12_only = False
+    self.quads34_only = False
+
+    # If we don't cross a boundary, there' nothing to worry about
+    print('FLIP_A_ROO: Current flip state=',self.flipper)
+    #if not self.cross0 and not self.cross180:
+    #print('FLIP_A_ROO: Can keep current flip state')
+        
+    # If we cross the 180-deg boundary and we're not yet flipped, how far do we go?
+    if self.cross180 and not self.flipper:
+        
+        min2=az[quad2].min()
+        max3=az[quad3].max()
+        max_el = el.max()
+        print('FLIP_A_ROO: Cross180 and not flipped:',min2,max3,max_el)
+
+        # We need to flip if we cross the boundary significantly OR its a very high overhead pass
+        # The very high overhead pass is something we can probably refine later but it should
+        # constitue a very small number of passes so we'll just do this for now.
+        if (max3>180+THRESH and min2<180-THRESH):     # or max_el>75:
+            self.flipper = True
+            if self.flipper:
+                print("\n######### They call him Flipper Flipper Flipper-a-roo-ski ######")
+
+        # If we don't cross the boundary by much, fix up track so rotor is never
+        # commanded to cross boundary
+        if not self.flipper:
+            if n2>n3:
+                self.quads12_only=True
+            else:
+                self.quads34_only=True
+
+    # If we cross the 0-deg boundary and we're flipped, how far do we go?
+    elif self.cross0 and self.flipper:
+        
+        min4=az[quad4].min()
+        max1=az[quad1].max()
+        max_el = el.max()
+        print('FLIP_A_ROO: Croos 0 and flipped:',min4,max1,max_el)
+
+        # We need to flip if we cross the boundary significantly OR its a very high overhead pass
+        # The very high overhead pass is something we can probably refine later but it should
+        # constitue a very small number of passes so we'll just do this for now.
+        if (max1>THRESH and min4<360-THRESH):     # or max_el>75:
+            self.flipper = False
+            if self.flipper:
+                print("\n######### They call him UNFlipper UNFlipper UNFlipper-a-roo-ski ######")
+
+        # If we don't cross the boundary by much, fix up track so rotor is never
+        # commanded to cross boundary
+        if self.flipper:
+            if n1>n4:
+                self.quads12_only=True
+            else:
+                self.quads34_only=True
+
+    else:
+        print('FLIP_A_ROO: Can keep current flip state')
+
+
 # Function to compute new position for the rotor
 def rotor_positioning(gui,az,el,Force):
 
     #print('ROTOR_POSITIONING:',el,gui.event_type)
     if el>=0:
-        # NEW!!! Limit az if we cross the boundary but don't want to flipp
-        if gui.quads12_only and az>178:
-            az=178
-        elif gui.quads34_only and az<182:
-            az=182
+        # Sat is above the horizon ...
+        # Limit az if we cross the boundary but don't want to flip
+        if not gui.flipper:
+            if gui.quads12_only and az>178:
+                az=178
+            elif gui.quads34_only and az<182:
+                az=182
+        else:
+            if gui.quads12_only and (az<1 or az<360):
+                az=1
+            elif gui.quads34_only and (az>0 or az>360):
+                az=359
         
-        # Sat is above the horizon so point to calculated sat position
+        # ... and point to the calculated sat position
         new_pos=[az,el]
 
     else:
@@ -134,7 +227,7 @@ def rotor_positioning(gui,az,el,Force):
 
     # Flip antenna if needed to avoid ambiquity at 180-deg
     if gui.flipper:
-        print('*** Need a Flip-a-roo-ski ***')
+        #print('*** Need a Flip-a-roo-ski ***')
         if new_pos[0]<180:
             new_pos = [new_pos[0]+180. , 180.-new_pos[1]]
         else:
@@ -167,109 +260,6 @@ def rotor_positioning(gui,az,el,Force):
         
 
 
-# Function to compute new position for the rotor
-def rotor_positioning_new(self,az1,el1):
-
-    first_time = self.first_time
-    az_prev    = self.az_prev
-    el_prev    = self.el_prev
-    rotor_az   = self.rotor_az
-    rotor_el   = self.rotor_el
-
-    # Test various possibilities
-    if first_time:
-        #print('First time - az1=',az1,first_time)
-        # Start of track - check if we'll be crossing the 180-deg boundary
-        # w/o the flipper
-        if cross180 and not flipper:
-            # Yep - if we're starting close to the boundary, limit the motion of the
-            # rotor to the other side of the boundary
-            if az1>180 and az1<180+THRESH:
-                # Starting in Third Quadrant but close to line - keep rotor in Second Quardant
-                new_az=179.
-            elif az1<180 and az1>180-THRESH:
-                # Starting in Second Quadrant but close to line - keep rotor in Third Quardant
-                new_az=181.
-            else:
-                new_az=az1
-            new_el=el1
-
-        else:
-            # Not crossing boundary w/o the flipper - nothing special to worry about
-            new_az=az1
-            new_el=el1
-
-        # Set rotor position - make adjustments if flipped
-        if flipper:
-            rotor_az = (new_az+180) % 360
-            rotor_el = 180-new_el
-        else:
-            rotor_az = new_az
-            rotor_el = new_el
-
-    else:
-
-        # Compute difference between where sat is and rotor is pointed
-        if rotor_el>90:
-            daz=np.abs( az1-((rotor_az+180) % 360) )
-            de =np.abs( el1-(180-rotor_el) )
-        else:
-            daz=np.abs( az1-rotor_az )
-            de =np.abs( el1-rotor_el )
-
-            
-        if daz>THRESH or de>THRESH:
-            # We're  in the middle of a track and need to make an adjustment
-
-            # Check if track crosses boundary but we're not flipped
-            if cross180 and not flipper:
-                # Yep - limit motion of rotor when boundary is crossed
-                #if el1>90-THRESH:
-                   # High overhead pass
-                if az1<az_prev and az1>180 and az1<180+THRESH:
-                    # Moving from Second Quadrant to Third - keep rotor in Second Quardant
-                    new_az=179.
-                elif az1>az_prev and az1<180 and az1>180-THRESH:
-                    # Moving from Third Quadrant to Second - keep rotor in Third Quardant
-                    new_az=181.
-                else:
-                    # Nothing to see here, just a normal update
-                    new_az=az1
-            else:
-                # Nothing to see here, just a normal update 
-                new_az=az1
-            new_el=el1
-
-            # Set rotor position - make adjustments if flipped
-            if flipper:
-                rotor_az = (new_az+180) % 360
-                rotor_el = 180-new_el
-            else:
-                rotor_az = new_az
-                rotor_el = new_el
-            
-        else:
-            # Point error is small - nothing special to do right now
-            new_az = az_prev
-            new_el = el_prev
-
-    # For diagnostic purposes, indicate when we've crossed the 180-deg boundary
-    crossed = not first_time and not flipper and \
-        ((new_az>180. and az_prev<=180.) or \
-         (new_az<=180. and az_prev>180.))
-    first_time=False
-
-    az_prev=new_az
-    el_prev=new_el
-
-    #print(az1,new_az,daz)
-    #print(az0,el0,new_az,new_el,crossed)
-    return new_az,new_el,crossed
-        
-
-
-
-
 class PLOTTING(QMainWindow):
     def __init__(self,P,parent=None):
         super(PLOTTING, self).__init__(parent)
@@ -298,7 +288,7 @@ class PLOTTING(QMainWindow):
         self.canv.draw()
 
 
-    def plot_az_el(self,t,az,el,paz,pel):
+    def plot_az_el(self,t,sat_az,sat_el,paz,pel):
         gui=self.P.gui
         
         print('\n$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ PLOT_AZ_EL $$$$$$$$$$$$$$$$$$$$$$$')
@@ -309,23 +299,35 @@ class PLOTTING(QMainWindow):
         print(t)
         print(az)
         print(el)
-        print(paz)
-        print(pel)
-        """
+        print('paz=',paz)
+        print('pel=',pel)
+        """        
+
+        # Convert rotor position to actual pointing position in the sky
+        sky_az=0*np.array(paz)
+        sky_el=0*np.array(pel)
+        for i in range(len(paz)):
+            az90,el90 = gui.resolve_pointing(paz[i],pel[i])
+            sky_az[i]=90-az90
+            sky_el[i]=90-el90
+            
+        #print('sky_az=',sky_az)
         
         if self.ax:
             self.ax.remove()
         self.ax = self.fig.add_subplot(111)
-        self.ax.plot(t, az, color='red',label='Sat Az')
+        self.ax.plot(t, sat_az, color='red',label='Sat Az')
         self.ax.plot(t,paz, color='orange',label='Rotor Az')
+        self.ax.plot(t,sky_az, 'o',color='yellow',label='Sky Az')
         self.ax.plot(t, len(t)*[180], color='magenta',linestyle='dashed',label='Boundary')
         self.ax.grid(True)    
 
         if self.ax2:
             self.ax2.remove()
         self.ax2 = self.ax.twinx()
-        self.ax2.plot(t, el, color='blue',label='Sat El')
+        self.ax2.plot(t, sat_el, color='blue',label='Sat El')
         self.ax2.plot(t,pel, color='cyan',label='Rotor El')
+        self.ax2.plot(t,sky_el, 'o',color='green',label='Sky El')
 
         self.ax.set_xlabel('Time (?)')
         self.ax.set_ylabel('Az (deg)')
@@ -359,12 +361,14 @@ def simulate_rotor(self):
             #pel.append(new_pos[1])
             paz[-1]=-180
         prev_az=new_pos[0]
-        
+
+    """
     print('Track t  =',self.track_t)
     print('Track Az =',self.track_az)
     print('Track El =',self.track_el)
     print('Rotor Az =',paz)
     print('Rotor El =',pel)
+    """
         
     self.PlotWin.plot_az_el(self.track_t,self.track_az,self.track_el, \
                             paz,pel)
@@ -375,7 +379,6 @@ def simulate_rotor(self):
         txt='Not flipped'
     print(txt)
     self.PlotWin.ax.set_title(txt)
-    #self.PlotWin.fig.suptitle('HEY')
     self.PlotWin.canv.draw()
     
         
