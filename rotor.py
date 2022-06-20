@@ -112,6 +112,9 @@ def flip_a_roo_new(self):
     az=self.track_az
     el=self.track_el
 
+    if True:
+        print('FLI_AA_ROO: az=',az,'nel=',el)
+
     # Compute quadrant each point is in
     quad1 = np.logical_and(az>0  , az<=90)
     quad2 = np.logical_and(az>90  , az<=180)
@@ -122,7 +125,7 @@ def flip_a_roo_new(self):
     n2 = np.sum(quad2)
     n3 = np.sum(quad3)
     n4 = np.sum(quad4)
-    print('Quad counts:',n1,n2,n3,n4)
+    print('FLIP_A_ROO: Quad counts:',n1,n2,n3,n4)
     
     # First, check if the track transists into both the 2nd and 3rd quadrants
     # or into 1st and 4th quadrants
@@ -135,9 +138,9 @@ def flip_a_roo_new(self):
     self.quads34_only = False
 
     # If we don't cross a boundary, there' nothing to worry about
-    print('FLIP_A_ROO: Current flip state=',self.flipper)
-    #if not self.cross0 and not self.cross180:
-    #print('FLIP_A_ROO: Can keep current flip state')
+    print('FLIP_A_ROO: Current flip state=',self.flipper,'\ncross 0 and 180=',self.cross0,self.cross180)
+    if not self.cross0 and not self.cross180:
+        print('FLIP_A_ROO: Can keep current flip state')
         
     # If we cross the 180-deg boundary and we're not yet flipped, how far do we go?
     if self.cross180 and not self.flipper:
@@ -227,7 +230,7 @@ def rotor_positioning(gui,az,el,Force):
 
     # Flip antenna if needed to avoid ambiquity at 180-deg
     if gui.flipper:
-        #print('*** Need a Flip-a-roo-ski ***')
+        print('*** Need a Flip-a-roo-ski ***')
         if new_pos[0]<180:
             new_pos = [new_pos[0]+180. , 180.-new_pos[1]]
         else:

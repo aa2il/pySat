@@ -34,6 +34,7 @@ import predict
 import requests
 import sys
 import functools
+import webbrowser
 
 import numpy as np
 from PyQt5 import QtCore
@@ -84,7 +85,7 @@ class SAT_GUI(QMainWindow):
         self.Selected=None
         self.New_Sat_Selection=False
         self.flipper = False
-        #self.cross180 = False
+        self.cross180 = False
         self.pos=[np.nan,np.nan]
         self.rit = 0
         self.xit = 0
@@ -1000,6 +1001,9 @@ class SAT_GUI(QMainWindow):
             self.Satellites[sat].Doppler_Shifts(0,0,self.P.my_qth)
         self.plot_position(az,el)
 
+        # JBA - WARNING - what are they taling about? set_xtick
+        # UserWarning: FixedFormatter should only be used together with FixedLocator
+
         xtics = ['E','','N','','W','','S','']
         self.ax2.set_xticklabels(xtics) 
         self.ax2.set_yticks([30, 60, 90])          # Less radial ticks
@@ -1093,7 +1097,11 @@ class SAT_GUI(QMainWindow):
     def RotorHome(self):
         print('Sending rotor home ...')
         self.P.sock2.set_position([0,0])
-        
+
+    # Function to open the AMSAT satellite status web page 
+    def OpenAmsatWebPage(self):
+        link = 'https://www.amsat.org/status'
+        webbrowser.open(link, new=2)
                     
     # Function to create menu bar
     def create_menu_bar(self):
@@ -1116,6 +1124,11 @@ class SAT_GUI(QMainWindow):
         loggingAct.setStatusTip('Logging Dialog')
         loggingAct.triggered.connect( self.LoggingWin.log_qso )
         fileMenu.addAction(loggingAct)
+
+        GetStatusAct = QAction('&Satellite Status...', self)
+        GetStatusAct.setStatusTip('Open AMSAT Web Page')
+        GetStatusAct.triggered.connect( self.OpenAmsatWebPage )
+        fileMenu.addAction(GetStatusAct)
 
         exitAct = QAction('&Exit', self)
         #exitAct.setShortcut('Ctrl+Q')

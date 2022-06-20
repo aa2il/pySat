@@ -120,8 +120,8 @@ class SATELLITE:
                 ts_old=ts
                 te_old=te
 
-            # There is a bug somewhere for AO-7 that gets stuck in an infinite loop - kludge to avoid problem
-            if name=='AO-07':
+            # There are bug somewhere for a few sats that gets stuck in an infinite loop - kludge to avoid problem
+            if name in ['AO-07','FO-29']:
                 #print(transit.start,transit.end,tlast)
                 #print(ts,te,datetime.fromtimestamp(tafter),datetime.fromtimestamp(tbefore))
                 if tlast>=transit.end:
@@ -136,6 +136,12 @@ class SATELLITE:
                     continue
                 else:
                     tlast=transit.end
+
+            elif name=='FO-29':
+                print('HEY!!')
+                #print(transit.start,transit.end,transit.end-transit.start,tlast)
+                #print(ts,te,datetime.fromtimestamp(tafter),datetime.fromtimestamp(tbefore))
+            
 
             # Add this pass to list of plotting vars
             self.t.append(ts)
