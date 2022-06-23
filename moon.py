@@ -14,11 +14,14 @@
 
 ##############################################################################
 
+from math import pi
 import ephem
 from datetime import datetime, timedelta #, tzinfo
 #import pytz
 
 #UTC = pytz.utc
+RAD2DEG=180./pi
+MIN2DAYS=1./(24.*60.)
 
 # Example from website - seems ok
 mars = ephem.Mars()
@@ -66,7 +69,7 @@ local=ephem.localtime(setting)
 print('Next moon setting:',setting,'\t',local)
 print('az/el=',moon.az,moon.alt)
 
-# # Here's how to progress over several moon rises
+# Here's how to progress over several moon rises
 for i in range(5):
     qth.date=rise
     moon.compute(qth)
@@ -86,6 +89,26 @@ for i in range(5):
     print('Following moon setting:',setting,'\t',local)
     print('az/el=',moon.az,moon.alt)
 
+# Generate a track
+dt=30.*MIN2DAYS                # Every half hour, expressed as days
+qth.date=now
+moon.compute(qth)
+t=qth.next_rising(moon)
+qth.date=t
+moon.compute(qth)
+setting=qth.next_setting(moon)
+print('\n',t,setting)
+qth.pressure = 0          # Turns off horizon refraction calcs
+Done=False
+while not Done:
+    if t>=setting:
+        Done=True
+        t=setting
+    qth.date=t
+    moon.compute(qth)    
+    print('Track: t=',qth.date,'\taz=',moon.az,moon.az*RAD2DEG,'\tel=',moon.alt,moon.alt*RAD2DEG)
+    t+=dt
+        
 # For completeness, take a quick look at Old Sol
 sun = ephem.Sun()
 qth.date=now
