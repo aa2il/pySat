@@ -3,22 +3,22 @@
 # Script to play with moon tracking
 
 # Try this library - it was already installed
-#  https://rhodesmill.org/pyephem/index.html
-#  pip3 install pyephem
+#    https://rhodesmill.org/pyephem/index.html
+#    pip3 install pyephem
 
-# They suggest using The Skyfield astronomy library   instead but this
+# They suggest using  The Skyfield astronomy library  instead but this
 # seems to work just fine for our purposes.  For future reference:
-#  https://rhodesmill.org/skyfield/
+#    https://rhodesmill.org/skyfield/
 
-# Need to read the doc but this looks like it will work!
+# Need to read the docs but this looks like it will work!
 
 ##############################################################################
 
 import ephem
-from datetime import datetime, date, tzinfo
-import pytz
+from datetime import datetime, timedelta #, tzinfo
+#import pytz
 
-UTC = pytz.utc
+#UTC = pytz.utc
 
 # Example from website - seems ok
 mars = ephem.Mars()
@@ -44,10 +44,9 @@ qth.elevation = 602.2
 # qth.pressure = 0          # Turns off horizon refraction calcs
 #now = datetime.utcnow().replace(tzinfo=UTC)   # Not sure why I do this?
 now = datetime.utcnow()
-# qth.date=now              # Does this by default
+qth.date=now              # Does this by default
 local=ephem.localtime(ephem.Date(now))
-print('\nnow=',now,'\t',local)
-qth.date = now
+print('\nCurrent time now=',now,'\tlocal=',local)
 
 moon = ephem.Moon()
 moon.compute(qth)
@@ -67,7 +66,29 @@ local=ephem.localtime(setting)
 print('Next moon setting:',setting,'\t',local)
 print('az/el=',moon.az,moon.alt)
 
+# # Here's how to progress over several moon rises
+for i in range(5):
+    qth.date=rise
+    moon.compute(qth)
+    rise=qth.next_rising(moon)
+    local=ephem.localtime(rise)
+    print('\nFollowing moon rising:',rise,'\t',local)
+    print('az/el=',moon.az,moon.alt)
+
+    qth.date=rise+1./24.
+    moon.compute(qth)
+    local=ephem.localtime(qth.date)
+    print('An hour later:',qth.date,'\t',local)
+    print('az/el=',moon.az,moon.alt)           
+    
+    setting=qth.next_setting(moon)
+    local=ephem.localtime(setting)
+    print('Following moon setting:',setting,'\t',local)
+    print('az/el=',moon.az,moon.alt)
+
+# For completeness, take a quick look at Old Sol
 sun = ephem.Sun()
+qth.date=now
 sun.compute(qth)
 print('\nCurrent Sun: az=',sun.az,'\tel=',sun.alt)
 
@@ -76,3 +97,9 @@ local=ephem.localtime(setting)
 print('Next sun setting:',setting,'\t',local)
 print('az/el=',sun.az,sun.alt)
 
+# A closer look at date/time objects
+# Straight-forward how to manipulate both datetime and .Date objects
+print('\nqth.date         =',qth.date)
+print('now + 1 day      =',now + timedelta(days=1))
+print('qth.date + 1 day =',qth.date + 1, ephem.Date(qth.date + 1))
+print('qth.date + 1 day =',qth.date.datetime() + timedelta(days=1))
