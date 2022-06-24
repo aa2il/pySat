@@ -756,9 +756,7 @@ class SAT_GUI(QMainWindow):
         
         # Set time limits
         date1   = datetime.now() - timedelta(days=NDAYS1)
-        tafter  = time.mktime(date1.timetuple())
         date2   = date1 + timedelta(days=self.P.NDAYS2+NDAYS1)
-        tbefore = time.mktime(date2.timetuple())
 
         # Reflect these onto the calendar
         self.start_date = date1
@@ -774,10 +772,10 @@ class SAT_GUI(QMainWindow):
         for isat in range(1,len(self.P.SATELLITE_LIST) ):
             name=self.P.SATELLITE_LIST[isat]
             self.Satellites[name]=SATELLITE(isat,name,self.P.my_qth,
-                                            tbefore,tafter,self.P.TLE)
+                                            date1,date2,self.P.TLE)
             if self.P.GRID2:
                 self.Satellites2[name]=SATELLITE(isat,name,self.P.other_qth,
-                                                tbefore,tafter,self.P.TLE)
+                                            date1,date2,self.P.TLE)
                 sat2=self.Satellites2[name]
 
         
@@ -791,11 +789,18 @@ class SAT_GUI(QMainWindow):
         # Loop over list of sats
         self.pass_times=[]
         for name in list(self.Satellites.keys()):
-            print('Draw Passes - name=',name)
+            print('\nDraw Passes - name=',name)
             Sat=self.Satellites[name]
+            
+            #print('t=',Sat.t)
+            #print('y=',Sat.y)
+            #print('t2=',Sat.t2)
+            #print('y2=',Sat.y2)
+            #print('pass_times=',Sat.pass_times)
 
             # Plot passes for this sat
             c = COLORS[ (Sat.isat-1) % len(COLORS) ]
+            #print('c=',c)
             self.pass_times.append(np.array( Sat.pass_times ))
             self.ax.plot(Sat.t,Sat.y,'-',label=name,linewidth=8,color=c)
             c2='w'
@@ -805,7 +810,6 @@ class SAT_GUI(QMainWindow):
                 Sat2=self.Satellites2[name]
                 c3='k'
                 self.ax.plot(Sat2.t,Sat2.y,'-',label=name,linewidth=4,color=c3)
-                
 
         # Beautify the x-labels
         self.fig.autofmt_xdate()
@@ -884,7 +888,7 @@ class SAT_GUI(QMainWindow):
         for name in sat_names:
             print('\nFind best:',name)
             Sat=self.Satellites[name]
-            if not Sat.main:
+            if name=='Moon' or not Sat.main:
                 print('Hmmmm - no transponder for this sat - skipping')
                 continue
             
@@ -920,8 +924,10 @@ class SAT_GUI(QMainWindow):
 
     # Routine to update track info
     def plot_sky_track(self,sat,ttt):
+        print('Plot SKY TRACK: sat=',sat,'\tttt=',ttt)
         self.Selected=sat
         self.New_Sat_Selection=True
+        Sat = self.Satellites[sat]
         # print('### Plot Sky Track: flipper=',self.flipper)
 
         # Turn off rig tracking when we select a new sat
@@ -931,19 +937,43 @@ class SAT_GUI(QMainWindow):
             self.btn2.toggle()
         if self.btn4.isChecked():
             self.btn4.toggle()
-    
-        # Pull out info for this sat
-        tle  = self.Satellites[sat].tle
+
+        # The moon is special
+        if sat=='Moon':
+            
+            # Generate a moon track
+            self.transit = Sat.gen_moon_track(ttt,VERBOSITY=1)
+            tt=self.transit.t
+            az=self.transit.az
+            el=self.transit.el
+
+        else:
+            
+            # Pull out info for this sat
+            tle  = Sat.tle
         
-        p = predict.transits(tle, self.P.my_qth, ending_after=ttt)
-        self.transit = next(p)
-        #print('Transit vars:', vars(transit) )
-        tstart = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.start))
-        tend   = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.end))
-        print(("%s\t%s\t%f\t%f" %
-               (tstart,tend,self.transit.duration()/60., self.transit.peak()['elevation'])))
-        print('Transit Peak:',self.transit.peak())
+            p = predict.transits(tle, self.P.my_qth, ending_after=ttt)
+            self.transit = next(p)
+            #print('Transit vars:', vars(transit) )
+            tstart = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.start))
+            tend   = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.end))
+            print(("%s\t%s\t%f\t%f" %
+                   (tstart,tend,self.transit.duration()/60., self.transit.peak()['elevation'])))
+            print('Transit Peak:',self.transit.peak())
     
+            # Assemble data for sky track
+            t=self.transit.start
+            tt=[]
+            az=[]
+            el=[]
+            while t<self.transit.end:
+                obs=predict.observe(tle, self.P.my_qth,at=t)
+                #print('obs=',obs)
+                tt.append(t)
+                az.append(obs['azimuth'])
+                el.append(obs['elevation'])
+                t+=10
+
         # Update GUI
         self.SatName.setText( sat )
         self.aos=self.transit.start
@@ -952,19 +982,6 @@ class SAT_GUI(QMainWindow):
         self.LOS.setText( time.strftime('%H:%M:%S', time.localtime(self.los) ))
         self.PeakEl.setText( '%6.1f deg.' % self.transit.peak()['elevation'] )
         self.SRng.setText( '%d miles' % self.transit.peak()['slant_range'] )
-
-        # Plot sky track
-        t=self.transit.start
-        tt=[]
-        az=[]
-        el=[]
-        while t<self.transit.end:
-            obs=predict.observe(tle, self.P.my_qth,at=t)
-            #print('obs=',obs)
-            tt.append(t)
-            az.append(obs['azimuth'])
-            el.append(obs['elevation'])
-            t+=10
 
         # Save data for rotor tracking
         self.track_t  = np.array(tt)
@@ -997,11 +1014,14 @@ class SAT_GUI(QMainWindow):
         self.sky, = self.ax2.plot(0,0,'k*')
         self.ax2.set_rmax(90)
 
-        [fdop1,fdop2,az,el,rng] = \
-            self.Satellites[sat].Doppler_Shifts(0,0,self.P.my_qth)
+        if sat=='Moon':
+            [az,el] = Sat.current_moon_position()
+        else:
+            [fdop1,fdop2,az,el,rng] = \
+                Sat.Doppler_Shifts(0,0,self.P.my_qth)
         self.plot_position(az,el)
 
-        # JBA - WARNING - what are they taling about? set_xtick
+        # JBA - WARNING - what are they talking about? set_xtick
         # UserWarning: FixedFormatter should only be used together with FixedLocator
 
         xtics = ['E','','N','','W','','S','']

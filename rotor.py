@@ -112,8 +112,8 @@ def flip_a_roo_new(self):
     az=self.track_az
     el=self.track_el
 
-    if True:
-        print('FLI_AA_ROO: az=',az,'nel=',el)
+    if False:
+        print('FLIP_AA_ROO: az=',az,'nel=',el)
 
     # Compute quadrant each point is in
     quad1 = np.logical_and(az>0  , az<=90)

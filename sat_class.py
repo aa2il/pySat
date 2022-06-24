@@ -6,6 +6,19 @@
 #
 # Class containing individula satellite data
 #
+# Even though the moon is a satellite of the earth, the TLE way of doing things
+# doesn't work.  Instead, we use this library - it was already installed
+#    https://rhodesmill.org/pyephem/index.html
+#    pip3 install pyephem
+#
+# They suggest using  The Skyfield astronomy library  instead but pyephem
+# seems to work just fine for our purposes.  For future reference:
+#    https://rhodesmill.org/skyfield/
+#
+# Unfortunately, there are some differences in the terms used quantify the orbit
+# of the moon vs those for artificial sats (e.g. alt vs el).  I'm sticking with the
+# sat way of doing things.
+#
 ################################################################################
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,8 +33,8 @@
 #
 ################################################################################
 
-TRANSP_DATA = "~/.config/Gpredict/trsp"                          # Transponder data as parsed by gpredict
-MIN_PEAK_EL  = 30       # Degrees, minimum elevation to identify overhead passes
+TRANSP_DATA = "~/.config/Gpredict/trsp"   # Transponder data as parsed by gpredict
+MIN_PEAK_EL  = 30                         # Degrees, min. elevation to identify overhead passes
 
 ################################################################################
 
@@ -31,7 +44,12 @@ import sys
 from configparser import ConfigParser 
 from collections import OrderedDict
 import time
-from datetime import timedelta,datetime
+from datetime import timedelta,datetime, timezone
+import ephem
+from math import pi
+
+RAD2DEG=180./pi
+MINS2DAYS=1./(24.*60.)
 
 ################################################################################
 
@@ -53,10 +71,6 @@ def get_tle(TLE,sat):
         
     idx  = TLE.index(sat2)
     
-    #tle  = TLE[idx]   + '\n'
-    #tle += TLE[idx+1] + '\n' 
-    #tle += TLE[idx+2] + '\n'
-    
     tle = sat + '\n' \
         + TLE[idx+1] + '\n' \
         + TLE[idx+2] + '\n'
@@ -67,18 +81,66 @@ def get_tle(TLE,sat):
 
 ################################################################################
 
+# Structure compatible with what comes out of Predict for us in moon tracking
+class TRANSIT:
+    def __init__(self,start,end,t,az,el):
+
+        self.start = start
+        self.end   = end
+        self.t     = t
+        self.az    = az
+        self.el    = el
+
+    def peak(self):
+        return {'elevation':0,'slant_range':0}
+
+################################################################################
+
 # Structure to contain data for a satellite
 class SATELLITE:
-    def __init__(self,isat,name,qth,tbefore,tafter,TLE):
+    def __init__(self,isat,name,qth,date1,date2,TLE):
 
         print('\nSATELLITE CLASS: isat=',isat,'-\tSat:',name, \
-              '\ttb-ta:',tbefore,tafter,'\tqth:',qth)
-        #print(tafter,tbefore)
+              '\ttb-ta:',date1,date2,'\tqth:',qth)
         self.name = name
         self.isat = isat
         self.qth  = qth
 
-        # Predict transits of this satellite over qth for the specified time span
+        self.pass_times = []
+        self.t = []
+        self.y = []
+        self.t2 = []
+        self.y2 = []
+        
+        # The moon is special
+        if name=='Moon':
+            transits=self.fly_me_to_the_moon(date1,date2)
+            print('transits=',transits)
+
+            for transit in transits:
+                ts=transit[0]
+                te=transit[1]
+                
+                self.t.append(ts)
+                self.y.append(None)
+                self.t.append(ts)
+                self.y.append(isat)
+                self.t.append(te)
+                self.y.append(isat)
+                self.t.append(te)
+                self.y.append(None)
+
+                tmid = ts + 0.5*(te-ts)
+                self.t2.append( tmid )
+                self.y2.append(isat)
+                
+                self.pass_times.append( time.mktime(tmid.timetuple()) )
+
+            return        
+
+        # Predict transits of this (artificial) satellite over qth for the specified time span
+        tafter  = time.mktime(date1.timetuple())
+        tbefore = time.mktime(date2.timetuple())
         self.tle = get_tle(TLE,name)
         self.p   = predict.transits(self.tle, qth,
                                     ending_after=tafter, ending_before=tbefore)
@@ -87,11 +149,6 @@ class SATELLITE:
         self.get_transponders()
             
         # Look at the transits and determine times for visible sections
-        self.pass_times = []
-        self.t = []
-        self.y = []
-        self.t2 = []
-        self.y2 = []
         tlast=0
         ts_old=None
         te_old=None
@@ -274,4 +331,137 @@ class SATELLITE:
         
         return [fdop1,fdop2,az,el,rng]
 
+################################################################################
+
+    # Function to handle moon passes
+    def fly_me_to_the_moon(self,date1,date2):
+        print('\nFLY_ME_TO_THE_MOON: my_qth=',self.qth,'\ndate1=',date1,'\tdate2=',date2)
+
+        # The Moon
+        moon = ephem.Moon()
+        self.moon= moon
+    
+        # Form location object
+        qth = ephem.Observer()
+        qth.lat = str( self.qth[0] )
+        qth.lon = str( -self.qth[1] )
+        qth.elevation = self.qth[2]
+        #print('QTH=',qth)
+        self.qth_moon=qth
+
+        # Loop over all the days requested
+        Done=False
+        qth.date=date1
+        transits=[]
+        while not Done:
+
+            # Find next moon rise ...
+            moon.compute(qth)
+            rise=qth.next_rising(moon)
+            local1=ephem.localtime(rise)
+            print('\n',qth.date,'\nNext Mooon Rise:',rise,'\t',local1)
+            print('az/el=',moon.az,moon.alt)
+
+            # ... and corresponding moon setting
+            qth.date=rise
+            moon.compute(qth)
+            setting=qth.next_setting(moon)
+            local2=ephem.localtime(setting)
+            print('Following moon setting:',setting,'\t',local2)
+            print('az/el=',moon.az,moon.alt)
+
+            # Return everything in local time for plotting
+            transits.append([local1,local2])
+            #transits.append([rise.datetime(),setting.datetime()])
+
+            # Get ready for next pass
+            qth.date=setting
+            if qth.date>ephem.Date(date2):
+                Done=True        
+    
+        return transits
+
+
+    # Function to return current moon info
+    def current_moon_position(self):
+        qth=self.qth_moon
+        moon=self.moon
+        
+        qth.date = datetime.utcnow()
+        moon.compute(qth)
+        print('Current Moon: az=',moon.az,'\tel=',moon.alt)
+
+        return [moon.az*RAD2DEG , moon.alt*RAD2DEG]
+
+
+    # Function to compute moon track for a single pass
+    def gen_moon_track(self,t1,t2=None,dt=30.*MINS2DAYS,VERBOSITY=0):
+        qth=self.qth_moon
+        moon=self.moon
+        
+        if VERBOSITY>0:
+            print('\nGEN_MOON_TRACK:',t1,t2,'\tdt=',dt)
+            print('qth=',qth)
+            print('moon=',moon)
+            print('t1=',t1,type(t1),isinstance(t1,float))
+
+        # Convert t1 (start time or time in the pass) to ephem datetime object
+        if isinstance(t1,float):
+            # Assume it local time and convert to utc
+            t1 = datetime.fromtimestamp(t1,tz=timezone.utc)
+        t1=ephem.Date(t1)
+
+        # Check if t2 is given
+        if t2:
+        
+            # Yes - Convert it (stop time) to ephem datetime object
+            if isinstance(t2,float):
+                # Assume it local time and convert to utc
+                t2 = datetime.fromtimestamp(t2,tz=timezone.utc)
+                t2 = datetime.fromtimestamp(t2)
+            t2=ephem.Date(t2)
+
+        else:
+
+            # No - take t1 as some time in the pass and find moon rise and set for the pass
+            qth.date = t1
+            moon.compute(qth)
             
+            rise=qth.previous_rising(moon)
+            local1=ephem.localtime(rise)
+            print('\n',qth.date,'\nPrev Mooon Rise:',rise,'\t',local1)
+            print('az/el=',moon.az,moon.alt)
+            
+            setting=qth.next_setting(moon)
+            local2=ephem.localtime(setting)
+            print('Next moon setting:',setting,'\t',local2)
+            print('az/el=',moon.az,moon.alt)
+            
+            t1=rise
+            t2=setting
+
+        # Compute moon track
+        t=t1
+        Done=False
+        tt=[]
+        az=[]
+        el=[]
+        while not Done:
+            if t>=t2:
+                Done=True
+                t=t2
+            qth.date=t
+            moon.compute(qth)
+
+            tt.append(t)
+            az.append(moon.az*RAD2DEG)
+            el.append(moon.alt*RAD2DEG)
+            if VERBOSITY>0:
+                print('Track: t=',qth.date,'\taz=',moon.az,'\tel=',moon.alt)
+            
+            t+=dt
+
+        transit=TRANSIT(t1,t2,tt,az,el)
+        return transit
+
+    

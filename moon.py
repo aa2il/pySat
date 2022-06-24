@@ -1,6 +1,7 @@
 #! /usr/bin/python3 -u
 
-# Script to play with moon tracking
+# Script to play with moon tracking.  I don't think we need this anymore but
+# will keep it around for posterity.
 
 # Try this library - it was already installed
 #    https://rhodesmill.org/pyephem/index.html
@@ -10,18 +11,18 @@
 # seems to work just fine for our purposes.  For future reference:
 #    https://rhodesmill.org/skyfield/
 
-# Need to read the docs but this looks like it will work!
-
 ##############################################################################
 
 from math import pi
 import ephem
-from datetime import datetime, timedelta #, tzinfo
-#import pytz
+from datetime import datetime, timedelta, timezone
 
-#UTC = pytz.utc
 RAD2DEG=180./pi
-MIN2DAYS=1./(24.*60.)
+MINS2DAYS=1./(24.*60.)
+
+##############################################################################
+
+#if __name__ == "__main__":
 
 # Example from website - seems ok
 mars = ephem.Mars()
@@ -90,7 +91,7 @@ for i in range(5):
     print('az/el=',moon.az,moon.alt)
 
 # Generate a track
-dt=30.*MIN2DAYS                # Every half hour, expressed as days
+dt=30.*MINS2DAYS                # Every half hour, expressed as days
 qth.date=now
 moon.compute(qth)
 t=qth.next_rising(moon)
@@ -126,3 +127,4 @@ print('\nqth.date         =',qth.date)
 print('now + 1 day      =',now + timedelta(days=1))
 print('qth.date + 1 day =',qth.date + 1, ephem.Date(qth.date + 1))
 print('qth.date + 1 day =',qth.date.datetime() + timedelta(days=1))
+
