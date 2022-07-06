@@ -85,7 +85,7 @@ class SAT_GUI(QMainWindow):
         self.Selected=None
         self.New_Sat_Selection=False
         self.flipper = False
-        self.cross180 = False
+        #self.cross180 = False
         self.pos=[np.nan,np.nan]
         self.rit = 0
         self.xit = 0
@@ -792,15 +792,8 @@ class SAT_GUI(QMainWindow):
             print('\nDraw Passes - name=',name)
             Sat=self.Satellites[name]
             
-            #print('t=',Sat.t)
-            #print('y=',Sat.y)
-            #print('t2=',Sat.t2)
-            #print('y2=',Sat.y2)
-            #print('pass_times=',Sat.pass_times)
-
             # Plot passes for this sat
             c = COLORS[ (Sat.isat-1) % len(COLORS) ]
-            #print('c=',c)
             self.pass_times.append(np.array( Sat.pass_times ))
             self.ax.plot(Sat.t,Sat.y,'-',label=name,linewidth=8,color=c)
             c2='w'
@@ -889,7 +882,7 @@ class SAT_GUI(QMainWindow):
             print('\nFind best:',name)
             Sat=self.Satellites[name]
             if name=='Moon' or not Sat.main:
-                print('Hmmmm - no transponder for this sat - skipping')
+                print('FIND NEXT TRANSIT: Hmmmm - no transponder for this sat - skipping')
                 continue
             
             # Observe sat at current time
@@ -995,8 +988,7 @@ class SAT_GUI(QMainWindow):
 
         # Determine if we need to flip the antenna to avoid crossing 180-deg
         print('PLOT_SKY_TRACK: Current flip state=',self.flipper,self.pos)
-        #flip_a_roo_old(self)
-        flip_a_roo_new(self)
+        flip_a_roo(self)
 
         # Convert data to polar format & plot it
         # Note that track_az & track_el might have been modified so we go back to

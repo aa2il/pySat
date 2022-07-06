@@ -84,7 +84,8 @@ class RigControl:
                     print('main=',P.satellite.main)
                     print('transp=',P.transp)
                 else:
-                    print('Hmmmm - no transponder for this sat')
+                    print('RIG_CONTROL->UPDATER: Hmmmm - no transponder for this sat')
+                    gui.New_Sat_Selection=False
                     return
 
                 # Put rig into sat mode
@@ -142,7 +143,7 @@ class RigControl:
                     #sys.exit(0)        
                 gui.txt11.setText(str(gui.rit))
                 gui.txt13.setText(str(gui.xit))
- 
+
             else:
 
                 # Check if op has spun main dial - if so, compute new downlink freq

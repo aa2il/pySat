@@ -29,91 +29,19 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 ###############################################################################
 
-THRESH=15
+THRESH=10               # Was 15
 ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
 
 ###############################################################################
 
 # Function to determine if we need the old flip-a-roo-ski
 # I.e. does sky track cross the 180-deg boundary?
-def flip_a_roo_old(self):    
-
-    az=self.track_az
-    el=self.track_el
-    
-    # First, check if the track transists into both the 2nd and 3rd quadrants
-    quad2 = np.logical_and(az>90  , az<=180)
-    quad3 = np.logical_and(az>180 , az<=270)
-    self.cross180 = any(quad2) and any(quad3)
-
-    # Initially assume that there is nothing to worry about
-    self.flipper      = False
-    self.quads12_only = False
-    self.quads34_only = False
-    
-    # If we cross the 180-deg boundary, how far do we go?
-    if self.cross180:
-        
-        min2=az[quad2].min()
-        max3=az[quad3].max()
-        max_el = el.max()
-        print('Flip-a-roo:',min2,max3,max_el)
-
-        # We need to flip if we cross the boundary significantly OR its a very high overhead pass
-        # The very high overhead pass is something we can probably refine later but it should
-        # constitue a very small number of passes so we'll just do this for now.
-        if (max3>180+THRESH and min2<180-THRESH) or max_el>75:
-            self.flipper = self.cross180
-            if self.flipper:
-                print("\n######### They call him Flipper Flipper Flipper-a-roo-ski ######")
-
-    # If we cross the boundary but not by much, fix up track so rotor is never
-    # commanded to cross boundary
-    if self.cross180 and not self.flipper:
-
-        # Probably need to address what happens in 1st & 4th quads as well, 
-        # particularly for the very high overhead passes
-        quad1 = np.logical_and(az>0  , az<=90)
-        quad4 = np.logical_and(az>270 , az<=360)
-        n1 = np.sum(quad1)
-        n2 = np.sum(quad2)
-        n3 = np.sum(quad3)
-        n4 = np.sum(quad4)
-        print('Quad counts:',n1,n2,n3,n4)
-
-        # This would be the right thing to do but has no effect since track goes back to sat positions
-        if False:
-            if n2>n3:
-                # Probably want to add 4th quad points as well
-                idx=np.argwhere(quad3)
-                vals=az[ quad3 ]
-                az[quad3] = 178
-                vals2=az[ quad3 ]
-                print('Adjusting 3rd quadrant track points ...',idx,vals,vals2)
-            elif n3>n2:
-                # Probably want to add 1st quad points as well
-                idx=np.argwhere(quad2)
-                vals=az[ quad2 ]
-                az[quad2] = 182
-                vals2=az[ quad2 ]
-                print('Adjusting 2nd quadrant track points ...',idx,vals,vals2)
-
-        # Instead, just note what we need to do & take care of it later
-        if n2>n3:
-            self.quads12_only=True
-        else:
-            self.quads34_only=True
-
-
-# Function to determine if we need the old flip-a-roo-ski
-# I.e. does sky track cross the 180-deg boundary?
-def flip_a_roo_new(self):
+def flip_a_roo(self):
 
     az=self.track_az
     el=self.track_el
 
-    if False:
-        print('FLIP_AA_ROO: az=',az,'nel=',el)
+    #print('FLIP_AA_ROO: az=',az,'nel=',el)
 
     # Compute quadrant each point is in
     quad1 = np.logical_and(az>0  , az<=90)
@@ -125,7 +53,7 @@ def flip_a_roo_new(self):
     n2 = np.sum(quad2)
     n3 = np.sum(quad3)
     n4 = np.sum(quad4)
-    print('FLIP_A_ROO: Quad counts:',n1,n2,n3,n4)
+    print('FLIP-A-ROO: Quad counts:',n1,n2,n3,n4)
     
     # First, check if the track transists into both the 2nd and 3rd quadrants
     # or into 1st and 4th quadrants
@@ -133,12 +61,11 @@ def flip_a_roo_new(self):
     self.cross180 = any(quad2) and any(quad3)
 
     # Initially assume that there is nothing to worry about
-    #self.flipper      = False
     self.quads12_only = False
     self.quads34_only = False
 
     # If we don't cross a boundary, there' nothing to worry about
-    print('FLIP_A_ROO: Current flip state=',self.flipper,'\ncross 0 and 180=',self.cross0,self.cross180)
+    print('FLIP_A_ROO: Current flip state=',self.flipper,'\tCross 0 and 180=',self.cross0,self.cross180)
     if not self.cross0 and not self.cross180:
         print('FLIP_A_ROO: Can keep current flip state')
         
@@ -148,23 +75,25 @@ def flip_a_roo_new(self):
         min2=az[quad2].min()
         max3=az[quad3].max()
         max_el = el.max()
-        print('FLIP_A_ROO: Cross180 and not flipped:',min2,max3,max_el)
+        print('FLIP_A_ROO: Cross180 and not flipped:\n\tmin az quad2=',min2,
+              '\tmax az quad3=',max3,'\tmax el=',max_el)
 
         # We need to flip if we cross the boundary significantly OR its a very high overhead pass
         # The very high overhead pass is something we can probably refine later but it should
         # constitue a very small number of passes so we'll just do this for now.
         if (max3>180+THRESH and min2<180-THRESH):     # or max_el>75:
             self.flipper = True
-            if self.flipper:
-                print("\n######### They call him Flipper Flipper Flipper-a-roo-ski ######")
+            print("\n######### They call him Flipper Flipper Flipper-a-roo-ski ######")
 
         # If we don't cross the boundary by much, fix up track so rotor is never
         # commanded to cross boundary
         if not self.flipper:
-            if n2>n3:
+            if (n1+n2) > (n3+n4):
                 self.quads12_only=True
+                print('Dont need to flip - restricting to quads 1&2')
             else:
                 self.quads34_only=True
+                print('Dont need to flip - restricting to quads 3&4')
 
     # If we cross the 0-deg boundary and we're flipped, how far do we go?
     elif self.cross0 and self.flipper:
@@ -185,10 +114,12 @@ def flip_a_roo_new(self):
         # If we don't cross the boundary by much, fix up track so rotor is never
         # commanded to cross boundary
         if self.flipper:
-            if n1>n4:
+            if (n1+n2) > (n3+n4):
                 self.quads12_only=True
+                print('Flipper - restricting to quads 1&2')
             else:
                 self.quads34_only=True
+                print('Flipper - restricting to quads 3&4')
 
     else:
         print('FLIP_A_ROO: Can keep current flip state')

@@ -67,6 +67,7 @@ import sys
 from pyhamtools.locator import locator_to_latlong
 from PyQt5.QtWidgets import QApplication
 import urllib.request, urllib.error, urllib.parse
+import json
 
 import rig_io.socket_io as socket_io
 import os
@@ -177,9 +178,109 @@ if P.GRID2:
     print('Other QTH:',P.GRID2,P.other_qth)
 
 ################################################################################
+
+# Function to fetch sat data from satnogs
+def get_satnogs_json(url,outfile):
+    print('GET SATNOSG: Fetching',outfile,'...')
+    try:
+        response = urllib.request.urlopen(url)
+    except Exception as e: 
+        print(e)
+        print('--- Unable to fetch satnogs data ---')
+        return None
+    txt = response.read().decode("utf-8")
+    
+    #print('txt=',txt)
+    #print(type(txt),len(txt))
+    
+    fp=open(outfile,'w')
+    fp.write(txt)
+    fp.close()
+
+    obj=json.loads(txt)
+    #print('obj=',obj)
+    #for key in obj:
+    #    print(key)
+
+    return obj
+
+# Function to grab all of the available satnogs info
+def get_satnogs_info():
+    
+    # This is the root of where all the sat info is stored
+    URL3="https://db.satnogs.org/api/"
+    root=get_satnogs_json(URL3,'api.json')
+    print('root=',root)
+    print(root.keys())
+    
+    # This is the transponder data, i.e. transmitters.json
+    #item='transmitters'
+    for item in root.keys():
+        URL4=URL3+item+'/'
+        get_satnogs_json(URL4,item+'.json')
+
+
+# Function to parse tle data
+def parse_tle_data():
+    item='tle'
+    item='satellites'
+    with open(item+'.json') as fp:
+        objs = json.load(fp)
+    print(type(objs),len(objs))
+    #print('objs=',objs)
+
+    for obj in objs:
+        id=obj['norad_cat_id']
+        if id in [25544,7530] or False:
+            print(obj)
+    
+# Function to parse transmitter data
+def parse_trsp_data():
+    item='transmitters'
+    with open(item+'.json') as fp:
+        objs = json.load(fp)
+    print(type(objs),len(objs))
+    #print('objs=',objs)
+
+    ids=[]
+    for obj in objs:
+        id=obj['norad_cat_id']
+        if id in [25544,7530] or True:
+            if id not in ids:
+                attr='w'
+                ids.append(id)
+            else:
+                attr='a'
+            fp=open('trsp/'+str(id)+'.trsp',attr)
+            #print(obj)
+            #print('\n['+obj['description']+']')
+            fp.write('\n['+obj['description']+']\n')
+            for item in ['uplink_low','uplink_high','downlink_low','downlink_high','mode','baud']:
+                val=obj[item]
+                if type(val)==float:
+                    val=int(val)
+                if val:
+                    tag=item.upper().replace('LINK','')
+                    #print(tag+'='+str(val),type(val)==float)
+                    fp.write(tag+'='+str(val)+'\n')
+            fp.close()
+    
     
 # Get TLE data
 print('Getting TLE data ...')
+if False:
+    get_satnogs_info()
+    sys.exit(0)
+    
+if False:
+    parse_trsp_data()
+    sys.exit(0)
+
+if False:
+    parse_tle_data()
+    sys.exit(0)
+
+
 if P.UPDATE_TLE:
     print('... Updating TLE data from Internet ...')
     if sys.version_info[0]==3:
@@ -210,14 +311,18 @@ print(" ")
 
 # Open UDP client
 if P.UDP_CLIENT:
-    try:
-        print('Opening TCP client ...')
-        P.udp_client = TCP_Client(None,7474)
-        print('... TCP Client Opened.')
-    except Exception as e: 
-        print(e)
-        print('--- Unable to connect to UDP socket ---')
-        sys.exit(0)        
+    for itry in range(5):
+        try:
+            print('Opening TCP client ...',itry)
+            P.udp_client = TCP_Client(None,7474)
+            print('... TCP Client Opened.')
+            break
+        except Exception as e: 
+            print(e)
+            time.sleep(2)
+    else:
+        print('--- Unable to connect to UDP socket - giving up ---')
+        sys.exit(0)
 
 # Put up gui        
 P.app  = QApplication(sys.argv)

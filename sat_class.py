@@ -34,6 +34,7 @@
 ################################################################################
 
 TRANSP_DATA = "~/.config/Gpredict/trsp"   # Transponder data as parsed by gpredict
+#TRANSP_DATA = "~/Python/pySat/trsp"       # Transponder data
 MIN_PEAK_EL  = 30                         # Degrees, min. elevation to identify overhead passes
 
 ################################################################################
@@ -235,6 +236,7 @@ class SATELLITE:
 
         fname = os.path.expanduser(TRANSP_DATA+'/'+str(self.number)+'.trsp')
         #print(fname)
+        #sys.exit(0)
 
         # Read the Gpredict transponder data for this sat
         config = ConfigParser() 
@@ -315,7 +317,12 @@ class SATELLITE:
 
         # Observe sat at current time
         now = time.mktime( datetime.now().timetuple() )
-        obs = predict.observe(self.tle, my_qth,now)
+        if self.name=='Moon':
+            # Hack hack hack!
+            [az,el] = self.current_moon_position()
+            return [0,0,az,el,230e3]
+        else:
+            obs = predict.observe(self.tle, my_qth,now)
         if False:
             print('\nobs=',obs,'\n')
 
@@ -340,7 +347,10 @@ class SATELLITE:
         # The Moon
         moon = ephem.Moon()
         self.moon= moon
-    
+
+        # It has no transponders!
+        self.main=None
+        
         # Form location object
         qth = ephem.Observer()
         qth.lat = str( self.qth[0] )
