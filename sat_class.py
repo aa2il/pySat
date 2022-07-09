@@ -33,8 +33,8 @@
 #
 ################################################################################
 
-TRANSP_DATA = "~/.config/Gpredict/trsp"   # Transponder data as parsed by gpredict
-#TRANSP_DATA = "~/Python/pySat/trsp"       # Transponder data
+#TRANSP_DATA = "~/.config/Gpredict/trsp"   # Transponder data as parsed by gpredict
+TRANSP_DATA = "~/Python/pySat/trsp"       # Transponder data
 MIN_PEAK_EL  = 30                         # Degrees, min. elevation to identify overhead passes
 
 ################################################################################
@@ -113,30 +113,9 @@ class SATELLITE:
         self.t2 = []
         self.y2 = []
         
-        # The moon is special
+        # The moon is special since we don't use TLEs
         if name=='Moon':
-            transits=self.fly_me_to_the_moon(date1,date2)
-            print('transits=',transits)
-
-            for transit in transits:
-                ts=transit[0]
-                te=transit[1]
-                
-                self.t.append(ts)
-                self.y.append(None)
-                self.t.append(ts)
-                self.y.append(isat)
-                self.t.append(te)
-                self.y.append(isat)
-                self.t.append(te)
-                self.y.append(None)
-
-                tmid = ts + 0.5*(te-ts)
-                self.t2.append( tmid )
-                self.y2.append(isat)
-                
-                self.pass_times.append( time.mktime(tmid.timetuple()) )
-
+            self.fly_me_to_the_moon(date1,date2)
             return        
 
         # Predict transits of this (artificial) satellite over qth for the specified time span
@@ -226,19 +205,23 @@ class SATELLITE:
     def get_transponders(self):
 
         # We use the transponder data that has already been parsed
-        # by Gpredict - for this, we need the sat number
-        print('GET_TRANSPONDERS: tle =',self.tle)
-        tle2=self.tle.split()
-        print('GET_TRANSPONDERS: tle2=',tle2)
-        self.number=int( tle2[2][:-1] )
-        print('GET_TRANSPONDERS: number=',self.number)
+        # For this, we need the sat number
         self.main=None
+        if self.name=='Moon':
+            # There are no transponders but we fake till we make it
+            self.number='Moon'
+        else:
+            print('GET_TRANSPONDERS: tle =',self.tle)
+            tle2=self.tle.split()
+            print('GET_TRANSPONDERS: tle2=',tle2)
+            self.number=int( tle2[2][:-1] )
+            print('GET_TRANSPONDERS: number=',self.number)
 
         fname = os.path.expanduser(TRANSP_DATA+'/'+str(self.number)+'.trsp')
         #print(fname)
         #sys.exit(0)
 
-        # Read the Gpredict transponder data for this sat
+        # Read the transponder data for this sat
         config = ConfigParser() 
         print(config.read(fname)) 
         self.transponders = OrderedDict()
@@ -275,7 +258,13 @@ class SATELLITE:
                     items['Inverting']=True
 
             # Find the main transponder
-            if self.name=='ISS':
+            if self.name=='Moon':
+                if 'MODE V' in transp2:
+                    self.main=transp
+                    flagged='*****'
+                else:
+                    flagged=''
+            elif self.name=='ISS':
                 if 'VOICE REPEATER' in transp2:
                     self.main=transp
                     flagged='*****'
@@ -348,8 +337,9 @@ class SATELLITE:
         moon = ephem.Moon()
         self.moon= moon
 
-        # It has no transponders!
-        self.main=None
+        # Fake the transponders to use the weak signal portion of the 2m band
+        self.get_transponders()
+        print('Moon transp=',self.transponders)
         
         # Form location object
         qth = ephem.Observer()
@@ -388,7 +378,30 @@ class SATELLITE:
             qth.date=setting
             if qth.date>ephem.Date(date2):
                 Done=True        
-    
+
+        print('Moon transits=',transits)
+
+        # Assemble graphing data from the transits
+        isat=self.isat
+        for transit in transits:
+            ts=transit[0]
+            te=transit[1]
+                
+            self.t.append(ts)
+            self.y.append(None)
+            self.t.append(ts)
+            self.y.append(isat)
+            self.t.append(te)
+            self.y.append(isat)
+            self.t.append(te)
+            self.y.append(None)
+
+            tmid = ts + 0.5*(te-ts)
+            self.t2.append( tmid )
+            self.y2.append(isat)
+                
+            self.pass_times.append( time.mktime(tmid.timetuple()) )
+                
         return transits
 
 
@@ -410,16 +423,20 @@ class SATELLITE:
         moon=self.moon
         
         if VERBOSITY>0:
-            print('\nGEN_MOON_TRACK:',t1,t2,'\tdt=',dt)
+            print('\nGEN_MOON_TRACK: t1=',t1,'\tt2=',t2,'\tdt=',dt)
             print('qth=',qth)
             print('moon=',moon)
-            print('t1=',t1,type(t1),isinstance(t1,float))
+            print('t1a=',t1,type(t1),isinstance(t1,float))
 
         # Convert t1 (start time or time in the pass) to ephem datetime object
         if isinstance(t1,float):
             # Assume it local time and convert to utc
+            #t1b = datetime.fromtimestamp(t1)
+            #print('Local Time @ middle of pass =',t1b,type(t1b))
             t1 = datetime.fromtimestamp(t1,tz=timezone.utc)
+            #print('UTC =',t1,type(t1))
         t1=ephem.Date(t1)
+        #print('t1d=',t1,type(t1))
 
         # Check if t2 is given
         if t2:
@@ -439,7 +456,7 @@ class SATELLITE:
             
             rise=qth.previous_rising(moon)
             local1=ephem.localtime(rise)
-            print('\n',qth.date,'\nPrev Mooon Rise:',rise,'\t',local1)
+            print('\nDate for Computation=',qth.date,'\nPrev Mooon Rise:',rise,'\t',local1)
             print('az/el=',moon.az,moon.alt)
             
             setting=qth.next_setting(moon)
@@ -449,6 +466,7 @@ class SATELLITE:
             
             t1=rise
             t2=setting
+            #print('Rise=',t1,type(t1),local1,'\tSet=',t2,type(t2),local2)
 
         # Compute moon track
         t=t1
@@ -471,7 +489,10 @@ class SATELLITE:
             
             t+=dt
 
-        transit=TRANSIT(t1,t2,tt,az,el)
+        local1=local1.timestamp()
+        local2=local2.timestamp()
+        transit=TRANSIT(local1,local2,tt,az,el)
+        
         return transit
 
     

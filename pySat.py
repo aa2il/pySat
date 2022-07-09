@@ -16,7 +16,7 @@
 #
 # - The TLE data is in the file   nasa.txt    and is updated using
 #   the   -update   switch.
-# - The transponder data is from gpredict
+# - The transponder data is from SatNogs
 #
 # - When a new satellite is introduced, it may be difficult to get
 #   Gpredict to recognize it.  To fix this:
@@ -179,7 +179,7 @@ if P.GRID2:
 
 ################################################################################
 
-# Function to fetch sat data from satnogs
+# Function to fetch data from satnogs
 def get_satnogs_json(url,outfile):
     print('GET SATNOSG: Fetching',outfile,'...')
     try:
@@ -214,7 +214,6 @@ def get_satnogs_info():
     print(root.keys())
     
     # This is the transponder data, i.e. transmitters.json
-    #item='transmitters'
     for item in root.keys():
         URL4=URL3+item+'/'
         get_satnogs_json(URL4,item+'.json')
@@ -269,19 +268,17 @@ def parse_trsp_data():
 # Get TLE data
 print('Getting TLE data ...')
 if False:
-    get_satnogs_info()
-    sys.exit(0)
-    
-if False:
-    parse_trsp_data()
-    sys.exit(0)
-
-if False:
+    # Haven't quite worked this out yet - stick with nasa.txt for now
     parse_tle_data()
     sys.exit(0)
 
-
 if P.UPDATE_TLE:
+    print('... Updating SatNog data from Internet ...')
+    get_satnogs_info()
+    
+    print('... Updating Transponder data  ...')
+    parse_trsp_data()
+    
     print('... Updating TLE data from Internet ...')
     if sys.version_info[0]==3:
         response = urllib.request.urlopen(URL1)

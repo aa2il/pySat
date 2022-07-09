@@ -94,9 +94,14 @@ class RigControl:
                     P.sock.split_mode(1)
                     self.vfos=['A','B']
                 elif P.sock.rig_type2=='IC9700':
-                    print('Putting IC9700 into SAT mode ...')
-                    P.sock.sat_mode(1)
-                    self.vfos=['M','S']
+                    if P.satellite.name=='Moon':
+                        print('Putting IC9700 into Regular mode ...')
+                        P.sock.sat_mode(0)
+                        self.vfos=['A','B']
+                    else:
+                        print('Putting IC9700 into SAT mode ...')
+                        P.sock.sat_mode(1)
+                        self.vfos=['M','S']
                     self.check_ic9700_bands(P)
                 elif P.sock.rig_type2=='pySDR':
                     self.vfos=['A']
@@ -213,6 +218,7 @@ class RigControl:
     def track_freqs(self,Force=False,tag='Track'):
         P=self.P
         gui=self.gui
+        print('TRACK_FREQS...',P.transp)
         
         # Compute uplink freq corresponding to downlink
         df = self.fdown - P.transp['fdn1']
@@ -236,6 +242,7 @@ class RigControl:
         # Compute downlink freq at rig = frq at sat + Doppler
         self.frqA = int(self.fdown+self.fdop1 + gui.rit)
         if gui.rig_engaged or Force:
+            print('TRACK FREQS: VFO A=',self.frqA,'\tVFO B=',self.frqB)
             P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
             if P.USE_SDR:
                 #print('Setting SDR freq to:',1e-3*self.frqA)
@@ -316,14 +323,17 @@ class RigControl:
         gui=self.P.gui
         
         now = time.mktime( datetime.now().timetuple() )
-        #print('now=',now,'\taos=',gui.aos,'\tlos=',gui.los)
+        #print('UPDATE AOS-LOS: Now=',now,type(now),
+        #      '\taos=',gui.aos,type(gui.aos),
+        #      '\tlos=',gui.los,type(gui.los))
         try:
             daos=gui.aos-now
             dlos=gui.los-now
-            #print('d-aos=',daos,'\td-los=',dlos)
+            #print('UPDATE AOS-LOS: d-aos=',daos,'\td-los=',dlos)
         except:
             daos=0
             dlos=0
+            #print('UPDATE AOS-LOS: Whooops!')
         
         if daos>0:
             gui.txt9.setText("AOS in\t"+self.hms(daos))

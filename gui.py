@@ -917,7 +917,7 @@ class SAT_GUI(QMainWindow):
 
     # Routine to update track info
     def plot_sky_track(self,sat,ttt):
-        print('Plot SKY TRACK: sat=',sat,'\tttt=',ttt)
+        print('PLOT SKY TRACK: sat=',sat,'\tttt=',ttt)
         self.Selected=sat
         self.New_Sat_Selection=True
         Sat = self.Satellites[sat]
@@ -971,6 +971,7 @@ class SAT_GUI(QMainWindow):
         self.SatName.setText( sat )
         self.aos=self.transit.start
         self.los=self.transit.end
+        #print('PLOT SKY TRACK: aos=',self.aos,type(self.aos),'\tlos=',self.los,type(self.los))
         self.AOS.setText( time.strftime('%H:%M:%S', time.localtime(self.aos) ))
         self.LOS.setText( time.strftime('%H:%M:%S', time.localtime(self.los) ))
         self.PeakEl.setText( '%6.1f deg.' % self.transit.peak()['elevation'] )
@@ -1050,7 +1051,7 @@ class SAT_GUI(QMainWindow):
             pos=P.sock2.get_position()
         else:
             pos=[np.nan,np.nan]
-        print('\nPLOT_POSITION: az,el=',az,el,'\tpos=',pos)
+        print('PLOT_POSITION: az,el=',az,el,'\tpos=',pos)
         self.pos=pos
 
         # Plot current rotor position (the big magenta blob)
@@ -1081,7 +1082,7 @@ class SAT_GUI(QMainWindow):
         # Decode sat name and time
         isat = int( round( event.ydata ) )
         sat = self.P.SATELLITE_LIST[isat]
-        print('sat:',isat,sat)
+        print('\nMOUSE CLICK - Sat=',sat,isat)
 
         xx = self.ax.get_xlim()
         # print('xx=',xx)

@@ -181,6 +181,7 @@ def rotor_positioning(gui,az,el,Force):
             #      '\n\tnew_pos=',new_pos)
         if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
             if gui.rig_engaged or gui.rotor_engaged or Force:
+                print('ROTOR_POSITIONING: new pos=',new_pos)
                 gui.P.sock2.set_position(new_pos)
                 rotor_updated=True
                 
