@@ -254,7 +254,7 @@ class SATELLITE:
             if self.name=='HO-113' and 'MODE V/U' in transp2:
                 items['Inverting']=True
             if 'invert' in items:
-                if items['invert']=='true':
+                if items['invert'].lower()=='true':
                     items['Inverting']=True
 
             # Find the main transponder

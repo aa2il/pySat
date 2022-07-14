@@ -254,7 +254,7 @@ def parse_trsp_data():
             #print(obj)
             #print('\n['+obj['description']+']')
             fp.write('\n['+obj['description']+']\n')
-            for item in ['uplink_low','uplink_high','downlink_low','downlink_high','mode','baud']:
+            for item in ['uplink_low','uplink_high','downlink_low','downlink_high','mode','invert','baud']:
                 val=obj[item]
                 if type(val)==float:
                     val=int(val)
