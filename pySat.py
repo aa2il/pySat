@@ -28,16 +28,13 @@
 #        has been renamed to nasa.txt
 #
 # - Migrated to python3 & Qt5 - To get this this to work, had to
-#    - fiddle with pypredict/predict.c - they changed the init of C functions
-#      in python 3 - ugh!
 #    - install python3-pip (pip3) and python3-setuptools
 #    - pip3 install pyhamtools
 #   In python3, there is a distinction between bytes and string so the
 #   .decode(...)   below takes care of that.
 #
-# - Installation of predict engine:
-#   Problem with this package - they changed the init module - ugh!
-#   sudo apt-get install python-dev
+# - Installation of predict engine:  (They've added support for python3)
+#   sudo apt-get install python3-dev
 #   git clone https://github.com/nsat/pypredict.git
 #   cd pypredict
 #   sudo python3 setup.py install

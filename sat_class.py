@@ -76,7 +76,9 @@ def get_tle(TLE,sat):
         + TLE[idx+1] + '\n' \
         + TLE[idx+2] + '\n'
 
-    #print('GET_TLE: tle=',tle)
+    if sat=='ISS':
+        print('GET_TLE: sat=',sat,'\ntle=',tle)
+        #sys.exit(0)
     
     return tle
 
