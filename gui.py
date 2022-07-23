@@ -63,7 +63,7 @@ from collections import OrderedDict
 from params import PARAMS
 from watchdog import WatchDog
 from rig_control import RigControl
-from sat_class import SATELLITE
+from sat_class import SATELLITE,MAPPING
 
 from settings import *
 from Logging import *
@@ -507,9 +507,11 @@ class SAT_GUI(QMainWindow):
             #return
             #sys.exit(0)
 
-        # Put up plotting window
+        # Put up plotting windows
         if P.TEST_MODE:
             self.PlotWin=PLOTTING(P)
+        if P.SHOW_MAP:
+            self.MapWin=MAPPING(P)
         
         # This doesn't seem to be working quite right - idea is to limit size of window
         #self.win.resize(size_hint)
@@ -923,6 +925,11 @@ class SAT_GUI(QMainWindow):
         Sat = self.Satellites[sat]
         # print('### Plot Sky Track: flipper=',self.flipper)
 
+        if self.P.SHOW_MAP:
+            now = datetime.now()
+            lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat.tle,now,1)
+            self.MapWin.DrawSatTrack(Sat.name,lons,lats,footprints[0])
+
         # Turn off rig tracking when we select a new sat
         self.rig_engaged = False
         self.rotor_engaged = False
@@ -1165,3 +1172,7 @@ class SAT_GUI(QMainWindow):
         rotorMenu.addAction(Act)
 
 
+
+
+
+        

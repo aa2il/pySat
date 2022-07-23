@@ -16,8 +16,10 @@ import matplotlib.patches as mpatches
 
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import matplotlib.ticker as mticker
-
 from shapely.geometry.polygon import Polygon
+
+import math
+import ephem
 
 ################################################################################
 
@@ -45,7 +47,40 @@ revs=float(tle2[7])
 rev_mins=24.*60./revs
 print('rev per day=',revs,'\t',rev_mins)
 
+################################################################################
+
+# Maybe we can get rid of pypredict all together?
+iss = ephem.readtle(tle0[0],tle0[1],tle0[2])
+
+obs = ephem.Observer()
+obs.lat = str(my_qth[0])
+obs.lon = str(-my_qth[1])
+obs.date = '2022/7/22'
+iss.compute(obs)
+print("\nISS:\tRise:%s\tTransit:%s\tSet:%s\n" %
+      (iss.rise_time, iss.transit_time, iss.set_time))
+
+for p in range(3):
+    tr, azr, tt, altt, ts, azs = obs.next_pass(iss)
+    print("Date/Time (UTC)       Alt/Azim   Lat/Long      Elev")
+    print("=====================================================")
+    while tr < ts:
+        obs.date = tr
+        iss.compute(obs)
+        print("%s | %4.1f %5.1f | %4.1f %+6.1f | %5.1f" % \
+            (tr, 
+             math.degrees(iss.alt), 
+             math.degrees(iss.az), 
+             math.degrees(iss.sublat), 
+             math.degrees(iss.sublong), 
+             iss.elevation/1000.))
+        tr = ephem.Date(tr + 20.0 * ephem.second)
+    print(" ")
+    obs.date = tr + ephem.minute
+
 #sys.exit(0)
+
+################################################################################
 
 def ComputeSatTrack(tstart,npasses):
     lons=[]

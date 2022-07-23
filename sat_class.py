@@ -49,8 +49,29 @@ from datetime import timedelta,datetime, timezone
 import ephem
 from math import pi
 
+from PyQt5 import QtCore
+from PyQt5.QtWidgets import *
+
+import numpy as np
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+from matplotlib.offsetbox import AnchoredText
+import matplotlib.patches as mpatches
+#from cartopy.mpl.ticker import (LongitudeFormatter, LatitudeFormatter,
+#                                LatitudeLocator, LongitudeLocator)
+
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
+import matplotlib.ticker as mticker
+from shapely.geometry.polygon import Polygon
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+
+################################################################################
+
 RAD2DEG=180./pi
 MINS2DAYS=1./(24.*60.)
+DEG2RAD=pi/180.
 
 ################################################################################
 
@@ -498,3 +519,141 @@ class SATELLITE:
         return transit
 
     
+################################################################################
+
+class MAPPING(QMainWindow):
+    def __init__(self,P,parent=None):
+        super(MAPPING, self).__init__(parent)
+
+        # Init
+        self.P=P
+        self.win  = QWidget()
+        self.setCentralWidget(self.win)
+        self.setWindowTitle('Satellite Track')
+        self.grid = QGridLayout(self.win)
+
+        self.fig  = Figure()
+        self.canv = FigureCanvas(self.fig)
+        self.grid.addWidget(self.canv,0,0)
+        self.ax=None
+
+        # Create figure centered on USA
+        lon0=-75
+        self.proj=ccrs.PlateCarree(central_longitude=lon0) 
+        self.ax = self.fig.add_subplot(1, 1, 1, projection=self.proj)
+        self.ax.stock_img()
+
+        self.ax.set_aspect('auto')
+        self.fig.tight_layout(pad=0)
+            
+        # Create a feature for States/Admin 1 regions at 1:50m from Natural Earth
+        states_provinces = cfeature.NaturalEarthFeature(
+            category='cultural',
+            name='admin_1_states_provinces_lines',
+            scale='50m',
+            facecolor='none')
+
+        # Add boundaries
+        self.ax.add_feature(cfeature.LAND)
+        self.ax.add_feature(cfeature.COASTLINE)
+        self.ax.add_feature(cfeature.BORDERS)
+        self.ax.add_feature(states_provinces, edgecolor='gray')
+        
+        self.show()
+        self.canv.draw()
+        self.plots=[]
+        
+
+    def ComputeSatTrack(self,tle,tstart,npasses):
+        print('COMPUTE SAT TRACK: tle=',tle)
+        tle0=tle.split('\n')
+        tle2=tle0[2].split()
+        #inclination=float(tle2[2])
+        revs=float(tle2[7])
+        rev_mins=24.*60./revs
+        print('rev per day=',revs,'\t',rev_mins)
+        
+        lons=[]
+        lats=[]
+        footprints=[]
+        for m in range(0,int(npasses*rev_mins+2),1):
+            dt = timedelta(minutes=m)
+            t = time.mktime( (tstart+dt).timetuple() )
+            obs = predict.observe(tle,self.P.my_qth,t)
+
+            lon=obs['longitude']
+            lat=obs['latitude']
+            footprint=obs['footprint']
+            print(obs['orbit'],'\t',tstart+dt,'\t',lon,'\t',lat,
+                  '\t',footprint)
+
+            lons.append(lon)
+            lats.append(lat)
+            footprints.append(footprint)
+
+        return lons,lats,footprints
+
+    def transform_and_plot(self,lons,lats,style):
+        if np.isscalar(lons):
+            lons = np.array( [lons] )
+        if np.isscalar(lats):
+            lats = np.array( [lats] )
+        xx=[]
+        yy=[]
+        x_prev=np.nan
+        for lon,lat in zip(lons,lats):
+            x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
+            dx=x-x_prev
+            if np.abs(dx)>120:
+                xx.append(np.nan)
+                yy.append(np.nan)
+            xx.append(x)
+            yy.append(y)
+            x_prev=x
+            
+        self.ax.plot(xx,yy,style, transform=self.proj)
+
+    def DrawSatTrack(self,name,lons,lats,footprint):
+
+        # Set title to sat name
+        self.setWindowTitle(name)
+        
+        # Clear prior plots
+        for line in self.ax.get_lines():
+            print(line)
+            line.remove()
+        for p in self.plots:
+            p.remove()
+        self.plots=[]
+
+        # Plot sat track
+        self.transform_and_plot(-self.P.my_qth[1],self.P.my_qth[0],'mo')
+        self.transform_and_plot(lons,lats,'b-')
+        self.transform_and_plot(lons[0],lats[0],'g*')
+        self.transform_and_plot(lons[-1],lats[-1],'r*')
+        
+        # Add footprint
+        #Latitude: 1 deg = 110.54 km
+        #Longitude: 1 deg = 111.320*cos(latitude) km
+        dy=0.5*footprint/110.54
+        dx=0.5*footprint/(111.32*np.cos(lats[0]*DEG2RAD))
+
+        xx=[]
+        yy=[]
+        pgon=[]
+        for alpha in range(0,360,5):
+            lat=lats[0]+dy*np.sin(alpha*DEG2RAD) 
+            dx=0.5*footprint/(111.32*np.cos(lat*DEG2RAD))
+            lon=lons[0]+dx*np.cos(alpha*DEG2RAD)
+            
+            x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
+            xx.append(lon)
+            yy.append(lat)
+            pgon.append((x,y))
+        self.transform_and_plot(xx,yy,'g-')
+        pgon=Polygon( tuple(pgon) )
+        p=self.ax.add_geometries([pgon], crs=self.proj, facecolor='r',
+                          edgecolor='red', alpha=0.3)
+        self.plots.append(p)
+        
+        self.canv.draw()

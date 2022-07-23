@@ -65,6 +65,8 @@ class PARAMS:
                               help='Read GPS info from .gpsrc file')
         arg_proc.add_argument('-test', action='store_true',
                               help='Test Mode')
+        arg_proc.add_argument('-nomap', action='store_true',
+                              help='Dont show track Map')
         
         args = arg_proc.parse_args()
         self.NDAYS2     = args.n
@@ -83,6 +85,7 @@ class PARAMS:
         self.UDP_CLIENT    = args.udp
         self.GPS           = args.gps
         self.TEST_MODE     = args.test
+        self.SHOW_MAP      = not args.nomap
 
         self.GRID2         = args.grid2
             
