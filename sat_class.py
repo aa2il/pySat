@@ -471,13 +471,20 @@ class SATELLITE:
     # Function to return current moon info
     def current_moon_position(self):
         qth=self.qth_moon
-        moon=self.moon
-        
         qth.date = datetime.utcnow()
-        moon.compute(qth)
-        print('Current Moon: az=',moon.az,'\tel=',moon.alt)
+        self.moon.compute(qth)
+        print('Current Moon: az=',self.moon.az,'\tel=',self.moon.alt)
 
-        return [moon.az*RAD2DEG , moon.alt*RAD2DEG]
+        return [self.moon.az*RAD2DEG , self.moon.alt*RAD2DEG]
+
+
+    def current_sun_position(self):
+        qth=self.qth_moon
+        qth.date = datetime.utcnow()
+        self.sun.compute(qth)
+        print('Current Sun: az=',self.sun.az,'\tel=',self.sun.alt)
+
+        return [self.sun.az*RAD2DEG , self.sun.alt*RAD2DEG]
 
 
     # Function to compute moon track for a single pass
@@ -624,8 +631,9 @@ class MAPPING(QMainWindow):
             lon=obs['longitude']
             lat=obs['latitude']
             footprint=obs['footprint']
-            print(obs['orbit'],'\t',tstart+dt,'\t',lon,'\t',lat,
-                  '\t',footprint)
+            if 0:
+                print(obs['orbit'],'\t',tstart+dt,'\t',lon,'\t',lat,
+                      '\t',footprint)
 
             lons.append(lon)
             lats.append(lat)
@@ -646,7 +654,7 @@ class MAPPING(QMainWindow):
             x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
             x+=phz
             dx=x-x_prev
-            print('XFORM and PLOT:\t',lon,'\t',lat,'\t',dx,'\t',x,'\t',y)
+            #print('XFORM and PLOT:\t',lon,'\t',lat,'\t',dx,'\t',x,'\t',y)
             if dx>120:
                 phz-=360
                 x-=360
@@ -664,7 +672,7 @@ class MAPPING(QMainWindow):
     def DrawSatTrack(self,name,lons,lats,footprint):
 
         # Set title to sat name
-        self.setWindowTitle(name)
+        self.setWindowTitle('Current Position of '+name)
         
         # Clear prior plots
         for line in self.ax.get_lines():
@@ -677,11 +685,9 @@ class MAPPING(QMainWindow):
         # Plot sat track
         self.transform_and_plot(-self.P.my_qth[1],self.P.my_qth[0],'mo')
         if name=='Moon':
-            print('MMMMMMMMMMOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONNNN',lats,lons)
             self.transform_and_plot(lons,lats,'bo')
             return
         elif name=='Sun':
-            print('SSSSSSSSSSSSUUUUUUUUUUUUUuuNNNN',lats,lons)
             self.transform_and_plot(lons,lats,'yo')
             return
         self.transform_and_plot(lons,lats,'b-')
@@ -749,8 +755,8 @@ class MAPPING(QMainWindow):
                 yy.append(lat)
                 pgon.append((x,y))
                 
-        self.transform_and_plot(xx,yy,'g-')
-        self.transform_and_plot(xx[0],yy[0],'go')
+        #self.transform_and_plot(xx,yy,'g-')
+        #self.transform_and_plot(xx[0],yy[0],'go')
         pgon=Polygon( tuple(pgon) )
         p=self.ax.add_geometries([pgon], crs=self.proj, facecolor='r',
                           edgecolor='red', alpha=0.3)

@@ -930,13 +930,11 @@ class SAT_GUI(QMainWindow):
             if sat=='Moon':
                 # Donde esta la luna?
                 print('now=',now)
-                #Sat.get_moon_pos(now)
-                pos=Sat.current_moon_position()
                 [moon_lat,moon_lon] = Sat.get_moon_latlon()
                 [sun_lat ,sun_lon ] = Sat.get_sun_latlon()
-                self.MapWin.setWindowTitle(Sat.name)
                 self.MapWin.DrawSatTrack(Sat.name,[moon_lon],[moon_lat],100)
                 self.MapWin.transform_and_plot([sun_lon],[sun_lat],'o',clr='orange')
+                self.MapWin.setWindowTitle('Current Position of Sun and Moon')
                 self.MapWin.canv.draw()
             else:
                 lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat.tle,now,1)
@@ -1023,7 +1021,8 @@ class SAT_GUI(QMainWindow):
         self.ax2.plot(az[-1], r[-1],'ro')
         
         self.rot, = self.ax2.plot(0,0,'mo')
-        self.sky, = self.ax2.plot(0,0,'k*')
+        self.sky, = self.ax2.plot(0,0,'ko')
+        self.sun, = self.ax2.plot(np.nan,np.nan,'o',color='orange')
         self.ax2.set_rmax(90)
 
         if sat=='Moon':
@@ -1081,6 +1080,15 @@ class SAT_GUI(QMainWindow):
         # Plot sat position (the black star)
         self.sky.set_data( (90.-az)*RADIANS, 90.-max(0.,el) )
 
+        # Plot Sun position also
+        [sun_az,sun_el] = self.Satellites['Moon'].current_sun_position()
+        print('SUN:',sun_az,sun_el)
+        if sun_el<-10:
+            sun_az=np.nan
+            sun_el=np.nan
+        print('SUN:',sun_az,sun_el)
+        self.sun.set_data( (90.-sun_az)*RADIANS, 90.-max(0.,sun_el) )
+        
         self.canv2.draw()
         return
     
