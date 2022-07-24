@@ -352,6 +352,18 @@ class SATELLITE:
 
 ################################################################################
 
+    """
+    # Duplicate function - see current moon position below
+    def get_moon_pos(self,date1):
+        qth=self.qth_moon
+        qth.date=date1
+        self.moon.compute(qth)
+        az=self.moon.az
+        el=self.moon.alt
+        print('MOON: Date=',date1,'\taz=',az,'\tel=',el)
+        return az,el
+    """
+    
     # Function to handle moon passes
     def fly_me_to_the_moon(self,date1,date2):
         print('\nFLY_ME_TO_THE_MOON: my_qth=',self.qth,'\ndate1=',date1,'\tdate2=',date2)
@@ -359,6 +371,14 @@ class SATELLITE:
         # The Moon
         moon = ephem.Moon()
         self.moon= moon
+
+        # The Sun
+        self.sun = ephem.Sun()
+
+        # Greenwich
+        self.greenwich = ephem.Observer()
+        self.greenwich.lat = '0'
+        self.greenwich.lon = '0'
 
         # Fake the transponders to use the weak signal portion of the 2m band
         self.get_transponders()
@@ -427,6 +447,26 @@ class SATELLITE:
                 
         return transits
 
+
+    # Get current moon lat and lon
+    def get_moon_latlon(self):
+        self.greenwich.date = datetime.utcnow()
+        self.moon.compute(self.greenwich)
+        lon = ( self.moon.ra - self.greenwich.sidereal_time() )*RAD2DEG
+        lat = ( self.moon.dec )*RAD2DEG
+        print('Moon lat & lon:',lat,lon)
+
+        return [lat,lon]
+
+    # Get current sun lat and lon
+    def get_sun_latlon(self):
+        self.greenwich.date = datetime.utcnow()
+        self.sun.compute(self.greenwich)
+        lon = ( self.sun.ra - self.greenwich.sidereal_time() )*RAD2DEG
+        lat = ( self.sun.dec )*RAD2DEG
+        print('Sun lat & lon:',lat,lon)
+
+        return [lat,lon]
 
     # Function to return current moon info
     def current_moon_position(self):
@@ -593,7 +633,7 @@ class MAPPING(QMainWindow):
 
         return lons,lats,footprints
 
-    def transform_and_plot(self,lons,lats,style):
+    def transform_and_plot(self,lons,lats,style,clr=None):
         if np.isscalar(lons):
             lons = np.array( [lons] )
         if np.isscalar(lats):
@@ -601,17 +641,25 @@ class MAPPING(QMainWindow):
         xx=[]
         yy=[]
         x_prev=np.nan
+        phz=0
         for lon,lat in zip(lons,lats):
             x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
+            x+=phz
             dx=x-x_prev
-            if np.abs(dx)>120:
-                xx.append(np.nan)
-                yy.append(np.nan)
+            print('XFORM and PLOT:\t',lon,'\t',lat,'\t',dx,'\t',x,'\t',y)
+            if dx>120:
+                phz-=360
+                x-=360
+            elif dx<-120:
+                phz+=360
+                x+=360
             xx.append(x)
             yy.append(y)
             x_prev=x
-            
-        self.ax.plot(xx,yy,style, transform=self.proj)
+
+        if not clr:
+            clr=style[0]
+        self.ax.plot(xx,yy,style,color=clr,transform=self.proj)
 
     def DrawSatTrack(self,name,lons,lats,footprint):
 
@@ -628,29 +676,81 @@ class MAPPING(QMainWindow):
 
         # Plot sat track
         self.transform_and_plot(-self.P.my_qth[1],self.P.my_qth[0],'mo')
+        if name=='Moon':
+            print('MMMMMMMMMMOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONNNN',lats,lons)
+            self.transform_and_plot(lons,lats,'bo')
+            return
+        elif name=='Sun':
+            print('SSSSSSSSSSSSUUUUUUUUUUUUUuuNNNN',lats,lons)
+            self.transform_and_plot(lons,lats,'yo')
+            return
         self.transform_and_plot(lons,lats,'b-')
         self.transform_and_plot(lons[0],lats[0],'g*')
         self.transform_and_plot(lons[-1],lats[-1],'r*')
         
-        # Add footprint
+        # Add footprint "ellipse"
         #Latitude: 1 deg = 110.54 km
         #Longitude: 1 deg = 111.320*cos(latitude) km
         dy=0.5*footprint/110.54
         dx=0.5*footprint/(111.32*np.cos(lats[0]*DEG2RAD))
 
+        print('\nEllipse:',lons[0],lats[0],footprint)
+        north_pole = lats[0]+dy>=80
+        south_pole = lats[0]-dy<=-80
+        phz=0
+        print('Poles:',lats[0],dy,north_pole,south_pole)
+
         xx=[]
         yy=[]
         pgon=[]
-        for alpha in range(0,360,5):
-            lat=lats[0]+dy*np.sin(alpha*DEG2RAD) 
+        lon_prev=np.nan
+        step=5
+        for alpha in range(0,360+step,step):
+            lat=lats[0]+dy*np.sin(alpha*DEG2RAD)
             dx=0.5*footprint/(111.32*np.cos(lat*DEG2RAD))
             lon=lons[0]+dx*np.cos(alpha*DEG2RAD)
             
             x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
-            xx.append(lon)
-            yy.append(lat)
-            pgon.append((x,y))
+            #print(lon,'\t',lat,'\t',x,'\t',y)
+
+            # Only keep valid points - near the poles, this can get squirrly
+            if dx>0 and dx<180:
+                x+=phz
+                dlon=x-lon_prev
+                if dlon>120:
+                    if north_pole or south_pole:
+                        if north_pole:
+                            y0=90
+                        else:
+                            y0=-90
+                        pgon.append((-180+phz,y))
+                        pgon.append((-180+phz,y0))
+                        pgon.append((180+phz,y0))
+                        pgon.append((180+phz,y))
+                    else:
+                        phz-=360
+                        x-=360
+                elif dlon<-120:
+                    if north_pole or south_pole:
+                        if north_pole:
+                            y0=90
+                        else:
+                            y0=-90
+                        pgon.append((180+phz,y))
+                        pgon.append((180+phz,y0))
+                        pgon.append((-180+phz,y0))
+                        pgon.append((-180+phz,y))
+                    else:
+                        phz+=360
+                        x+=360
+                        
+                lon_prev=x
+                xx.append(lon)
+                yy.append(lat)
+                pgon.append((x,y))
+                
         self.transform_and_plot(xx,yy,'g-')
+        self.transform_and_plot(xx[0],yy[0],'go')
         pgon=Polygon( tuple(pgon) )
         p=self.ax.add_geometries([pgon], crs=self.proj, facecolor='r',
                           edgecolor='red', alpha=0.3)

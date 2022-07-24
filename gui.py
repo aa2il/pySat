@@ -927,8 +927,20 @@ class SAT_GUI(QMainWindow):
 
         if self.P.SHOW_MAP:
             now = datetime.now()
-            lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat.tle,now,1)
-            self.MapWin.DrawSatTrack(Sat.name,lons,lats,footprints[0])
+            if sat=='Moon':
+                # Donde esta la luna?
+                print('now=',now)
+                #Sat.get_moon_pos(now)
+                pos=Sat.current_moon_position()
+                [moon_lat,moon_lon] = Sat.get_moon_latlon()
+                [sun_lat ,sun_lon ] = Sat.get_sun_latlon()
+                self.MapWin.setWindowTitle(Sat.name)
+                self.MapWin.DrawSatTrack(Sat.name,[moon_lon],[moon_lat],100)
+                self.MapWin.transform_and_plot([sun_lon],[sun_lat],'o',clr='orange')
+                self.MapWin.canv.draw()
+            else:
+                lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat.tle,now,1)
+                self.MapWin.DrawSatTrack(Sat.name,lons,lats,footprints[0])
 
         # Turn off rig tracking when we select a new sat
         self.rig_engaged = False

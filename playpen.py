@@ -49,6 +49,34 @@ print('rev per day=',revs,'\t',rev_mins)
 
 ################################################################################
 
+RAD2DEG=180./np.pi
+
+# Greenwich
+obs = ephem.Observer()
+obs.lat = '0'
+obs.lon = '0'
+obs.date = datetime.utcnow()
+
+# Compute moon lat & lon
+moon = ephem.Moon(obs)
+moon.compute(obs.date)
+print('\nMoon ra & dec:  %s %s' % (moon.ra, moon.dec))
+lon = (moon.ra - obs.sidereal_time() )*RAD2DEG
+lat = moon.dec*RAD2DEG
+print('Moon lat & lon:',lat,lon)
+
+# Do same for the sun
+sun = ephem.Sun(obs)
+sun.compute(obs.date)
+print('\nSun ra & dec:  %s %s' % (sun.ra, sun.a_dec))
+lon = ( sun.ra - obs.sidereal_time() )*RAD2DEG
+lat = ( sun.dec )*RAD2DEG
+print('Sun lat & lon:',lat,lon)
+
+sys.exit(0)
+
+################################################################################
+
 # Maybe we can get rid of pypredict all together?
 iss = ephem.readtle(tle0[0],tle0[1],tle0[2])
 
@@ -182,13 +210,47 @@ def DrawSatTrack(my_qth,lons,lats,footprint):
     print(ax.get_extent())
     print(ax.axis())
 
-    # Add circle
+    # Add footprint "ellipse"
     #Latitude: 1 deg = 110.54 km
     #Longitude: 1 deg = 111.320*cos(latitude) km
+
+    if 0:
+        # Fudge a problematic case - covers north pole
+        lons[0]  = 232.3270459142194
+        lats[0]  = 64.10485105710941
+        footprint= 5986.117022528699
+    elif 0:
+        # Fudge a problematic case - E/W split
+        lons[0]  = 104.95246748520428
+        lats[0]  =  -39.70384821309545
+        footprint=  4572.651446882606
+    elif 0:
+        # Fudge a problematic case - another north pol
+        lons[0]  = 82.48670298393088
+        lats[0]  = 61.20920366167575
+        footprint= 5585.536969035633
+    elif 0:
+        # Fudge a problematic case -
+        lons[0]  = 281.38001554144023
+        lats[0]  =  50.99264184456991
+        footprint=  7416.590075882028
+    elif 0:
+        # Fudge a problematic case -
+        lons[0]  = 5.549660864158477
+        lats[0]  = -68.76426139817411
+        footprint= 4892.518052086816
+    elif 1:
+        # Fudge a problematic case -
+        lons[0]  =  167.13582865717348 
+        lats[0]  = -63.56059513829651
+        footprint=  5367.4556389843765
+        
+    print('\nEllipse:',lons[0],lats[0],footprint)
+    
     DEG2RAD=np.pi/180.
     dy=0.5*footprint/110.54
     dx=0.5*footprint/(111.32*np.cos(lats[0]*DEG2RAD))
-    print(footprint,dy,dx)
+    #print(footprint,dy,dx)
 
     if 0:
         r=0.5*(dy+dx)
@@ -201,18 +263,66 @@ def DrawSatTrack(my_qth,lons,lats,footprint):
         xx=[]
         yy=[]
         pgon=[]
-        for alpha in range(0,360,5):
+        lon_prev=np.nan
+
+        north_pole = lats[0]+dy>=80
+        south_pole = lats[0]-dy<=-80
+        print('Poles:',lats[0],dy,north_pole,south_pole)
+        
+        phz=0
+        for alpha in range(0,365,5):
             lat=lats[0]+dy*np.sin(alpha*DEG2RAD) 
             dx=0.5*footprint/(111.32*np.cos(lat*DEG2RAD))
             lon=lons[0]+dx*np.cos(alpha*DEG2RAD)
-            
+
             x,y = proj.transform_point(lon,lat, ccrs.Geodetic())
-            #x=lon
-            #y=lat
-            xx.append(lon)
-            yy.append(lat)
-            pgon.append((x,y))
+            print(alpha,'\t',dx,'\t',lon,'\t',lat,'\t',x,'\t',y)
+            if dx>0 and dx<180:
+                x+=phz
+                dlon=x-lon_prev
+                if dlon>120:
+                    if north_pole or south_pole:
+                        if north_pole:
+                            y0=90
+                        else:
+                            y0=-90
+                        pgon.append((-180+phz,y))
+                        print(pgon[-1])
+                        pgon.append((-180+phz,y0))
+                        print(pgon[-1])
+                        pgon.append((180+phz,y0))
+                        print(pgon[-1])
+                        pgon.append((180+phz,y))
+                        print(pgon[-1])
+                    else:
+                        phz-=360
+                        x-=360
+                elif dlon<-120:
+                    if north_pole or south_pole:
+                        if north_pole:
+                            y0=90
+                        else:
+                            y0=-90
+                        pgon.append((180+phz,y))
+                        print(pgon[-1])
+                        pgon.append((180+phz,y0))
+                        print(pgon[-1])
+                        pgon.append((-180+phz,y0))
+                        print(pgon[-1])
+                        pgon.append((-180+phz,y))
+                        print(pgon[-1])
+                    else:
+                        phz+=360
+                        x+=360
+                        
+                lon_prev=x
+                #print(phz,'\t',dlon,'\t',x,'\t',y,'\t',x,'\t',y)
+                xx.append(lon)
+                yy.append(lat)
+                pgon.append((x,y))
         transform_and_plot(ax,proj,xx,yy,'g-')
+        transform_and_plot(ax,proj,xx[0],yy[0],'go')
+        transform_and_plot(ax,proj,xx[-2],yy[-2],'ro')
         pgon=Polygon( tuple(pgon) )
         #print(pgon)
         #print(yy)
