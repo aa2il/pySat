@@ -47,6 +47,7 @@ class RigControl:
         self.fdop2 = None
         self.az    = None
         self.el    = None
+        self.sat_map_cntr=0
         
         self.fp_log = open("/tmp/satellites.log", "w")
         row=['Time Stamp','Source','Selected',
@@ -64,6 +65,8 @@ class RigControl:
     def Updater(self):
         P=self.P
         gui=P.gui
+
+        #print('RIG CONTROL UPDATER ...')
         
         if False:
             print('RIG CONTROL UPDATER: Rig  =',P.sock.rig_type1,P.sock.rig_type2)
@@ -168,8 +171,11 @@ class RigControl:
                     self.save_diagnostics('Spin',nan,[nan,nan],[nan,nan],nan,nan,nan)
                     return
 
-                # Update up and down link freqs 
+                # Update up and down link freqs - WAS 2 TABS IN
                 self.track_freqs(tag='Update')
+                
+        else:
+            self.track_freqs(tag='Update')
 
         # Update AOS/LOS indicator
         self.update_aos_los()
@@ -230,7 +236,7 @@ class RigControl:
             #print('Non:',P.transp['fup1'],df,self.fup)
             
         # Compute Doppler shifts for up and down links
-        [self.fdop1,self.fdop2,self.az,self.el,rng] = \
+        [self.fdop1,self.fdop2,self.az,self.el,rng,lat,lon,footprint] = \
             P.satellite.Doppler_Shifts(self.fdown,self.fup,P.my_qth)
 
         # Set up and down link freqs
@@ -253,9 +259,16 @@ class RigControl:
         rotor_updated,pos,daz,de,new_pos = \
             rotor_positioning(gui,self.az,self.el,Force)
 
-        # Update sky track
+        # Update sky track & sat map
         gui.plot_position(self.az,self.el,pos)
+        if self.P.SHOW_MAP:
+            self.sat_map_cntr+=1
+            if self.sat_map_cntr>=10:
+                print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Updating footprint ...')
+                self.sat_map_cntr=0
+                gui.MapWin.DrawSatFootprint(P.satellite.name,lon,lat,footprint)
 
+        
         # Toggle voice recorder (if available)
         if self.el>0:
             #print('=== ',gui.Selected,' is VISIBLE ===',az,el)

@@ -347,8 +347,11 @@ class SATELLITE:
         az = obs['azimuth']
         el = obs['elevation']
         rng = obs['slant_range']
+        lon = obs['longitude']
+        lat = obs['latitude']
+        footprint = obs['footprint']
         
-        return [fdop1,fdop2,az,el,rng]
+        return [fdop1,fdop2,az,el,rng,lat,lon,footprint]
 
 ################################################################################
 
@@ -608,11 +611,15 @@ class MAPPING(QMainWindow):
         
         self.show()
         self.canv.draw()
-        self.plots=[]
+        self.blobs=[]
         
 
-    def ComputeSatTrack(self,tle,tstart,npasses):
+    def ComputeSatTrack(self,tle,tstart=None,npasses=1):
         print('COMPUTE SAT TRACK: tle=',tle)
+
+        if tstart==None:
+            tstart = datetime.now()
+        
         tle0=tle.split('\n')
         tle2=tle0[2].split()
         #inclination=float(tle2[2])
@@ -667,20 +674,25 @@ class MAPPING(QMainWindow):
 
         if not clr:
             clr=style[0]
-        self.ax.plot(xx,yy,style,color=clr,transform=self.proj)
-
-    def DrawSatTrack(self,name,lons,lats,footprint):
+        p=self.ax.plot(xx,yy,style,color=clr,transform=self.proj)
+        return p[0]
+        
+    def DrawSatTrack(self,name,lons,lats):
 
         # Set title to sat name
         self.setWindowTitle('Current Position of '+name)
         
         # Clear prior plots
         for line in self.ax.get_lines():
-            print(line)
+            print('line=',line)
             line.remove()
-        for p in self.plots:
-            p.remove()
-        self.plots=[]
+        for p in self.blobs:
+            print('p=',line)
+            try:
+                p.remove()
+            except:
+                pass
+        self.blobs=[]
 
         # Plot sat track
         self.transform_and_plot(-self.P.my_qth[1],self.P.my_qth[0],'mo')
@@ -693,18 +705,30 @@ class MAPPING(QMainWindow):
         self.transform_and_plot(lons,lats,'b-')
         self.transform_and_plot(lons[0],lats[0],'g*')
         self.transform_and_plot(lons[-1],lats[-1],'r*')
+
+        self.canv.draw()
+        return
+    
         
+    def DrawSatFootprint(self,name,lon0,lat0,footprint):
+
+        # Clear prior footprints
+        for p in self.blobs:
+            print(p)
+            p.remove()
+        self.blobs=[]
+
         # Add footprint "ellipse"
         #Latitude: 1 deg = 110.54 km
         #Longitude: 1 deg = 111.320*cos(latitude) km
         dy=0.5*footprint/110.54
-        dx=0.5*footprint/(111.32*np.cos(lats[0]*DEG2RAD))
+        dx=0.5*footprint/(111.32*np.cos(lat0*DEG2RAD))
 
-        print('\nEllipse:',lons[0],lats[0],footprint)
-        north_pole = lats[0]+dy>=80
-        south_pole = lats[0]-dy<=-80
+        print('\nEllipse:',lon0,lat0,footprint)
+        north_pole = lat0+dy>=80
+        south_pole = lat0-dy<=-80
         phz=0
-        print('Poles:',lats[0],dy,north_pole,south_pole)
+        print('Poles:',lat0,dy,north_pole,south_pole)
 
         xx=[]
         yy=[]
@@ -712,9 +736,9 @@ class MAPPING(QMainWindow):
         lon_prev=np.nan
         step=5
         for alpha in range(0,360+step,step):
-            lat=lats[0]+dy*np.sin(alpha*DEG2RAD)
-            dx=0.5*footprint/(111.32*np.cos(lat*DEG2RAD))
-            lon=lons[0]+dx*np.cos(alpha*DEG2RAD)
+            lat=lat0+dy*np.sin(alpha*DEG2RAD)
+            dx=0.5*footprint/(111.32*np.cos(lat0*DEG2RAD))
+            lon=lon0 + dx*np.cos(alpha*DEG2RAD)
             
             x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
             #print(lon,'\t',lat,'\t',x,'\t',y)
@@ -760,6 +784,9 @@ class MAPPING(QMainWindow):
         pgon=Polygon( tuple(pgon) )
         p=self.ax.add_geometries([pgon], crs=self.proj, facecolor='r',
                           edgecolor='red', alpha=0.3)
-        self.plots.append(p)
+        self.blobs.append(p)
+
+        p=self.transform_and_plot(lon0,lat0,'k*')
+        self.blobs.append(p)
         
         self.canv.draw()
