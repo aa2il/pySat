@@ -331,8 +331,8 @@ class SATELLITE:
         now = time.mktime( datetime.now().timetuple() )
         if self.name=='Moon':
             # Hack hack hack!
-            [az,el] = self.current_moon_position()
-            return [0,0,az,el,230e3]
+            [az,el,lat,lon]   = self.current_moon_position()
+            return [0,0,az,el,230e3,lat,lon,1]
         else:
             obs = predict.observe(self.tle, my_qth,now)
         if False:
@@ -355,18 +355,6 @@ class SATELLITE:
 
 ################################################################################
 
-    """
-    # Duplicate function - see current moon position below
-    def get_moon_pos(self,date1):
-        qth=self.qth_moon
-        qth.date=date1
-        self.moon.compute(qth)
-        az=self.moon.az
-        el=self.moon.alt
-        print('MOON: Date=',date1,'\taz=',az,'\tel=',el)
-        return az,el
-    """
-    
     # Function to handle moon passes
     def fly_me_to_the_moon(self,date1,date2):
         print('\nFLY_ME_TO_THE_MOON: my_qth=',self.qth,'\ndate1=',date1,'\tdate2=',date2)
@@ -450,44 +438,33 @@ class SATELLITE:
                 
         return transits
 
-
-    # Get current moon lat and lon
-    def get_moon_latlon(self):
-        self.greenwich.date = datetime.utcnow()
-        self.moon.compute(self.greenwich)
-        lon = ( self.moon.ra - self.greenwich.sidereal_time() )*RAD2DEG
-        lat = ( self.moon.dec )*RAD2DEG
-        print('Moon lat & lon:',lat,lon)
-
-        return [lat,lon]
-
-    # Get current sun lat and lon
-    def get_sun_latlon(self):
-        self.greenwich.date = datetime.utcnow()
-        self.sun.compute(self.greenwich)
-        lon = ( self.sun.ra - self.greenwich.sidereal_time() )*RAD2DEG
-        lat = ( self.sun.dec )*RAD2DEG
-        print('Sun lat & lon:',lat,lon)
-
-        return [lat,lon]
-
     # Function to return current moon info
     def current_moon_position(self):
         qth=self.qth_moon
         qth.date = datetime.utcnow()
         self.moon.compute(qth)
-        print('Current Moon: az=',self.moon.az,'\tel=',self.moon.alt)
 
-        return [self.moon.az*RAD2DEG , self.moon.alt*RAD2DEG]
+        self.greenwich.date = qth.date
+        self.moon.compute(self.greenwich)
+        lon = ( self.moon.ra - self.greenwich.sidereal_time() )*RAD2DEG
+        lat = ( self.moon.dec )*RAD2DEG
+        
+        print('Current Moon: az=',self.moon.az,'\tel=',self.moon.alt,'\tlat=',lat,'\t','lon=',lon)
+        return [self.moon.az*RAD2DEG , self.moon.alt*RAD2DEG , lat , lon]
 
-
+    # Function to return current sun info
     def current_sun_position(self):
         qth=self.qth_moon
         qth.date = datetime.utcnow()
         self.sun.compute(qth)
-        print('Current Sun: az=',self.sun.az,'\tel=',self.sun.alt)
 
-        return [self.sun.az*RAD2DEG , self.sun.alt*RAD2DEG]
+        self.greenwich.date = qth.date
+        self.sun.compute(self.greenwich)
+        lon = ( self.sun.ra - self.greenwich.sidereal_time() )*RAD2DEG
+        lat = ( self.sun.dec )*RAD2DEG
+        
+        print('Current Moon: az=',self.sun.az,'\tel=',self.sun.alt,'\tlat=',lat,'\t','lon=',lon)
+        return [self.sun.az*RAD2DEG , self.sun.alt*RAD2DEG , lat , lon]
 
 
     # Function to compute moon track for a single pass
@@ -669,6 +646,8 @@ class MAPPING(QMainWindow):
                 phz+=360
                 x+=360
             xx.append(x)
+
+            #yy.append(max(min(y,90),-90))
             yy.append(y)
             x_prev=x
 
@@ -677,22 +656,23 @@ class MAPPING(QMainWindow):
         p=self.ax.plot(xx,yy,style,color=clr,transform=self.proj)
         return p[0]
         
-    def DrawSatTrack(self,name,lons,lats):
+    def DrawSatTrack(self,name,lons,lats,ERASE=True):
 
         # Set title to sat name
         self.setWindowTitle('Current Position of '+name)
         
         # Clear prior plots
-        for line in self.ax.get_lines():
-            print('line=',line)
-            line.remove()
-        for p in self.blobs:
-            print('p=',line)
-            try:
-                p.remove()
-            except:
-                pass
-        self.blobs=[]
+        if ERASE:
+            for line in self.ax.get_lines():
+                print('line=',line)
+                line.remove()
+            for p in self.blobs:
+                print('p=',line)
+                try:
+                    p.remove()
+                except:
+                    pass
+            self.blobs=[]
 
         # Plot sat track
         self.transform_and_plot(-self.P.my_qth[1],self.P.my_qth[0],'mo')
@@ -737,11 +717,11 @@ class MAPPING(QMainWindow):
         step=5
         for alpha in range(0,360+step,step):
             lat=lat0+dy*np.sin(alpha*DEG2RAD)
-            dx=0.5*footprint/(111.32*np.cos(lat0*DEG2RAD))
+            dx=0.5*footprint/(111.32*np.cos(lat*DEG2RAD))
             lon=lon0 + dx*np.cos(alpha*DEG2RAD)
             
             x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
-            #print(lon,'\t',lat,'\t',x,'\t',y)
+            #print(alpha,'\t',dx,'\t',lon,'\t',lat,'\t',x,'\t',y)
 
             # Only keep valid points - near the poles, this can get squirrly
             if dx>0 and dx<180:
@@ -754,9 +734,13 @@ class MAPPING(QMainWindow):
                         else:
                             y0=-90
                         pgon.append((-180+phz,y))
+                        #print(pgon[-1])
                         pgon.append((-180+phz,y0))
+                        #print(pgon[-1])
                         pgon.append((180+phz,y0))
+                        #print(pgon[-1])
                         pgon.append((180+phz,y))
+                        #print(pgon[-1])
                     else:
                         phz-=360
                         x-=360
@@ -767,16 +751,21 @@ class MAPPING(QMainWindow):
                         else:
                             y0=-90
                         pgon.append((180+phz,y))
+                        #print(pgon[-1])
                         pgon.append((180+phz,y0))
+                        #print(pgon[-1])
                         pgon.append((-180+phz,y0))
+                        #print(pgon[-1])
                         pgon.append((-180+phz,y))
+                        #print(pgon[-1])
                     else:
                         phz+=360
                         x+=360
                         
                 lon_prev=x
-                xx.append(lon)
-                yy.append(lat)
+                #xx.append(lon)
+                #yy.append(lat)
+                #y=max(min(y,90),-90)
                 pgon.append((x,y))
                 
         #self.transform_and_plot(xx,yy,'g-')

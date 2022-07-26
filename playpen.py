@@ -73,7 +73,7 @@ lon = ( sun.ra - obs.sidereal_time() )*RAD2DEG
 lat = ( sun.dec )*RAD2DEG
 print('Sun lat & lon:',lat,lon)
 
-sys.exit(0)
+#sys.exit(0)
 
 ################################################################################
 
@@ -239,12 +239,32 @@ def DrawSatTrack(my_qth,lons,lats,footprint):
         lons[0]  = 5.549660864158477
         lats[0]  = -68.76426139817411
         footprint= 4892.518052086816
-    elif 1:
+    elif 0:
         # Fudge a problematic case -
         lons[0]  =  167.13582865717348 
         lats[0]  = -63.56059513829651
         footprint=  5367.4556389843765
-        
+    elif 0:
+        # Fudge a problematic case -
+        lons[0]  = 272.54128217901916
+        lats[0]  = 77.20233583421518
+        footprint= 8000.864698349377
+    elif 0:
+        # Fudge a problematic case -
+        lons[0]  = 10.19769278519825
+        lats[0]  =  79.67014426806999
+        footprint=  7926.421824906122
+    elif 0:
+        # Fudge a problematic case -
+        lons[0]  = 31.282069356792686
+        lats[0]  =  72.17638731342144
+        footprint=  7875.29210171888
+    elif 1:
+        # Fudge a problematic case -
+        lons[0]  = 152.49620676533235
+        lats[0]  = 65.60578291196417
+        footprint= 5988.362032233469
+
     print('\nEllipse:',lons[0],lats[0],footprint)
     
     DEG2RAD=np.pi/180.

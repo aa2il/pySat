@@ -261,12 +261,14 @@ class RigControl:
 
         # Update sky track & sat map
         gui.plot_position(self.az,self.el,pos)
-        if self.P.SHOW_MAP:
+        if self.P.SHOW_MAP and True:
             self.sat_map_cntr+=1
             if self.sat_map_cntr>=10:
-                print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Updating footprint ...')
+                #name = gui.Selected
+                name = P.satellite.name
+                print('\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Updating footprint ...',name)
                 self.sat_map_cntr=0
-                gui.MapWin.DrawSatFootprint(P.satellite.name,lon,lat,footprint)
+                gui.MapWin.DrawSatFootprint(name,lon,lat,footprint)
 
         
         # Toggle voice recorder (if available)

@@ -925,19 +925,20 @@ class SAT_GUI(QMainWindow):
         Sat = self.Satellites[sat]
         # print('### Plot Sky Track: flipper=',self.flipper)
 
-        if self.P.SHOW_MAP:
+        if self.P.SHOW_MAP and True:
             if sat=='Moon':
                 # Donde esta la luna?
-                [moon_lat,moon_lon] = Sat.get_moon_latlon()
-                [sun_lat ,sun_lon ] = Sat.get_sun_latlon()
-                self.MapWin.DrawSatTrack(Sat.name,[moon_lon],[moon_lat])
-                self.MapWin.transform_and_plot([sun_lon],[sun_lat],'o',clr='orange')
+                [moon_az,moon_el,moon_lat,moon_lon] = Sat.current_moon_position()
+                [sun_az, sunn_el,sun_lat, sun_lon]  = Sat.current_sun_position()
+                self.MapWin.DrawSatTrack(Sat.name,moon_lon,moon_lat)
+                self.MapWin.transform_and_plot(sun_lon,sun_lat,'o',clr='orange')
                 self.MapWin.setWindowTitle('Current Position of Sun and Moon')
                 self.MapWin.canv.draw()
             else:
                 lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat.tle)
                 self.MapWin.DrawSatTrack(Sat.name,lons,lats)
                 self.MapWin.DrawSatFootprint(Sat.name,lons[0],lats[0],footprints[0])
+                #self.MapWin.transform_and_plot([lons[0]],[lats[0]],'ko')
 
         # Turn off rig tracking when we select a new sat
         self.rig_engaged = False
@@ -946,6 +947,7 @@ class SAT_GUI(QMainWindow):
             self.btn2.toggle()
         if self.btn4.isChecked():
             self.btn4.toggle()
+        self.P.satellite = Sat         ### JBA - not sure about this????
 
         # The moon is special
         if sat=='Moon':
@@ -975,13 +977,31 @@ class SAT_GUI(QMainWindow):
             tt=[]
             az=[]
             el=[]
+            lats=[]
+            lons=[]
+            footprints=[]
             while t<self.transit.end:
                 obs=predict.observe(tle, self.P.my_qth,at=t)
                 #print('obs=',obs)
                 tt.append(t)
                 az.append(obs['azimuth'])
                 el.append(obs['elevation'])
+                lats.append(obs['latitude'])
+                lons.append(obs['longitude'])
+                footprints.append(obs['footprint'])
                 t+=10
+
+            if self.P.SHOW_MAP and False:
+                # Show footprint at mid-point of pass
+                tmid = 0.5*(self.transit.start + self.transit.end)
+                #obs=predict.observe(tle, self.P.my_qth,at=tmid)
+                #lat = obs['latitude']
+                #lon = obs['longitude']
+                #footprint = obs['footprint']
+                idx = int( len(lats)/2 )
+                print('\nHEY:',Sat.name,tmid,lats[idx],lons[idx],footprints[idx],'-----------=====================\n')
+                self.MapWin.DrawSatTrack(Sat.name,lons,lats,ERASE=False)
+                self.MapWin.DrawSatFootprint(Sat.name,lons[idx],lats[idx],footprints[idx])
 
         # Update GUI
         self.SatName.setText( sat )
@@ -1025,7 +1045,7 @@ class SAT_GUI(QMainWindow):
         self.ax2.set_rmax(90)
 
         if sat=='Moon':
-            [az,el] = Sat.current_moon_position()
+            [az,el,lat,lon] = Sat.current_moon_position()
         else:
             [fdop1,fdop2,az,el,rng,lat,lon,footprint] = \
                 Sat.Doppler_Shifts(0,0,self.P.my_qth)
@@ -1080,7 +1100,7 @@ class SAT_GUI(QMainWindow):
         self.sky.set_data( (90.-az)*RADIANS, 90.-max(0.,el) )
 
         # Plot Sun position also
-        [sun_az,sun_el] = self.Satellites['Moon'].current_sun_position()
+        [sun_az,sun_el,lat,lon] = self.Satellites['Moon'].current_sun_position()
         print('SUN:',sun_az,sun_el)
         if sun_el<-10:
             sun_az=np.nan
