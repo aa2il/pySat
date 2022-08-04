@@ -91,6 +91,7 @@ P=PARAMS()
 P.sock = socket_io.open_rig_connection(P.connection,0,P.PORT,0,'SATELLITES',rig=P.rig)
 if P.sock.rig_type=='Icom':
     P.sock.icom_defaults()
+print('RIG:',P.sock.rig_type,P.sock.rig_type1,P.sock.rig_type2)
     #sys.exit(0)
     
 # Open connection to rotor

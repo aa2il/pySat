@@ -66,16 +66,8 @@ class RigControl:
         P=self.P
         gui=P.gui
 
-        #print('RIG CONTROL UPDATER ...')
-        
-        if False:
-            print('RIG CONTROL UPDATER: Rig  =',P.sock.rig_type1,P.sock.rig_type2)
-            if P.sock2.active:
-                print('RIG CONTROL UPDATER: Rotor=',P.sock2.rig_type1,P.sock2.rig_type2)
-        
-        if (gui.rig_engaged or gui.rotor_engaged or self.fdown==None) \
-           and gui.Selected:
-        #if gui.rig_engaged and gui.Selected:
+        engaged = gui.rig_engaged or gui.rotor_engaged                 
+        if (engaged or self.fdown==None) and gui.Selected:
         #if gui.Selected:
         
             # Tune to middle of transponder BW if we've selected a new sat
@@ -261,15 +253,14 @@ class RigControl:
 
         # Update sky track & sat map
         gui.plot_position(self.az,self.el,pos)
-        if self.P.SHOW_MAP and True:
+        engaged = gui.rig_engaged or gui.rotor_engaged
+        if self.P.SHOW_MAP and engaged:
             self.sat_map_cntr+=1
             if self.sat_map_cntr>=10:
-                #name = gui.Selected
                 name = P.satellite.name
                 print('\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Updating footprint ...',name)
                 self.sat_map_cntr=0
                 gui.MapWin.DrawSatFootprint(name,lon,lat,footprint)
-
         
         # Toggle voice recorder (if available)
         if self.el>0:

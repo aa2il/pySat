@@ -54,7 +54,6 @@ else:
 import rig_io.socket_io as socket_io
 import pytz
 
-from pprint import pprint
 import os
 import time
 from datetime import timedelta,datetime
@@ -103,10 +102,11 @@ class SAT_GUI(QMainWindow):
         self.P.app.processEvents()
         
         # Start by putting up the root window
-        print('Init GUI ...')
+        print('Init GUI ...',P.sock.rig_type2)
         self.win  = QWidget()
         self.setCentralWidget(self.win)
-        self.setWindowTitle('Satellite Pass Predictions by AA2IL')
+        self.setWindowTitle('Satellite Pass Predictions by AA2IL - '+
+                            P.sock.rig_type2)
         ##self.win.setMinimumSize(1200,600)
 
         # We use a simple grid to layout controls
@@ -675,6 +675,11 @@ class SAT_GUI(QMainWindow):
             if returnValue == QMessageBox.Ok:
                 print('OK clicked')
 
+        # Plot sat track for current orbit on sat map
+        if self.P.SHOW_MAP and self.rig_engaged:
+            self.plot_sat_map_track(self.P.satellite,0)
+                
+                
         
     # Function to increase RIT
     def RITup(self):
@@ -917,6 +922,39 @@ class SAT_GUI(QMainWindow):
         return [best,tnext]
 
 
+    # Routine to plot sat map
+    def plot_sat_map_track(self,Sat,iopt):
+
+        if iopt==0:
+
+            # Show full track
+            if Sat.name=='Moon':
+            
+                # Donde estan la luna y el sol?
+                [moon_az,moon_el,moon_lat,moon_lon] = Sat.current_moon_position()
+                [sun_az, sunn_el,sun_lat, sun_lon]  = Sat.current_sun_position()
+                self.MapWin.DrawSatTrack(Sat.name,moon_lon,moon_lat,title='Current Position of Sun and Moon')
+                self.MapWin.transform_and_plot(sun_lon,sun_lat,'o',clr='orange')
+                #self.MapWin.setWindowTitle('Current Position of Sun and Moon')
+                self.MapWin.canv.draw()
+            
+            else:
+
+                # Plot sat track
+                lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat.tle)
+                self.MapWin.DrawSatTrack(Sat.name,lons,lats,'Current Position of '+Sat.name)
+                self.MapWin.DrawSatFootprint(Sat.name,lons[0],lats[0],footprints[0])
+
+        elif iopt==1:
+
+            # Show footprint at mid-point of pass
+            tmid = 0.5*(self.transit.start + self.transit.end)
+            imid = int( len(self.track_lats)/2 )
+            self.MapWin.DrawSatTrack(Sat.name,self.track_lons,self.track_lats,ERASE=True,title='Mid-Pass Position of '+Sat.name)
+            for idx in [0,imid,-1]:
+                self.MapWin.DrawSatFootprint(Sat.name,self.track_lons[idx],self.track_lats[idx],self.track_foot[idx],ERASE=False)
+            
+            
     # Routine to update track info
     def plot_sky_track(self,sat,ttt):
         print('PLOT SKY TRACK: sat=',sat,'\tttt=',ttt)
@@ -925,21 +963,6 @@ class SAT_GUI(QMainWindow):
         Sat = self.Satellites[sat]
         # print('### Plot Sky Track: flipper=',self.flipper)
 
-        if self.P.SHOW_MAP and True:
-            if sat=='Moon':
-                # Donde esta la luna?
-                [moon_az,moon_el,moon_lat,moon_lon] = Sat.current_moon_position()
-                [sun_az, sunn_el,sun_lat, sun_lon]  = Sat.current_sun_position()
-                self.MapWin.DrawSatTrack(Sat.name,moon_lon,moon_lat)
-                self.MapWin.transform_and_plot(sun_lon,sun_lat,'o',clr='orange')
-                self.MapWin.setWindowTitle('Current Position of Sun and Moon')
-                self.MapWin.canv.draw()
-            else:
-                lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat.tle)
-                self.MapWin.DrawSatTrack(Sat.name,lons,lats)
-                self.MapWin.DrawSatFootprint(Sat.name,lons[0],lats[0],footprints[0])
-                #self.MapWin.transform_and_plot([lons[0]],[lats[0]],'ko')
-
         # Turn off rig tracking when we select a new sat
         self.rig_engaged = False
         self.rotor_engaged = False
@@ -947,8 +970,13 @@ class SAT_GUI(QMainWindow):
             self.btn2.toggle()
         if self.btn4.isChecked():
             self.btn4.toggle()
-        self.P.satellite = Sat         ### JBA - not sure about this????
+        self.P.satellite = Sat
 
+        # Plot sat track for current orbit on sat map
+        if self.P.SHOW_MAP and sat=='Moon':
+            print('================================================ MMMMMMOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONNNNNNNNNN =====')
+            self.plot_sat_map_track(Sat,0)
+            
         # The moon is special
         if sat=='Moon':
             
@@ -991,17 +1019,12 @@ class SAT_GUI(QMainWindow):
                 footprints.append(obs['footprint'])
                 t+=10
 
-            if self.P.SHOW_MAP and False:
-                # Show footprint at mid-point of pass
-                tmid = 0.5*(self.transit.start + self.transit.end)
-                #obs=predict.observe(tle, self.P.my_qth,at=tmid)
-                #lat = obs['latitude']
-                #lon = obs['longitude']
-                #footprint = obs['footprint']
-                idx = int( len(lats)/2 )
-                print('\nHEY:',Sat.name,tmid,lats[idx],lons[idx],footprints[idx],'-----------=====================\n')
-                self.MapWin.DrawSatTrack(Sat.name,lons,lats,ERASE=False)
-                self.MapWin.DrawSatFootprint(Sat.name,lons[idx],lats[idx],footprints[idx])
+            # Show sat footprint at mid-point of pass on sat map
+            if self.P.SHOW_MAP and True:
+                self.track_lats  = np.array(lats)
+                self.track_lons  = np.array(lons)
+                self.track_foot = np.array(footprints)
+                self.plot_sat_map_track(Sat,1)
 
         # Update GUI
         self.SatName.setText( sat )
@@ -1101,11 +1124,11 @@ class SAT_GUI(QMainWindow):
 
         # Plot Sun position also
         [sun_az,sun_el,lat,lon] = self.Satellites['Moon'].current_sun_position()
-        print('SUN:',sun_az,sun_el)
+        #print('SUN:',sun_az,sun_el)
         if sun_el<-10:
             sun_az=np.nan
             sun_el=np.nan
-        print('SUN:',sun_az,sun_el)
+        #print('SUN:',sun_az,sun_el)
         self.sun.set_data( (90.-sun_az)*RADIANS, 90.-max(0.,sun_el) )
         
         self.canv2.draw()
@@ -1211,7 +1234,3 @@ class SAT_GUI(QMainWindow):
         rotorMenu.addAction(Act)
 
 
-
-
-
-        

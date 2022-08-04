@@ -58,8 +58,6 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from matplotlib.offsetbox import AnchoredText
 import matplotlib.patches as mpatches
-#from cartopy.mpl.ticker import (LongitudeFormatter, LatitudeFormatter,
-#                                LatitudeLocator, LongitudeLocator)
 
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import matplotlib.ticker as mticker
@@ -443,28 +441,36 @@ class SATELLITE:
         qth=self.qth_moon
         qth.date = datetime.utcnow()
         self.moon.compute(qth)
+        az=self.moon.az
+        el=self.moon.alt
 
         self.greenwich.date = qth.date
         self.moon.compute(self.greenwich)
         lon = ( self.moon.ra - self.greenwich.sidereal_time() )*RAD2DEG
         lat = ( self.moon.dec )*RAD2DEG
         
-        print('Current Moon: az=',self.moon.az,'\tel=',self.moon.alt,'\tlat=',lat,'\t','lon=',lon)
-        return [self.moon.az*RAD2DEG , self.moon.alt*RAD2DEG , lat , lon]
+        print('Current Moon: date=',self.greenwich.date, \
+              '\n\taz=',az,'\tel=',el, \
+              '\n\tlat=',lat,'\t','lon=',lon)
+        return [az*RAD2DEG, el*RAD2DEG, lat, lon]
 
     # Function to return current sun info
     def current_sun_position(self):
         qth=self.qth_moon
         qth.date = datetime.utcnow()
         self.sun.compute(qth)
+        az=self.sun.az
+        el=self.sun.alt
 
         self.greenwich.date = qth.date
         self.sun.compute(self.greenwich)
         lon = ( self.sun.ra - self.greenwich.sidereal_time() )*RAD2DEG
         lat = ( self.sun.dec )*RAD2DEG
-        
-        print('Current Moon: az=',self.sun.az,'\tel=',self.sun.alt,'\tlat=',lat,'\t','lon=',lon)
-        return [self.sun.az*RAD2DEG , self.sun.alt*RAD2DEG , lat , lon]
+
+        print('Current Sun: date=',self.greenwich.date, \
+              '\n\taz=',az,'\tel=',el, \
+              '\n\tlat=',lat,'\t','lon=',lon)
+        return [az*RAD2DEG, el*RAD2DEG, lat, lon]
 
 
     # Function to compute moon track for a single pass
@@ -656,10 +662,12 @@ class MAPPING(QMainWindow):
         p=self.ax.plot(xx,yy,style,color=clr,transform=self.proj)
         return p[0]
         
-    def DrawSatTrack(self,name,lons,lats,ERASE=True):
+    def DrawSatTrack(self,name,lons,lats,ERASE=True,title=None):
 
         # Set title to sat name
-        self.setWindowTitle('Current Position of '+name)
+        if title==None:
+            title=name
+        self.setWindowTitle(title)
         
         # Clear prior plots
         if ERASE:
@@ -690,13 +698,14 @@ class MAPPING(QMainWindow):
         return
     
         
-    def DrawSatFootprint(self,name,lon0,lat0,footprint):
+    def DrawSatFootprint(self,name,lon0,lat0,footprint,ERASE=True):
 
         # Clear prior footprints
-        for p in self.blobs:
-            print(p)
-            p.remove()
-        self.blobs=[]
+        if ERASE:
+            for p in self.blobs:
+                print(p)
+                p.remove()
+            self.blobs=[]
 
         # Add footprint "ellipse"
         #Latitude: 1 deg = 110.54 km
