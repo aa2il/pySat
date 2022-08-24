@@ -90,7 +90,7 @@ def get_tle(TLE,sat):
         print('GET_TLE: Warning - name change for FS-3 to Falconsat-3')
         
     idx  = TLE.index(sat2)
-    
+
     tle = sat + '\n' \
         + TLE[idx+1] + '\n' \
         + TLE[idx+2] + '\n'

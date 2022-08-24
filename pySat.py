@@ -283,8 +283,8 @@ if P.UPDATE_TLE:
     else:
         response = urllib2.urlopen(URL1)
     html = response.read().decode("utf-8") 
-    #print html
-    #print len(html)
+    #print(html)
+    #print( len(html) )
     fp=open('nasa.txt','w')
     fp.write(html)
     fp.close()
@@ -298,10 +298,10 @@ else:
     html = response.read().decode("utf-8") 
 #print( html)
 #print( type(html))
-P.TLE=html.split('\n')
-if False:
-    print('TLE=',TLE)
-    sys.exit(0)
+#P.TLE=html.split('\n')
+P.TLE = [line for line in html.split('\n') if len(line)>0]
+print('TLE=',P.TLE)
+#sys.exit(0)
 print(" ")
 
 # Open UDP client
