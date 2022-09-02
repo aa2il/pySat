@@ -298,8 +298,9 @@ else:
     html = response.read().decode("utf-8") 
 #print( html)
 #print( type(html))
-#P.TLE=html.split('\n')
-P.TLE = [line for line in html.split('\n') if len(line)>0]
+#P.TLE=html.split('\n')            # Old
+#P.TLE = [line for line in html.split('\n') if len(line)>0]      # Overcome double \n
+P.TLE=html.replace('\n\n','\n').split('\n')            # New
 print('TLE=',P.TLE)
 #sys.exit(0)
 print(" ")
