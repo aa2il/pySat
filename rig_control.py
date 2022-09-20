@@ -28,6 +28,7 @@ import time
 from datetime import timedelta,datetime
 from rig_io.ft_tables import SATELLITE_LIST
 from rotor import *
+from utilities import freq2band
 
 ################################################################################
 
@@ -175,11 +176,13 @@ class RigControl:
     # Routine to check VFO bands - the IC9700 is quirky if the bands are reversed
     def check_ic9700_bands(self,P):
         frq1 = int( P.sock.get_freq(VFO=self.vfos[0]) )
-        band1 = P.sock.get_band(1e-6*frq1)
+        #band1 = P.sock.get_band(1e-6*frq1)
+        band1  = freq2band(1e-6*frq1)
         print('frq1=',frq1,band1)
 
         frq2 = P.transp['fdn1']
-        band2 = P.sock.get_band(1e-6*frq2)
+        #band2 = P.sock.get_band(1e-6*frq2)
+        band2  = freq2band(1e-6*frq2)
         print('frq2=',frq2,band2)
         if band1!=band2:
             print('Flipping VFOs')

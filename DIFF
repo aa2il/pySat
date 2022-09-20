@@ -12,7 +12,7 @@
 set ROOT="/media/${USER}/marconi"
 #set ROOT="/media/${USER}/3D76-ECB1"
 #set ROOT="/media/${USER}/acer"
-set ROOT="/media/${USER}/cartman"
+#set ROOT="/media/${USER}/cartman"
 #set ROOT="../clone"
 if( !(-e $ROOT) )then
     set ROOT="${ROOT}2"
@@ -24,25 +24,28 @@ echo N=$N
 #set PTH=`pwd | cut -c ${N}-`
 set PTH=`pwd | sed 's/\/home2//g' | cut -c ${N}-`
 echo PTH=$PTH
-set OLD=${ROOT}${PTH}
-echo OLD=$OLD
+set old=${ROOT}${PTH}
+echo OLD=$old
 
 # Overide if necessary
-#set OLD="NEW"
+#set old="NEW"
 
 rm -f DIFFS
 foreach i (*.py *.txt pypredict/*.c  pypredict/*.py  pypredict/JBA work/* DIFF *.bat)
     echo $i
-    set n=`diff $OLD/$i $i | wc -l`
-    if( $n>0 ) then
+    set n=`diff $old/$i $i | wc -l`
+    if( !( -e $old/$i ) )then
+        echo NO SUCH FILE $old/$i
+        cp $i $old/$i
+    else if( $n > 0 ) then
         echo ---------------------------------- >> DIFFS
         echo $i >> DIFFS
         echo " " >> DIFFS
-        diff -w $OLD/$i $i >> DIFFS
+        diff -w $old/$i $i >> DIFFS
         echo " " >> DIFFS
         
-        #kompare $OLD/$i $i
-        kompare $i $OLD/$i
+        #kompare $old/$i $i
+        kompare $i $old/$i
     endif
 end
 

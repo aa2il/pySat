@@ -27,6 +27,7 @@ from rig_io.ft_tables import SATELLITE_LIST
 from collections import OrderedDict
 import time
 from fileio import write_adif_record
+from utilities import freq2band
 
 #########################################################################################
 
@@ -125,16 +126,14 @@ class LOGGING(QMainWindow):
         
         fdown = 0.5*(transp['fdn1']+transp['fdn2'])*1e-6
         qso['FREQ_RX']=round(fdown,3)
-        band=str( P.sock.get_band(fdown) )
-        if band[-1]!='m':
-            band += 'm'
+        #band=str( P.sock.get_band(fdown) )
+        band  = freq2band(fdown)
         qso['BAND_RX']=band
 
         fup   = 0.5*(transp['fup1']+transp['fup2'])*1e-6
         qso['FREQ']=round(fup,3)
-        band=str( P.sock.get_band(fup) )
-        if band[-1]!='m':
-            band += 'm'
+        #band=str( P.sock.get_band(fup) )
+        band  = freq2band(fup)
         qso['BAND']=band
 
         t = 0.5*(gui.transit.start +gui.transit.end)
