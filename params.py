@@ -108,6 +108,8 @@ class PARAMS:
         self.TEND             = args.tend
         if self.TEND<0 or self.TEND>24:
             self.TEND         = 24
+
+        self.NO_FLIPPER       = False
         
         # Read config file
         self.RCFILE=os.path.expanduser("~/.satrc")

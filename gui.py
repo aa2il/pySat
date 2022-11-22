@@ -1,3 +1,4 @@
+#! /usr/bin/python3 -u
 ################################################################################
 #
 # Satellite GUI - Rev 1.0
@@ -83,7 +84,6 @@ class SAT_GUI(QMainWindow):
         self.Selected=None
         self.New_Sat_Selection=False
         self.flipper = False
-        #self.cross180 = False
         self.pos=[np.nan,np.nan]
         self.rit = 0
         self.xit = 0
@@ -111,7 +111,7 @@ class SAT_GUI(QMainWindow):
         # We use a simple grid to layout controls
         self.grid = QGridLayout(self.win)
         nrows=8
-        ncols=13
+        ncols=15
 
         # Add menu bar
         row=0
@@ -126,13 +126,33 @@ class SAT_GUI(QMainWindow):
         self.cal.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)   # Delete week numbers
         self.cal.setGridVisible(True)
 
-        # Don't allow calendar size to change when we resize the window
-        if False:
-            sizePolicy = QSizePolicy( QSizePolicy.Fixed,
-                                      QSizePolicy.Fixed)
-            self.cal.setSizePolicy(sizePolicy)
+        # Set col width and don't allow calendar size to change width when we resize the window
+        self.grid.setColumnStretch(col,1)
+        sizePolicy = QSizePolicy( QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.cal.setSizePolicy(sizePolicy)
+        print('Calendar: hint=',self.cal.sizeHint(),'\tsize=',self.cal.geometry())
 
-        # The Canvas where we will plot sky track
+        # The first 0canvas where we will put the graph with the pass times
+        row=1
+        col=0
+        self.fig = Figure()
+        self.canv = FigureCanvas(self.fig)
+        self.grid.addWidget(self.canv,nrows,col,1,ncols)
+        self.grid.setRowStretch(nrows,ncols)
+        print('1st Canvas: hint=',self.canv.sizeHint(),'\tsize=',self.canv.geometry())
+
+        # Allow canvas size to change when we resize the window
+        # but make is always visible
+        sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        ##sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Preferred)
+        ##sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Maximum)
+        #self.canv.setSizePolicy(sizePolicy)
+        
+        # Attach mouse click to handler
+        cid = self.canv.mpl_connect('button_press_event', self.MouseClick)
+
+        # The second canvas is where we will plot sky track
+        row=0
         self.fig2  = Figure()
         self.canv2 = FigureCanvas(self.fig2)
         self.grid.addWidget(self.canv2,row,ncols-1,nrows-1,1)
@@ -154,34 +174,12 @@ class SAT_GUI(QMainWindow):
 
         # Allow canvas size to change when we resize the window
         # but make is always visible
-        if False:
-            sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, 
-                                      QSizePolicy.MinimumExpanding)
-            sizePolicy = QSizePolicy( QSizePolicy.Preferred,
-                                      QSizePolicy.Preferred)
-            self.canv2.setSizePolicy(sizePolicy)
-
-        # The Canvas where we will put the graph with the pass times
-        row=1
-        col=0
-        self.fig = Figure()
-        self.canv = FigureCanvas(self.fig)
-        self.grid.addWidget(self.canv,nrows,col,1,ncols)
-
-        # Allow canvas size to change when we resize the window
-        # but make is always visible
-        if False:
-            sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, 
-                                      QSizePolicy.MinimumExpanding)
-            sizePolicy = QSizePolicy( QSizePolicy.Preferred, 
-                                      QSizePolicy.Preferred)
-            #sizePolicy = QSizePolicy( QSizePolicy.Preferred, 
-            #                          QSizePolicy.Maximum)
-            self.canv.setSizePolicy(sizePolicy)
-        self.grid.setRowStretch(nrows,10)
-
-        # Attach mouse click to handler
-        cid = self.canv.mpl_connect('button_press_event', self.MouseClick)
+        self.grid.setColumnStretch(ncols-1,1)
+        sizePolicy = QSizePolicy( QSizePolicy.Fixed, QSizePolicy.Fixed)
+        #sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        #sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.canv2.setSizePolicy(sizePolicy)
+        print('2nd Canvas: hint=',self.canv2.sizeHint(),'\tsize=',self.canv2.geometry())
 
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
@@ -229,6 +227,10 @@ class SAT_GUI(QMainWindow):
         self.StartTime_cb.setCurrentIndex(P.TSTART)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.StartTime_cb,row,col+1)
+        self.grid.setColumnStretch(col,1)
+
+        self.grid.setColumnStretch(col+1,1)
+        print('Combo Box: hint=',self.StartTime_cb.sizeHint(),'\tsize=',self.StartTime_cb.geometry())
 
         row+=1
         lb=QLabel("End Time:")
@@ -253,6 +255,9 @@ class SAT_GUI(QMainWindow):
         font: bold 14px; \
         padding: 4px; \
         }')
+
+        #sizePolicy = QSizePolicy( QSizePolicy.Fixed, QSizePolicy.Fixed)
+        #self.btn2.setSizePolicy(sizePolicy)
         
         self.grid.addWidget(self.btn2,row,col,1,2)
         self.rig_engaged=False
@@ -314,6 +319,9 @@ class SAT_GUI(QMainWindow):
         self.SatName.setAlignment(QtCore.Qt.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.SatName,row,col+1)
+        self.grid.setColumnStretch(col,1)
+        self.grid.setColumnStretch(col+1,1)
+        print('Sat Name Label: hint=',self.SatName.sizeHint(),'\tsize=',self.SatName.geometry())
         
         row+=1
         lb=QLabel("AOS:")
@@ -363,6 +371,8 @@ class SAT_GUI(QMainWindow):
         self.txt1.setText("Hey!")
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.txt1,row,col+1,1,2)
+        self.grid.setColumnStretch(col,1)
+        print('Tuning: hint=',self.txt1.sizeHint(),'\tsize=',self.txt1.geometry())
 
         row+=1
         lb=QLabel("Uplink:")
@@ -409,23 +419,40 @@ class SAT_GUI(QMainWindow):
         # Panel to implement RIT
         row=0
         col+=3
+        ncols2=2
         self.txt10 = QLabel(self)
-        #self.txt10.setText(str(self.rit))
         self.txt10.setText("- RIT -")
         self.txt10.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.grid.addWidget(self.txt10,row,col,1,2)
+        self.grid.addWidget(self.txt10,row,col,1,ncols2)
+        self.grid.setColumnStretch(col,ncols2)
+        print('RIT label: hint=',self.txt10.sizeHint(),'\tsize=',self.txt10.geometry())
 
         row+=1
         self.txt11 = QLineEdit(self)
         self.txt11.setText(str(self.rit))
         self.txt11.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.grid.addWidget(self.txt11,row,col,1,2)
+        self.grid.addWidget(self.txt11,row,col,1,ncols2)
+        print('RIT: hint=',self.txt11.sizeHint(),'\tsize=',self.txt11.geometry())
+
+        f = self.txt11.font()
+        f.setPointSize(10)
+        self.txt11.setFont(f)
+        
+        """
+            self.btn4.setStyleSheet('QPushButton { \
+            background-color: red; \
+            border :1px inset ; \
+            border-radius: 5px; \
+            border-color: gray; \
+            font: bold 14px; \
+            padding: 4px; \
+            }')
+        """
 
         row+=1
         btn = QPushButton('')
         btn.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_TitleBarShadeButton')))
-#            getattr(QStyle, 'SP_ArrowUp')))
         btn.setToolTip('Click to increase RIT')
         btn.clicked.connect(self.RITup)
         self.grid.addWidget(btn,row,col)
@@ -434,7 +461,6 @@ class SAT_GUI(QMainWindow):
         btn = QPushButton('')
         btn.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_TitleBarUnshadeButton')))
-#            getattr(QStyle, 'SP_ArrowDown')))
         btn.setToolTip('Click to decrease RIT')
         btn.clicked.connect(self.RITdn)
         self.grid.addWidget(btn,row,col)
@@ -455,18 +481,24 @@ class SAT_GUI(QMainWindow):
 
         # Panel to implement XIT
         row=0
-        col+=2
+        col+=ncols2
         self.txt12 = QLabel(self)
-        #self.txt12.setText(str(self.xit))
         self.txt12.setText("- XIT -")
         self.txt12.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.grid.addWidget(self.txt12,row,col,1,2)
+        self.grid.addWidget(self.txt12,row,col,1,ncols2)
+        self.grid.setColumnStretch(col,ncols2)
+        print('XIT label: hint=',self.txt12.sizeHint(),'\tsize=',self.txt12.geometry())
 
+        f = self.txt12.font()
+        f.setPointSize(10)
+        self.txt12.setFont(f)
+                
         row+=1
         self.txt13 = QLineEdit(self)
         self.txt13.setText(str(self.xit))
         self.txt13.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.grid.addWidget(self.txt13,row,col,1,2)
+        self.grid.addWidget(self.txt13,row,col,1,ncols2)
+        print('XIT: hint=',self.txt13.sizeHint(),'\tsize=',self.txt13.geometry())
 
         row+=1
         btn = QPushButton('')
@@ -507,16 +539,22 @@ class SAT_GUI(QMainWindow):
             #sys.exit(0)
 
         # Put up plotting windows
+        self.MapWin=MAPPING(P)
+        if P.SHOW_MAP:
+            self.MapWin.show()
+        else:
+            self.MapWin.hide()
+            
         if P.TEST_MODE:
             self.PlotWin=PLOTTING(P)
-        if P.SHOW_MAP:
-            self.MapWin=MAPPING(P)
         
         # This doesn't seem to be working quite right - idea is to limit size of window
-        #self.win.resize(size_hint)
+        print('Main Window: hint=',self.win.sizeHint(),'\tsize=',self.win.geometry())
+        self.win.resize(self.win.sizeHint())
+        print('Main Window: hint=',self.win.sizeHint(),'\tsize=',self.win.geometry())
         #self.win.resize(900,720)
-        #screen = QDesktopWidget().screenGeometry()
-        #print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ screen=',screen)
+        screen = QDesktopWidget().screenGeometry()
+        print('screen=',screen)
         #widget = self.geometry()
         #print('win=',widget)
         #print('hint=',self.win.sizeHint())
@@ -526,14 +564,29 @@ class SAT_GUI(QMainWindow):
         #width, height = screen_resolution.width(), screen_resolution.height()
         #print("Screen Res:",screen_resolution,width, height)
 
+################################################################################
         
     # Capture 'x' in upper right corner so that we can shut down gracefully
     def closeEvent(self, event):
         print("()(()()()()()( User has clicked the red x on the main window ()()()()()))")
-        if self.P.TEST_MODE:
-            self.PlotWin.close()
-        event.accept()
-        qApp.quit()
+
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Information)
+        msgBox.setText("Really Quit?")
+        msgBox.setWindowTitle("Really Quit")
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        
+        returnValue = msgBox.exec()
+        if returnValue == QMessageBox.Cancel:
+            #print('Cancel clicked')
+            event.ignore()
+        elif returnValue == QMessageBox.Ok:
+            #print('OK clicked')
+            event.accept()
+        
+            if self.P.TEST_MODE:
+                self.PlotWin.close()
+            qApp.quit()
         
 
     # Function to set rig mode
@@ -718,6 +771,8 @@ class SAT_GUI(QMainWindow):
         self.txt13.setText(str(self.xit))
         #self.P.ctrl.track_freqs(True,tag='XIT-CLR')
         
+################################################################################
+        
     # Function to advance in time
     def Advance(self):
         print('\nAdvance:',self.date1)
@@ -753,6 +808,7 @@ class SAT_GUI(QMainWindow):
         except:
             pass
 
+################################################################################
 
     # Load satellite data
     def load_sat_data(self):
@@ -790,7 +846,6 @@ class SAT_GUI(QMainWindow):
 
         print('\nDraw passes - self.sats=',self.Satellites)
         self.ax = self.fig.add_subplot(111)
-        #self.fig.tight_layout(pad=0)
 
         # Loop over list of sats
         self.pass_times=[]
@@ -827,18 +882,29 @@ class SAT_GUI(QMainWindow):
         self.ax.set_yticklabels(self.P.SATELLITE_LIST[1:])
         self.ax.invert_yaxis()
 
-        if False:
-            # Shrink current axis's height by 20% on the bottom
-            p=.1
+        if True:
+            # Expand or shrink axis's width & height so we fill the canvas
+            #self.fig.tight_layout(pad=0)
+            ph1=.15
+            ph2=.1
+            pw1=.08
+            pw2=.12
             box = self.ax.get_position()
-            self.ax.set_position([box.x0, box.y0 + box.height * p,
-                                  box.width, box.height * (1-p)])
+            print('box=',box)
+            self.ax.set_position([box.x0 - pw1*box.width,
+                                  box.y0 - ph1*box.height,
+                                  (1+pw1+pw2)*box.width,
+                                  (1+ph1+ph2)*box.height])
 
             # Put a legend below current axis
-            self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, -2*p),
-                           fancybox=True, shadow=True, ncol=5)
+            #self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, -2*p),
+            #               fancybox=True, shadow=True, ncol=5)
 
         # Re-draw the canvas
+        #self.fig.tight_layout()
+        #self.fig.tight_layout(pad=0,w_pad=0,h_pad=5)
+        #self.ax.margins(x=0)
+        #self.fig.tight_layout(rect=[0.1,0.1,0.9, 0.95]), 
         self.canv.draw()
 
 
@@ -1019,7 +1085,7 @@ class SAT_GUI(QMainWindow):
                 t+=10
 
             # Show sat footprint at mid-point of pass on sat map
-            if self.P.SHOW_MAP and True:
+            if self.P.SHOW_MAP:
                 self.track_lats  = np.array(lats)
                 self.track_lons  = np.array(lons)
                 self.track_foot = np.array(footprints)
@@ -1174,6 +1240,22 @@ class SAT_GUI(QMainWindow):
             #print('\nTEST_MODE:',self.cross180,self.flipper,self.event_type)
             simulate_rotor(self)
 
+################################################################################
+            
+    # Callback to toggle no flipper
+    def NoFlipperCB(self,state):
+        self.P.NO_FLIPPER = not self.P.NO_FLIPPER
+        print('Toggled NO FLIPPER ...',self.P.NO_FLIPPER,state)
+    
+    # Callback to toggle Showing Map
+    def ShowMapCB(self,state):
+        self.P.SHOW_MAP = not self.P.SHOW_MAP
+        print('Toggled SHOW MAP ...',self.P.SHOW_MAP,state)
+        if self.P.SHOW_MAP:
+            self.MapWin.show()
+        else:
+            self.MapWin.hide()
+    
     # Function to send the rotor home
     def RotorHome(self):
         print('Sending rotor home ...')
@@ -1184,6 +1266,8 @@ class SAT_GUI(QMainWindow):
         link = 'https://www.amsat.org/status'
         webbrowser.open(link, new=2)
                     
+################################################################################
+        
     # Function to create menu bar
     def create_menu_bar(self):
         print('Creating Menubar ...')
@@ -1211,6 +1295,18 @@ class SAT_GUI(QMainWindow):
         GetStatusAct.triggered.connect( self.OpenAmsatWebPage )
         fileMenu.addAction(GetStatusAct)
 
+        NoFlipperAct = QAction('&No Flipper', self, checkable=True)        
+        NoFlipperAct.setStatusTip('No Flipper')
+        NoFlipperAct.triggered.connect(self.NoFlipperCB)
+        NoFlipperAct.setChecked(self.P.NO_FLIPPER)
+        fileMenu.addAction(NoFlipperAct)
+            
+        ShowMapAct = QAction('&Show Map', self, checkable=True)        
+        ShowMapAct.setStatusTip('Show Map')
+        ShowMapAct.triggered.connect(self.ShowMapCB)
+        ShowMapAct.setChecked(self.P.SHOW_MAP)
+        fileMenu.addAction(ShowMapAct)
+            
         exitAct = QAction('&Exit', self)
         #exitAct.setShortcut('Ctrl+Q')
         exitAct.setStatusTip('Exit Application')
@@ -1231,5 +1327,4 @@ class SAT_GUI(QMainWindow):
         Act.setStatusTip('Send Rotor to (0,0)')
         Act.triggered.connect( functools.partial( self.RotorHome ))
         rotorMenu.addAction(Act)
-
 

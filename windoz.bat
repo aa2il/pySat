@@ -5,13 +5,13 @@ echo.
 echo Need the following standard Python libraries:
 echo            pip install 
 echo.
-echo To compile:
+echo To compile (works under linux):
 echo.
 echo         pyinstaller --onefile pySat.py
 echo.
 echo To run (example):
 echo.
-echo pySat.py
-echo dist\pyKeyer -prac -sidetone -cwt -adjust -wpm 30
+echo         pySat.py
+echo         dist\pySat.exe
 echo.
 

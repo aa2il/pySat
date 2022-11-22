@@ -1,7 +1,7 @@
 #########################################################################################
 #
 # loogging.py - Rev. 1.0
-# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-2 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Gui for logging contacts to an adif file
 #

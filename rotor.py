@@ -38,10 +38,21 @@ ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
 # I.e. does sky track cross the 180-deg boundary?
 def flip_a_roo(self):
 
+    # Init
     az=self.track_az
     el=self.track_el
-
     #print('FLIP_AA_ROO: az=',az,'nel=',el)
+
+    # Query current rotor position & use it to determine if array is flipped
+    print('FLIP_AA_ROO: pos=',self.pos,self.flipper)
+    if not self.P.sock2.active:
+        print('FLIP_AA_ROO: Rotor not active?????')
+        #return
+    else:
+        if any(np.isnan(self.pos)):
+            self.pos=self.P.sock2.get_position()
+        self.flipper=self.pos[1]>90.
+    print('FLIP_AA_ROO: pos2=',self.pos,self.flipper)
 
     # Compute quadrant each point is in
     quad1 = np.logical_and(az>0  , az<=90)
@@ -124,12 +135,19 @@ def flip_a_roo(self):
     else:
         print('FLIP_A_ROO: Can keep current flip state')
 
+    # If the user has disabled flipping, override all of this
+    # We couldn't do this at the top bx we need the various
+    # calculations elsewhere
+    if self.P.NO_FLIPPER:
+        self.flipper=False
 
+    
 # Function to compute new position for the rotor
 def rotor_positioning(gui,az,el,Force):
 
     #print('ROTOR_POSITIONING:',el,gui.event_type)
     if el>=0:
+        
         # Sat is above the horizon ...
         # Limit az if we cross the boundary but don't want to flip
         if not gui.flipper:
@@ -147,6 +165,7 @@ def rotor_positioning(gui,az,el,Force):
         new_pos=[az,el]
 
     else:
+        
         # Sat is below the horizon so point to starting or ending point on track
         if gui.event_type==1:
             # Future event --> point to start

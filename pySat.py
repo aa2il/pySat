@@ -65,6 +65,8 @@ from pyhamtools.locator import locator_to_latlong
 from PyQt5.QtWidgets import QApplication
 import urllib.request, urllib.error, urllib.parse
 import json
+from dateutil import tz
+from utilities import get_Host_Name_IP
 
 import rig_io.socket_io as socket_io
 import os
@@ -87,12 +89,51 @@ print('\n***********************************************************************
 print('\n   Satellite Pass Predicter and Rig Control beginning ...\n')
 P=PARAMS()
 
+# Test internet connection
+print('Checking internet connection ...')
+P.host_name,P.host_ip=get_Host_Name_IP()
+print("\nHostname :  ", P.host_name)
+print("IP : ", P.host_ip,'\n')
+if P.host_ip=='127.0.0.1':
+    P.INTERNET=False
+    print('No internet connection')
+    if P.UPDATE_TLE:
+        print('Cant update TLE from internet!!!!')
+        sys.exit(0)
+else:
+    P.INTERNET=True
+
 # Open connection to rig
 P.sock = socket_io.open_rig_connection(P.connection,0,P.PORT,0,'SATELLITES',rig=P.rig)
 if P.sock.rig_type=='Icom':
     P.sock.icom_defaults()
 print('RIG:',P.sock.rig_type,P.sock.rig_type1,P.sock.rig_type2)
     #sys.exit(0)
+
+# Make sure rig is properly setup
+if P.sock.rig_type2=='IC9700':
+
+    # Pre-amp on, attenuator off
+    P.sock.frontend(1,1,0)
+
+    # Check rig time
+    d,t,z=P.sock.get_date_time()
+    utc = datetime.strptime(d+' '+t,'%Y%m%d %H%M%S')
+    #utc = utc.replace(tzinfo=tz.tzutc())
+    print('Rig date=',d,'\ttime=',t,'\tzone=',z,
+          '\nRig utc=',utc)
+
+    now = datetime.utcnow()
+    #now = now.replace(tzinfo=tz.tzutc())
+    print('now=',now)
+
+    delta = (now - utc).total_seconds()/60      # In minutes
+    print('delta=',delta)
+
+    if delta>2.:
+        print('Setting rig time ...')
+        P.sock.set_date_time(1)        
+    #sys.exit(0)    
     
 # Open connection to rotor
 P.sock2 = socket_io.open_rig_connection(P.ROTOR_CONNECTION,0,P.PORT2,0,'ROTOR')
@@ -106,11 +147,20 @@ else:
         print('Rotor found!!\t',
               P.sock2.rig_type1,P.sock2.rig_type2,P.sock2.connection)
 
-        if P.sock2.connection=='DIRECT':
-            print('Testing it ...')
+        # Test if rotor controller is turned on
+        if P.sock2.connection=='DIRECT' or True:
+            print('Testing rotor ...')
             pos=P.sock2.get_position()
             print('pos=',pos)
-            sys.exit(0)        
+            if pos[0]==179. and pos[1]==0:
+                pos2=[175,5]
+                P.sock2.set_position(pos2)
+                time.sleep(1)
+                pos=P.sock2.get_position()
+                print('pos=',pos)
+                if pos[0]==179. and pos[1]==0:
+                    print('\n*** Rotor not responding - make sure its plugged in and controller is turned on ***\n')
+                    sys.exit(0)
 
 # Open connection to SDR
 if P.USE_SDR:
@@ -266,12 +316,33 @@ def parse_trsp_data():
 # Get TLE data
 print('Getting TLE data ...')
 if False:
-    # Haven't quite worked this out yet - stick with nasa.txt for now
+    # Use nasa.txt instead - old
     parse_tle_data()
     sys.exit(0)
 
-if P.UPDATE_TLE:
-    print('... Updating SatNog data from Internet ...')
+if True:
+    # Get timestamp of nasa.txt
+    fname=os.path.expanduser(URL2)
+    ti_c = os.path.getctime(fname)
+    ti_m = os.path.getmtime(fname)
+ 
+    # Converting the time in seconds to a timestamp
+    c_ti = time.ctime(ti_c)
+    m_ti = time.ctime(ti_m)
+    print(f"{fname}\n was created at {c_ti} and last modified at {m_ti}")
+
+    now = time.time()
+    age=(now-ti_m)/(3600.)
+    print(f'age= {age} hours')
+
+    if age>24:
+        print('Need to update TLE data')
+        P.UPDATE_TLE = True
+    
+    #sys.exit(0)
+
+if P.UPDATE_TLE and P.INTERNET:
+    print('... Updating SatNogs data from Internet ...')
     get_satnogs_info()
     
     print('... Updating Transponder data  ...')
@@ -285,7 +356,9 @@ if P.UPDATE_TLE:
     html = response.read().decode("utf-8") 
     #print(html)
     #print( len(html) )
-    fp=open('nasa.txt','w')
+    
+    fname=os.path.expanduser(URL2)
+    fp=open(fname,'w')
     fp.write(html)
     fp.close()
     #sys.exit(0)
@@ -332,7 +405,7 @@ sat,ttt=P.gui.find_next_transit([P.sat_name])
 print('Here we go...')
 if sat:
     P.gui.plot_sky_track(sat,ttt)
-
+    
 # Event loop
 print('And away we go ...')
 P.app.exec_()

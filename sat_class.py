@@ -58,6 +58,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from matplotlib.offsetbox import AnchoredText
 import matplotlib.patches as mpatches
+from matplotlib.image import imread
 
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import matplotlib.ticker as mticker
@@ -574,7 +575,16 @@ class MAPPING(QMainWindow):
         lon0=-75
         self.proj=ccrs.PlateCarree(central_longitude=lon0) 
         self.ax = self.fig.add_subplot(1, 1, 1, projection=self.proj)
-        self.ax.stock_img()
+        if False:
+            # This doesn't work under pyinstaller ...
+            self.ax.stock_img()
+        else:
+            # ... so we load image directly instead
+            fname='50-natural-earth-1-downsampled.png'
+            print('fname=',fname)
+            img = imread(fname)
+            self.ax.imshow(img, origin='upper', transform=ccrs.PlateCarree(),
+                      extent=[-180, 180, -90, 90])
 
         self.ax.set_aspect('auto')
         self.fig.tight_layout(pad=0)
