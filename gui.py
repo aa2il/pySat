@@ -111,7 +111,8 @@ class SAT_GUI(QMainWindow):
         # We use a simple grid to layout controls
         self.grid = QGridLayout(self.win)
         nrows=8
-        ncols=15
+        ncols2=3
+        ncols=9+2*ncols2
 
         # Add menu bar
         row=0
@@ -156,10 +157,10 @@ class SAT_GUI(QMainWindow):
         self.fig2  = Figure()
         self.canv2 = FigureCanvas(self.fig2)
         self.grid.addWidget(self.canv2,row,ncols-1,nrows-1,1)
-        #self.canv2.setMinimumSize(200,200)
-        #self.canv2.setFixedSize(200,200)
+        ##self.canv2.setMinimumSize(200,200)
+        ##self.canv2.setFixedSize(200,200)
         self.canv2.setFixedHeight(200)
-        self.canv2.setMinimumWidth(210)
+        self.canv2.setMinimumWidth(210)    # was 210
         #self.canv2.setGeometry(0,0,200,210)
 
         # Polar axis for sky track plot
@@ -255,9 +256,6 @@ class SAT_GUI(QMainWindow):
         font: bold 14px; \
         padding: 4px; \
         }')
-
-        #sizePolicy = QSizePolicy( QSizePolicy.Fixed, QSizePolicy.Fixed)
-        #self.btn2.setSizePolicy(sizePolicy)
         
         self.grid.addWidget(self.btn2,row,col,1,2)
         self.rig_engaged=False
@@ -419,7 +417,6 @@ class SAT_GUI(QMainWindow):
         # Panel to implement RIT
         row=0
         col+=3
-        ncols2=2
         self.txt10 = QLabel(self)
         self.txt10.setText("- RIT -")
         self.txt10.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
@@ -455,7 +452,7 @@ class SAT_GUI(QMainWindow):
             getattr(QStyle, 'SP_TitleBarShadeButton')))
         btn.setToolTip('Click to increase RIT')
         btn.clicked.connect(self.RITup)
-        self.grid.addWidget(btn,row,col)
+        self.grid.addWidget(btn,row,col,1,ncols2)
 
         row+=1
         btn = QPushButton('')
@@ -463,7 +460,7 @@ class SAT_GUI(QMainWindow):
             getattr(QStyle, 'SP_TitleBarUnshadeButton')))
         btn.setToolTip('Click to decrease RIT')
         btn.clicked.connect(self.RITdn)
-        self.grid.addWidget(btn,row,col)
+        self.grid.addWidget(btn,row,col,1,ncols2)
 
         row+=1
         btn = QPushButton('')
@@ -471,13 +468,13 @@ class SAT_GUI(QMainWindow):
             getattr(QStyle, 'SP_DialogCloseButton')))
         btn.setToolTip('Click to clear RIT')
         btn.clicked.connect(self.RITclear)
-        self.grid.addWidget(btn,row,col)
+        self.grid.addWidget(btn,row,col,1,ncols2)
         
         row+=1
         self.txt15 = QLabel(self)
         self.txt15.setText(str('HEY!'))
         self.txt15.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
-        self.grid.addWidget(self.txt15,row,col,1,4)
+        self.grid.addWidget(self.txt15,row,col,1,2*ncols2)
 
         # Panel to implement XIT
         row=0
@@ -489,10 +486,6 @@ class SAT_GUI(QMainWindow):
         self.grid.setColumnStretch(col,ncols2)
         print('XIT label: hint=',self.txt12.sizeHint(),'\tsize=',self.txt12.geometry())
 
-        f = self.txt12.font()
-        f.setPointSize(10)
-        self.txt12.setFont(f)
-                
         row+=1
         self.txt13 = QLineEdit(self)
         self.txt13.setText(str(self.xit))
@@ -500,13 +493,17 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.txt13,row,col,1,ncols2)
         print('XIT: hint=',self.txt13.sizeHint(),'\tsize=',self.txt13.geometry())
 
+        f = self.txt13.font()
+        f.setPointSize(10)
+        self.txt13.setFont(f)
+                
         row+=1
         btn = QPushButton('')
         btn.setIcon(self.style().standardIcon(
             getattr(QStyle, 'SP_TitleBarShadeButton')))
         btn.setToolTip('Click to increase XIT')
         btn.clicked.connect(self.XITup)
-        self.grid.addWidget(btn,row,col)
+        self.grid.addWidget(btn,row,col,1,ncols2)
 
         row+=1
         btn = QPushButton('')
@@ -514,7 +511,7 @@ class SAT_GUI(QMainWindow):
             getattr(QStyle, 'SP_TitleBarUnshadeButton')))
         btn.setToolTip('Click to decrease XIT')
         btn.clicked.connect(self.XITdn)
-        self.grid.addWidget(btn,row,col)
+        self.grid.addWidget(btn,row,col,1,ncols2)
 
         row+=1
         btn = QPushButton('')
@@ -522,8 +519,13 @@ class SAT_GUI(QMainWindow):
             getattr(QStyle, 'SP_DialogCloseButton')))
         btn.setToolTip('Click to clear XIT')
         btn.clicked.connect(self.XITclear)
-        self.grid.addWidget(btn,row,col)
+        self.grid.addWidget(btn,row,col,1,ncols2)
 
+        # Make sure all columns are adjusted when we resize the width of the window
+        #for i in range(ncols):
+        #    self.grid.columnconfigure(self.win, i, weight=1,uniform='twelve')
+        
+        
         # Let's roll!
         self.show()
         self.Ready=True
@@ -556,7 +558,6 @@ class SAT_GUI(QMainWindow):
         screen = QDesktopWidget().screenGeometry()
         print('screen=',screen)
         #widget = self.geometry()
-        #print('win=',widget)
         #print('hint=',self.win.sizeHint())
         #self.setMainimumSize( widget.width() , widget.height() )    # Set minimum size of gui window
           
@@ -901,10 +902,6 @@ class SAT_GUI(QMainWindow):
             #               fancybox=True, shadow=True, ncol=5)
 
         # Re-draw the canvas
-        #self.fig.tight_layout()
-        #self.fig.tight_layout(pad=0,w_pad=0,h_pad=5)
-        #self.ax.margins(x=0)
-        #self.fig.tight_layout(rect=[0.1,0.1,0.9, 0.95]), 
         self.canv.draw()
 
 

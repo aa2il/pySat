@@ -383,7 +383,7 @@ if P.UDP_CLIENT:
     for itry in range(5):
         try:
             print('Opening TCP client ...',itry)
-            P.udp_client = TCP_Client(None,7474)
+            P.udp_client = TCP_Client(P,None,7474)
             print('... TCP Client Opened.')
             break
         except Exception as e: 

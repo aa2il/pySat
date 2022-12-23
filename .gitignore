@@ -6,3 +6,5 @@
 /#*
 /.#*
 /trsp/*.trsp
+/build/*
+/dist/*
