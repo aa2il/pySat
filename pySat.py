@@ -2,10 +2,10 @@
 ################################################################################
 #
 # Ham Satellite Orbit Prediction and Rig Control - Rev 1.0
-# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-3 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Gui to show predicted passes for various OSCARs and command rig and rotor to
-# follow a user selected satellite.
+# follow a user selected satellite trajectory.
 #
 # Notes:
 # - To get a list of operational OSCARs, can check at
@@ -27,18 +27,16 @@
 #     5) Gpredict seems to recognize .txt files which is why nasa.all
 #        has been renamed to nasa.txt
 #
-# - Migrated to python3 & Qt5 - To get this this to work, had to
-#    - install python3-pip (pip3) and python3-setuptools
-#    - pip3 install pyhamtools
-#   In python3, there is a distinction between bytes and string so the
-#   .decode(...)   below takes care of that.
-#
 # - Installation of predict engine:  (They've added support for python3)
 #   sudo apt-get install python3-dev
 #   git clone https://github.com/nsat/pypredict.git
 #   cd pypredict
 #   sudo python3 setup.py install
 #   cd ..
+#
+# - Other things we need:
+#    - install python3-pip (pip3) and python3-setuptools
+#    - pip3 install pyhamtools
 #
 ################################################################################
 #
@@ -79,7 +77,8 @@ from watchdog import WatchDog
 from rig_control import RigControl
 from sat_class import SATELLITE
 from gui import SAT_GUI
-from tcp_client import *
+#from tcp_client import *
+from tcp_server import *
 from latlon2maiden import *
 from fileio import read_gps_coords
 
@@ -383,7 +382,8 @@ if P.UDP_CLIENT:
     for itry in range(5):
         try:
             print('Opening TCP client ...',itry)
-            P.udp_client = TCP_Client(P,None,7474)
+            #P.udp_client = TCP_Client(P,None,KEYER_UDP_PORT,Client=True)
+            P.udp_client = TCP_Server(P,None,KEYER_UDP_PORT,Server=False)
             print('... TCP Client Opened.')
             break
         except Exception as e: 
