@@ -580,7 +580,7 @@ class MAPPING(QMainWindow):
             self.ax.stock_img()
         else:
             # ... so we load image directly instead
-            fname='50-natural-earth-1-downsampled.png'
+            fname='../data/50-natural-earth-1-downsampled.png'
             print('fname=',fname)
             img = imread(fname)
             self.ax.imshow(img, origin='upper', transform=ccrs.PlateCarree(),
