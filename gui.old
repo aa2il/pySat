@@ -1,13 +1,10 @@
 #! /usr/bin/python3 -u
 ################################################################################
 #
-# Satellite GUI - Rev 2.0
+# Satellite GUI - Rev 1.0
 # Copyright (C) 2021-3 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Gui to show predicted passes for various OSCARs.
-#
-# Jan. 2023 - pypredict uses a lot of unix system calls and will not compile on
-# windows ---> Migrating to pyemphem.
 #
 ################################################################################
 #
@@ -30,13 +27,10 @@ COLORS=['b','g','r','c','m','y','k',
 
 RIT_DELTA=100
 XIT_DELTA=100
-USE_PYPREDICT=False
-#USE_PYPREDICT=True
 
 ################################################################################
 
-if USE_PYPREDICT:
-    import predict
+import predict
 import requests
 import sys
 import functools
@@ -62,7 +56,7 @@ import pytz
 
 import os
 import time
-from datetime import timedelta,datetime, timezone
+from datetime import timedelta,datetime
 from collections import OrderedDict
 
 from params import PARAMS
@@ -75,7 +69,7 @@ from Logging import *
 from rotor import *
 
 ################################################################################
-
+        
 # The GUI
 class SAT_GUI(QMainWindow):
 
@@ -965,39 +959,10 @@ class SAT_GUI(QMainWindow):
 
             # Look at next transit for this sat
             try:
-                if USE_PYPREDICT:
-                    
-                    p = predict.transits(Sat.tle, self.P.my_qth, ending_after=now)
-                    transit = next(p)
+                p = predict.transits(Sat.tle, self.P.my_qth, ending_after=now)
+                transit = next(p)
+                print('Transit vars:', vars(transit) )
 
-                    # Debug
-                    if False:
-                        transit1 = Sat.next_transit(now)
-                        
-                        #print('Transit vars:\n', vars(transit))
-                        #print('Transit1 vars:\n', vars(transit1))
-                        dt=transit.start-transit1.start
-                        print('Start times=',transit.start,transit1.start,dt)
-                        
-                        t0 = datetime.fromtimestamp(now,tz=timezone.utc)
-                        t1 = datetime.fromtimestamp(transit.start,tz=timezone.utc)
-                        t2 = datetime.fromtimestamp(transit.end,tz=timezone.utc)
-                        t3 = datetime.fromtimestamp(transit1.start,tz=timezone.utc)
-                        t4 = datetime.fromtimestamp(transit1.end,tz=timezone.utc)
-                        print(t0,'\n',t1,t2,'\n',t3,t4)
-
-                        if transit1.alt<=0:
-                            print('Sat IS NOT visible',transit1.alt,transit1.dec)
-                        else:
-                            print('Sat IS visible',transit1.alt,transit1.dec,transit1.u)
-
-                        if abs(dt)>60:
-                            print('BIG mismatch!')
-                            sys.exit(0)
-                        
-                else:
-                    transit = Sat.next_transit(now)
-                    
                 # Keep track of next transit
                 if transit.start<tnext:
                     best=name
@@ -1009,7 +974,6 @@ class SAT_GUI(QMainWindow):
                 best=None
                 tnext=None
 
-        print(name,tnext)
         ttt = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(tnext))
         print('\nNext transit:',best,ttt,'\n')
         return [best,tnext]
@@ -1034,7 +998,7 @@ class SAT_GUI(QMainWindow):
             else:
 
                 # Plot sat track
-                lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat)
+                lons,lats,footprints = self.MapWin.ComputeSatTrack(Sat.tle)
                 self.MapWin.DrawSatTrack(Sat.name,lons,lats,'Current Position of '+Sat.name)
                 self.MapWin.DrawSatFootprint(Sat.name,lons[0],lats[0],footprints[0])
 
@@ -1042,7 +1006,6 @@ class SAT_GUI(QMainWindow):
 
             # Show footprint at mid-point of pass
             tmid = 0.5*(self.transit.start + self.transit.end)
-            print('tmid=',tmid,datetime.fromtimestamp(tmid))
             imid = int( len(self.track_lats)/2 )
             self.MapWin.DrawSatTrack(Sat.name,self.track_lons,self.track_lats,ERASE=True,title='Mid-Pass Position of '+Sat.name)
             for idx in [0,imid,-1]:
@@ -1085,85 +1048,39 @@ class SAT_GUI(QMainWindow):
             # Pull out info for this sat
             tle  = Sat.tle
         
-            if USE_PYPREDICT:
-                p = predict.transits(tle, self.P.my_qth, ending_after=ttt)
-                self.transit = next(p)
-
-                # Debug
-                if False:
-                    self.transit1 = Sat.next_transit(ttt)
-                    tstart = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.start))
-                    tend   = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.end))
-            
-                    tstart1 = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit1.start))
-                    tend1   = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit1.end))
-                    print('\n\nsat=',sat,'\tttt=',ttt)
-                    print('Transit vars:', vars(self.transit) )
-                    print('\nTransit Peak:',self.transit.peak())
-                    print(("\n%s\t%s\t%s\tduration=%f\t%f" %
-                           (sat,tstart,tend,self.transit.duration()/60.,
-                            self.transit.peak()['elevation'])))
-                    print('\nTransit Peak:',self.transit1.peak())
-                    print(("\n%s\t%s\t%s\tduration=%f\t%f" %
-                           (sat,tstart1,tend1,self.transit1.duration()/60.,
-                            self.transit1.peak()['elevation'])))
-
-                    t=self.transit.start
-                    obs=predict.observe(tle, self.P.my_qth,at=t)
-                    print('t=',t,'\tlat/lon=',obs['latitude'],obs['longitude'])
-                    print('t=',self.transit1.t[0],'\tlat/lon=',self.transit1.lats[0],self.transit1.lons[0])
-                    sys.exit(0)
-                    
-            else:
-                self.transit = Sat.next_transit(ttt)
-                
-            if USE_PYPREDICT:
-                
-                # Assemble data for sky track
-                t=self.transit.start
-                tt=[]
-                az=[]
-                el=[]
-                lats=[]
-                lons=[]
-                footprints=[]
-                while t<self.transit.end:
-                    obs=predict.observe(tle, self.P.my_qth,at=t)
-                    #print('obs=',obs)
-                    tt.append(t)
-                    az.append(obs['azimuth'])
-                    el.append(obs['elevation'])
-                    lats.append(obs['latitude'])
-                    lons.append(obs['longitude'])
-                    footprints.append(obs['footprint'])
-                    t+=10
-
-                # Debug
-                if False:
-                    #print('alt=',obs['altitude'],self.transit.peak()['elevation'])
-                    #print('footprints=',footprints)
-                    print('tt   =',tt[0],tt[-1])
-                    print('tt1  =',self.transit1.t[0],self.transit1.t[-1])
-                    print('lats =',lats)
-                    print('lats1=',self.transit1.lats)
-                    sys.exit(0)
-
-            else:
-                
-                tt=self.transit.t
-                az=self.transit.az
-                el=self.transit.el
-                lats=self.transit.lats
-                lons=self.transit.lons
-                footprints=self.transit.footprints
+            p = predict.transits(tle, self.P.my_qth, ending_after=ttt)
+            self.transit = next(p)
+            #print('Transit vars:', vars(transit) )
+            tstart = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.start))
+            tend   = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.transit.end))
+            print(("%s\t%s\t%f\t%f" %
+                   (tstart,tend,self.transit.duration()/60., self.transit.peak()['elevation'])))
+            print('Transit Peak:',self.transit.peak())
+    
+            # Assemble data for sky track
+            t=self.transit.start
+            tt=[]
+            az=[]
+            el=[]
+            lats=[]
+            lons=[]
+            footprints=[]
+            while t<self.transit.end:
+                obs=predict.observe(tle, self.P.my_qth,at=t)
+                #print('obs=',obs)
+                tt.append(t)
+                az.append(obs['azimuth'])
+                el.append(obs['elevation'])
+                lats.append(obs['latitude'])
+                lons.append(obs['longitude'])
+                footprints.append(obs['footprint'])
+                t+=10
 
             # Show sat footprint at mid-point of pass on sat map
             if self.P.SHOW_MAP:
                 self.track_lats  = np.array(lats)
                 self.track_lons  = np.array(lons)
-                self.track_foot  = np.array(footprints)
-                print('\nSHOWING MAP: start/end=',self.transit.start,self.transit.end)
-                print('lats=',self.track_lats)
+                self.track_foot = np.array(footprints)
                 self.plot_sat_map_track(Sat,1)
 
         # Update GUI

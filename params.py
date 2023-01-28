@@ -25,6 +25,7 @@ from rig_io.ft_tables import SATELLITE_LIST,CONNECTIONS,SAT_RIGS
 import argparse
 from settings import *
 import datetime
+import platform
 
 ################################################################################
 
@@ -110,6 +111,7 @@ class PARAMS:
             self.TEND         = 24
 
         self.NO_FLIPPER       = False
+        self.PLATFORM=platform.system()
         
         # Read config file
         self.RCFILE=os.path.expanduser("~/.satrc")

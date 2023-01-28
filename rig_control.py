@@ -2,7 +2,7 @@
 ################################################################################
 #
 # RigControl.py - Rev 1.0
-# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-3 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Rig Control class for satellite predictions.
 #
@@ -49,8 +49,13 @@ class RigControl:
         self.az    = None
         self.el    = None
         self.sat_map_cntr=0
+
+        if P.PLATFORM=='Windows':
+            tmpfile="satellites.log"
+        else:
+            tmpfile="/tmp/satellites.log"
+        self.fp_log = open(tmpfile, "w")
         
-        self.fp_log = open("/tmp/satellites.log", "w")
         row=['Time Stamp','Source','Selected',
              'Inverting','dn1','dn2','up1','up2','Mode',
              'fup','fdown','df','fdop1','fdop2',

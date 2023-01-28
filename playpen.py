@@ -36,9 +36,9 @@ tle9 = """0 LEMUR 1
 1 40044U 14033AL  15013.74135905  .00002013  00000-0  31503-3 0  6119
 2 40044 097.9584 269.2923 0059425 258.2447 101.2095 14.72707190 30443"""
 
-print(tle)
+print('tle=',tle)
 tle0=tle.split('\n')
-print(tle0)
+print('tle0=',tle0)
 tle2=tle0[2].split()
 print(tle2)
 inclination=float(tle2[2])
@@ -46,6 +46,24 @@ print('inclination=',inclination)
 revs=float(tle2[7])
 rev_mins=24.*60./revs
 print('rev per day=',revs,'\t',rev_mins)
+
+qth = (37.771034, 122.413815, 7)  # lat (N), long (W), alt (meters)
+obs1=predict.observe(tle, qth) # optional time argument defaults to time.time()
+print('\nobs=',obs1)
+print(obs1['longitude'],obs1['longitude']-360,obs1['latitude'])
+
+obs = ephem.Observer()
+obs.lat = '0'
+obs.lon = '0'
+obs.date = datetime.utcnow()
+
+print(' ')
+iss = ephem.readtle(tle0[0],tle0[1],tle0[2])
+iss.compute(obs.date)
+print('%s %s' % (iss.sublong, iss.sublat))
+
+
+sys.exit(0)
 
 ################################################################################
 

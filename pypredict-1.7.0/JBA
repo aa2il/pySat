@@ -1,0 +1,11 @@
+To build this
+
+#sudo apt-get install python-dev
+#sudo python setup.py install
+
+sudo apt-get install python3-dev
+sudo python3 setup.py install
+
+On winbloz:  This looks like a dead end
+cd pypredict-1.7.0
+python setup.py install

@@ -77,15 +77,18 @@ from watchdog import WatchDog
 from rig_control import RigControl
 from sat_class import SATELLITE
 from gui import SAT_GUI
-#from tcp_client import *
 from tcp_server import *
 from latlon2maiden import *
 from fileio import read_gps_coords
 
 ################################################################################
 
+VERSION='1.0'
+
+################################################################################
+
 print('\n****************************************************************************')
-print('\n   Satellite Pass Predicter and Rig Control beginning ...\n')
+print('\n   Satellite Pass Predicter and Rig Control v',VERSION,'beginning ...\n')
 P=PARAMS()
 
 # Test internet connection
@@ -237,10 +240,10 @@ def get_satnogs_json(url,outfile):
         return None
     txt = response.read().decode("utf-8")
     
-    #print('txt=',txt)
-    #print(type(txt),len(txt))
-    
-    fp=open(outfile,'w')
+    print('txt=',txt)
+    print(type(txt),len(txt))
+
+    fp=open(outfile,'w', encoding="utf-8")
     fp.write(txt)
     fp.close()
 
@@ -285,8 +288,12 @@ def parse_trsp_data():
     item='transmitters'
     with open(item+'.json') as fp:
         objs = json.load(fp)
-    print(type(objs),len(objs))
+    print('PARSE TRSP DATA:',type(objs),len(objs))
     #print('objs=',objs)
+
+    path='trsp'
+    if not os.path.exists(path):
+        os.makedirs(path)
 
     ids=[]
     for obj in objs:
@@ -297,7 +304,7 @@ def parse_trsp_data():
                 ids.append(id)
             else:
                 attr='a'
-            fp=open('trsp/'+str(id)+'.trsp',attr)
+            fp=open(path+'/'+str(id)+'.trsp',attr)
             #print(obj)
             #print('\n['+obj['description']+']')
             fp.write('\n['+obj['description']+']\n')
@@ -310,6 +317,9 @@ def parse_trsp_data():
                     #print(tag+'='+str(val),type(val)==float)
                     fp.write(tag+'='+str(val)+'\n')
             fp.close()
+
+    #print('PARSE TRSP DATA')
+    #sys.exit(0)
     
     
 # Get TLE data
@@ -321,22 +331,29 @@ if False:
 
 if True:
     # Get timestamp of nasa.txt
+    if P.PLATFORM=='Windows': 
+        URL2=os.getcwd()+'/nasa.txt'                # Override for now
     fname=os.path.expanduser(URL2)
-    ti_c = os.path.getctime(fname)
-    ti_m = os.path.getmtime(fname)
- 
-    # Converting the time in seconds to a timestamp
-    c_ti = time.ctime(ti_c)
-    m_ti = time.ctime(ti_m)
-    print(f"{fname}\n was created at {c_ti} and last modified at {m_ti}")
-
-    now = time.time()
-    age=(now-ti_m)/(3600.)
-    print(f'age= {age} hours')
-
-    if age>24:
-        print('Need to update TLE data')
+    print('URL2=',fname)
+    if not os.path.isfile(fname):
+        print('nasa.txt not found - Need to update TLE data')
         P.UPDATE_TLE = True
+    else:
+        ti_c = os.path.getctime(fname)
+        ti_m = os.path.getmtime(fname)
+ 
+        # Converting the time in seconds to a timestamp
+        c_ti = time.ctime(ti_c)
+        m_ti = time.ctime(ti_m)
+        print(f"{fname}\n was created at {c_ti} and last modified at {m_ti}")
+
+        now = time.time()
+        age=(now-ti_m)/(3600.)
+        print(f'age= {age} hours')
+
+        if age>24:
+            print('Need to update TLE data')
+            P.UPDATE_TLE = True
     
     #sys.exit(0)
 
@@ -362,7 +379,11 @@ if P.UPDATE_TLE and P.INTERNET:
     fp.close()
     #sys.exit(0)
 else:
-    url2="file://" + os.path.expanduser(URL2)
+    if P.PLATFORM=='Windows':
+        url2="file:\\" + os.path.expanduser(URL2)
+    else:
+        url2="file://" + os.path.expanduser(URL2)
+    print('url=',url2)
     if sys.version_info[0]==3:
         response = urllib.request.urlopen(url2)
     else:
@@ -370,9 +391,9 @@ else:
     html = response.read().decode("utf-8") 
 #print( html)
 #print( type(html))
-#P.TLE=html.split('\n')            # Old
-#P.TLE = [line for line in html.split('\n') if len(line)>0]      # Overcome double \n
-P.TLE=html.replace('\n\n','\n').split('\n')            # New
+if P.PLATFORM=='Windows':
+    html=html.replace('\r','')
+P.TLE=html.replace('\n\n','\n').split('\n')
 print('TLE=',P.TLE)
 #sys.exit(0)
 print(" ")
