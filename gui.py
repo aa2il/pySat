@@ -70,7 +70,7 @@ from watchdog import WatchDog
 from rig_control import RigControl
 from sat_class import SATELLITE,MAPPING
 
-from settings import *
+from settings_qt import *
 from Logging import *
 from rotor import *
 
@@ -94,7 +94,7 @@ class SAT_GUI(QMainWindow):
         self.rit = 0
         self.xit = 0
         self.Ready=False
-        self.SettingsWin=SETTINGS(P)
+        self.SettingsWin=SETTINGS_GUI_QT(P)
         self.LoggingWin=LOGGING(P)
         self.MODES=['USB','CW','FM','LSB']
         self.ax=None

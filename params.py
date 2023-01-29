@@ -23,7 +23,7 @@
 import os
 from rig_io.ft_tables import SATELLITE_LIST,CONNECTIONS,SAT_RIGS
 import argparse
-from settings import *
+from settings import read_settings
 import datetime
 import platform
 
@@ -114,6 +114,9 @@ class PARAMS:
         self.PLATFORM=platform.system()
         
         # Read config file
+        ATTR=['Call','Grid','Alt_ft']
+        self.SETTINGS,self.RCFILE = read_settings('.satrc',attr=ATTR)
+        """
         self.RCFILE=os.path.expanduser("~/.satrc")
         self.SETTINGS=None
         try:
@@ -122,7 +125,8 @@ class PARAMS:
         except:
             print(self.RCFILE,' not found!\n')
             sys.exit(0)
-
+        """
+        
         self.MY_GRID    = args.grid
         if self.MY_GRID==None:
             try:

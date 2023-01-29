@@ -1,7 +1,7 @@
 #########################################################################################
 #
 # settings.py - Rev. 1.0
-# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-3 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Gui for basic settings.
 #
@@ -27,9 +27,9 @@ from rig_io.ft_tables import SATELLITE_LIST
 
 #########################################################################################
 
-class SETTINGS(QMainWindow):
+class SETTINGS_GUI_QT(QMainWindow):
     def __init__(self,P,parent=None):
-        super(SETTINGS, self).__init__(parent)
+        super(SETTINGS_GUI_QT, self).__init__(parent)
 
         # Init
         self.P=P
@@ -81,7 +81,10 @@ class SETTINGS(QMainWindow):
         self.eboxes1=[]
         self.eboxes2=[]
         isat=0
-        OFFSETS=self.P.SETTINGS['OFFSETS']
+        if 'OFFSETS' in self.P.SETTINGS:
+            OFFSETS=self.P.SETTINGS['OFFSETS']
+        else:
+            OFFSETS=None
         row0=row+1
         for sat in SATELLITE_LIST:
             row+=1
@@ -98,7 +101,6 @@ class SETTINGS(QMainWindow):
             ebox = QLineEdit(self)
             self.eboxes1.append(ebox)
             try:
-                #txt="0"   # str(OFFSETS[sat][0])
                 txt=str(OFFSETS[sat][0])
             except:
                 txt="0"

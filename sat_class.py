@@ -97,8 +97,12 @@ def get_tle(TLE,sat):
         sat2='Falconsat-3'
         print('GET_TLE: Warning - name change for FS-3 to Falconsat-3')
 
-    print('TLE=',TLE)
-    idx  = TLE.index(sat2)
+    try:
+        idx  = TLE.index(sat2)
+    except Exception as e: 
+        print('TLE=',TLE)
+        print( str(e) )
+        sys.exit(0)
 
     tle = sat + '\n' \
         + TLE[idx+1] + '\n' \

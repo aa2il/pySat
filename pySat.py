@@ -179,48 +179,41 @@ if P.USE_SDR:
 ################################################################################
         
 # Get my qth
-if False:
-    # Based on configured grid square
-    lat,lon=maidenhead2latlon(P.MY_GRID)
-    P.my_qth = (lat,-lon,0)
-    print('Based on grid square: \tMy QTH:',P.MY_GRID,P.my_qth)
-else:
-    # Based on lat/long/alt from GPS
-    if P.GPS:
-        [lat,lon,alt,gridsq]=read_gps_coords()
-        print('loc=',[lat,lon,alt,gridsq])
-        P.MY_GRID = latlon2maidenhead(lat,lon,12)
-        
-        P.SETTINGS['MY_LAT'] = lat        
-        P.SETTINGS['MY_LON'] = lon
-        P.SETTINGS['MY_ALT'] = alt        
-        P.SETTINGS['MY_GRID'] = P.MY_GRID        
-    elif 1:
-        lat = float( P.SETTINGS['MY_LAT'] )
-        lon = float( P.SETTINGS['MY_LON'] )
-        alt = float( P.SETTINGS['MY_ALT'] )
-        P.MY_GRID = latlon2maidenhead(lat,lon,12)
-    else:
-        P.MY_GRID = 'DM37QG46ML'
-        lat, lon = maidenhead2latlon(P.MY_GRID)
-        alt=1654
-        
-    P.my_qth = (lat,-lon,alt)
-    print('Based on GPS: \t\tMy QTH:',P.MY_GRID,P.my_qth)
-    #sys.exit(0)
-
-if False:
-    # Experiment with various precisions - locator in pyhamtools doesn't
-    # provide a whole lot of accuracy
-    for n in [4,6,8,10,12]:
-        gridsq=P.MY_GRID[:n]
-        print(gridsq)
-        lat, lon = locator_to_latlong(gridsq)
-        my_qth = (lat,-lon,0)
-        print('My QTH:',gridsq,my_qth)
-
-    sys.exit(0)
+if 'MY_ALT' not in P.SETTINGS and 'MY_ALT_FT' in P.SETTINGS:
+    P.SETTINGS['MY_ALT'] = float(P.SETTINGS['MY_ALT_FT']) /3.084
+if P.GPS:
     
+    # Based on lat/long/alt from GPS
+    [lat,lon,alt,gridsq]=read_gps_coords()
+    print('loc=',[lat,lon,alt,gridsq])
+    P.MY_GRID = latlon2maidenhead(lat,lon,12)
+    
+    P.SETTINGS['MY_LAT'] = lat        
+    P.SETTINGS['MY_LON'] = lon
+    P.SETTINGS['MY_ALT'] = alt        
+    P.SETTINGS['MY_GRID'] = P.MY_GRID
+    
+elif 'MY_LAT' in P.SETTINGS and 'MY_LON' in P.SETTINGS:
+
+    # Based on entered lat/lon
+    lat = float( P.SETTINGS['MY_LAT'] )
+    lon = float( P.SETTINGS['MY_LON'] )
+    alt = float( P.SETTINGS['MY_ALT'] )
+    P.MY_GRID = latlon2maidenhead(lat,lon,12)
+    
+else:
+
+    # Based on grid square
+    P.MY_GRID = P.SETTINGS['MY_GRID']
+    lat, lon = maidenhead2latlon(P.MY_GRID)
+    alt = float( P.SETTINGS['MY_ALT'] )
+    P.SETTINGS['MY_LAT'] = lat        
+    P.SETTINGS['MY_LON'] = lon
+        
+P.my_qth = (lat,-lon,alt)
+print('My QTH:',P.MY_GRID,P.my_qth)
+#sys.exit(0)
+
 # There is a provision for looking at overlap with another grid square
 if P.GRID2:
     lat2, lon2 = locator_to_latlong(P.GRID2)
@@ -394,7 +387,7 @@ else:
 if P.PLATFORM=='Windows':
     html=html.replace('\r','')
 P.TLE=html.replace('\n\n','\n').split('\n')
-print('TLE=',P.TLE)
+#print('TLE=',P.TLE)
 #sys.exit(0)
 print(" ")
 
