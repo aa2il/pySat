@@ -73,7 +73,19 @@ from sat_class import SATELLITE,MAPPING
 from settings_qt import *
 from Logging import *
 from rotor import *
+from constants import *
 
+################################################################################
+
+import traceback
+def error_trap(e):
+    print(e)
+    print(traceback.format_exc())
+
+    #exc_type, exc_obj, exc_tb = sys.exc_info()
+    #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+    #print(exc_type, fname, exc_tb.tb_lineno)
+    
 ################################################################################
 
 # The GUI
@@ -655,8 +667,7 @@ class SAT_GUI(QMainWindow):
         except Exception as e: 
             print('================== ReCenter - Failure')
             print(e)
-
-
+            
 
     # Function to engage/disengange rig control
     def ToggleRotorControl(self):
@@ -954,7 +965,6 @@ class SAT_GUI(QMainWindow):
         if sat_names[0]==None:
             sat_names=list(self.Satellites.keys())
         for name in sat_names:
-            print('\nFind best:',name)
             Sat=self.Satellites[name]
             if name=='Moon' or not Sat.main:
                 print('FIND NEXT TRANSIT: Hmmmm - no transponder for this sat - skipping')
@@ -962,6 +972,7 @@ class SAT_GUI(QMainWindow):
             
             # Observe sat at current time
             now = time.mktime( datetime.now().timetuple() )
+            print('\nFind best:',name,'\t',now)
 
             # Look at next transit for this sat
             try:
@@ -1005,10 +1016,8 @@ class SAT_GUI(QMainWindow):
                     
             except Exception as e: 
                 print('================== Predict Failure for sat',name)
-                print(e)
-                best=None
-                tnext=None
-
+                error_trap(e)
+                
         print(name,tnext)
         ttt = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(tnext))
         print('\nNext transit:',best,ttt,'\n')
@@ -1174,7 +1183,8 @@ class SAT_GUI(QMainWindow):
         self.AOS.setText( time.strftime('%H:%M:%S', time.localtime(self.aos) ))
         self.LOS.setText( time.strftime('%H:%M:%S', time.localtime(self.los) ))
         self.PeakEl.setText( '%6.1f deg.' % self.transit.peak()['elevation'] )
-        self.SRng.setText( '%d miles' % self.transit.peak()['slant_range'] )
+        srng=self.transit.peak()['slant_range']*KM2MILES
+        self.SRng.setText( '%d miles' % srng)
 
         # Save data for rotor tracking
         self.track_t  = np.array(tt)
@@ -1365,7 +1375,7 @@ class SAT_GUI(QMainWindow):
         loggingAct.triggered.connect( self.LoggingWin.log_qso )
         fileMenu.addAction(loggingAct)
 
-        GetStatusAct = QAction('&Satellite Status...', self)
+        GetStatusAct = QAction('&Sat Status Page...', self)
         GetStatusAct.setStatusTip('Open AMSAT Web Page')
         GetStatusAct.triggered.connect( self.OpenAmsatWebPage )
         fileMenu.addAction(GetStatusAct)

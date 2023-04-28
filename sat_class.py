@@ -54,7 +54,7 @@ from collections import OrderedDict
 import time
 from datetime import timedelta,datetime, timezone
 import ephem
-from math import pi
+#from math import pi
 
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
@@ -73,11 +73,7 @@ from shapely.geometry.polygon import Polygon
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-################################################################################
-
-RAD2DEG=180./pi
-MINS2DAYS=1./(24.*60.)
-DEG2RAD=pi/180.
+from constants import *
 
 ################################################################################
 
@@ -120,6 +116,7 @@ def get_tle(TLE,sat):
 class TRANSIT:
     def __init__(self,info,t,az,el,lats,lons,footprints):
 
+        # info:
         # 0  Rise time
         # 1  Rise azimuth
         # 2  Maximum altitude time
@@ -134,9 +131,10 @@ class TRANSIT:
         self.az    = az
         self.el    = el
 
-        self.max_el = info[3]
-        if self.max_el==None:
+        if info[3]==None:
             self.max_el = 0
+        else:
+            self.max_el = info[3]*RAD2DEG
 
         self.lats  = lats
         self.lons  = lons
@@ -214,7 +212,7 @@ class SATELLITE:
                 transit = self.next_transit(tafter)
                 #print('HEY:',tafter,tbefore,transit.start,transit.end)
                 
-                if transit.start>tbefore:
+                if transit==None or transit.start>tbefore:
                     break
                 else:
                     tafter=transit.end+1
@@ -450,7 +448,7 @@ class SATELLITE:
                  elevation   = self.sat.alt*RAD2DEG,      \
                  footprint   = fk,                        \
                  orbit       = self.sat.orbit,            \
-                 slant_range = self.sat.range,            \
+                 slant_range = self.sat.range*0.001,     \
                  doppler     = dop100)
 
         return d
@@ -478,7 +476,18 @@ class SATELLITE:
             self.obs.date = datetime.fromtimestamp(t-30*60,tz=timezone.utc)
             sat.compute(self.obs)
 
-        info=self.obs.next_pass(sat)
+        # Get info for the next transit
+        try:
+            info=self.obs.next_pass(sat)
+        except Exception as e:
+            # Trap any errors that occur - not sure why this happens with ephem
+            # but seems to be an issue for passes well in the future
+            print('\n*** TRAPPED ERROR in NEXT_TRANSIT ***')
+            print( str(e) )
+            print('TLE=',tle0)
+            print('t=',t,'\t',self.obs.date,'\n')
+            #sys.exit(0)
+            return None
 
         # Compute track - need to rip this mess out & use observe!
         rise = info[0]
@@ -518,7 +527,7 @@ class SATELLITE:
         transit.elevation=sat.elevation
         transit.alt=sat.alt
         transit.dec=sat.dec
-        transit.u=ephem.unrefract(self.obs.pressure, self.obs.temperature, sat.alt)
+        ###transit.u=ephem.unrefract(self.obs.pressure, self.obs.temperature, sat.alt)
         
         #print('NEXT TRANSIT: Transit vars:\n', vars(transit),
         #      '\nstart=',transit.start,'\t',type(transit) )
@@ -782,12 +791,12 @@ class MAPPING(QMainWindow):
         
 
     def ComputeSatTrack(self,Sat,tstart=None,npasses=1):
-        print('COMPUTE SAT TRACK: tle=',tle)
-
         if tstart==None:
             tstart = datetime.now()
 
         tle0=Sat.tle.split('\n')
+        print('COMPUTE SAT TRACK: tle=',tle0)
+
         tle2=tle0[2].split()
         #inclination=float(tle2[2])
         revs=float(tle2[7])
@@ -803,22 +812,26 @@ class MAPPING(QMainWindow):
             
             if USE_PYPREDICT:
                 obs = predict.observe(Sat.tle,self.P.my_qth,t)
-                lon=obs['longitude']
-                lat=obs['latitude']
-                footprint=obs['footprint']
+            else:
+                obs = Sat.observe(t)
+                
+            lon=obs['longitude']
+            lat=obs['latitude']
+            footprint=obs['footprint']
 
-                # DEBUG
-                if True:
-                    print(obs['orbit'],'\t',tstart+dt,'\t',lon,'\t',lat,
-                          '\t',footprint)
+            # DEBUG
+            if False:
+                print(obs['orbit'],'\t',tstart+dt,'\t',lon,'\t',lat,
+                      '\t',footprint)
                     
-                    obs1=Sat.observe(t)
-                    lon1=obs1['longitude']
-                    lat1=obs1['latitude']
-                    footprint1=obs1['footprint']
-                    print(obs1['orbit'],'\t',tstart+dt,'\t',lon1,'\t',lat1,
+                obs1=Sat.observe(t)
+                lon1=obs1['longitude']
+                lat1=obs1['latitude']
+                footprint1=obs1['footprint']
+                print(obs1['orbit'],'\t',tstart+dt,'\t',lon1,'\t',lat1,
                           '\t',footprint1)
-                    sys.exit(0)
+                print('*** COMPUTE SAT TRACK - DEBUG - EXITING ***')
+                sys.exit(0)
 
             lons.append(lon)
             lats.append(lat)
