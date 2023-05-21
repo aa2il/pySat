@@ -41,18 +41,18 @@ def flip_a_roo(self):
     # Init
     az=self.track_az
     el=self.track_el
-    #print('FLIP_AA_ROO: az=',az,'nel=',el)
+    #print('FLIP_A_ROO: az=',az,'nel=',el)
 
     # Query current rotor position & use it to determine if array is flipped
-    print('FLIP_AA_ROO: pos=',self.pos,self.flipper)
+    print('FLIP_A_ROO: pos=',self.pos,self.flipper)
     if not self.P.sock2.active:
-        print('FLIP_AA_ROO: Rotor not active?????')
+        print('FLIP_A_ROO: Rotor not active?????')
         #return
     else:
         if any(np.isnan(self.pos)):
             self.pos=self.P.sock2.get_position()
         self.flipper=self.pos[1]>90.
-    print('FLIP_AA_ROO: pos2=',self.pos,self.flipper)
+    print('FLIP_A_ROO: pos2=',self.pos,self.flipper)
 
     # Compute quadrant each point is in
     quad1 = np.logical_and(az>0  , az<=90)
@@ -112,7 +112,7 @@ def flip_a_roo(self):
         min4=az[quad4].min()
         max1=az[quad1].max()
         max_el = el.max()
-        print('FLIP_A_ROO: Croos 0 and flipped:',min4,max1,max_el)
+        print('FLIP_A_ROO: Cross 0 and flipped: min4=',min4,'\tmax1=',max1,'\tmax_el=',max_el)
 
         # We need to flip if we cross the boundary significantly OR its a very high overhead pass
         # The very high overhead pass is something we can probably refine later but it should
@@ -127,13 +127,13 @@ def flip_a_roo(self):
         if self.flipper:
             if (n1+n2) > (n3+n4):
                 self.quads12_only=True
-                print('Flipper - restricting to quads 1&2')
+                print('Flipper - restricting to quads 1&2 \tflipped=',self.flipper)
             else:
                 self.quads34_only=True
-                print('Flipper - restricting to quads 3&4')
+                print('Flipper - restricting to quads 3&4 \tflipped=',self.flipper)
 
     else:
-        print('FLIP_A_ROO: Can keep current flip state')
+        print('FLIP_A_ROO: Can keep current flip state \tflipped=',self.flipper)
 
     # If the user has disabled flipping, override all of this
     # We couldn't do this at the top bx we need the various
@@ -145,21 +145,32 @@ def flip_a_roo(self):
 # Function to compute new position for the rotor
 def rotor_positioning(gui,az,el,Force):
 
-    #print('ROTOR_POSITIONING:',el,gui.event_type)
+    print('ROTOR_POSITIONING: az=',az,'\tel=',el,'\tevt type=',gui.event_type,'\tflipper=',gui.flipper,
+          gui.quads12_only,gui.quads34_only)
+    
     if el>=0:
         
         # Sat is above the horizon ...
         # Limit az if we cross the boundary but don't want to flip
         if not gui.flipper:
+            
             if gui.quads12_only and az>178:
                 az=178
             elif gui.quads34_only and az<182:
                 az=182
+                
         else:
-            if gui.quads12_only and (az<1 or az<360):
-                az=1
-            elif gui.quads34_only and (az>0 or az>360):
-                az=359
+            
+            if gui.quads12_only:
+                if az<2 or az>270:
+                    az=2
+                elif az>=178 and az<=270:
+                    az=178
+            elif gui.quads34_only:
+                if az>0 and az<90:
+                    az=358
+                elif az<=182:
+                    az=182
         
         # ... and point to the calculated sat position
         new_pos=[az,el]
@@ -177,6 +188,8 @@ def rotor_positioning(gui,az,el,Force):
             # Indeterminant --> point to start
             #return False,[np.nan,np.nan],np.nan,np.nan,[np.nan,np.nan]
             new_pos=[gui.track_az[0] , 0]
+            
+    print('new_pos=',new_pos)
 
     # Flip antenna if needed to avoid ambiquity at 180-deg
     if gui.flipper:

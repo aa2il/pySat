@@ -41,6 +41,7 @@ TRANSP_DATA = "~/Python/pySat/trsp"       # Transponder data
 MIN_PEAK_EL  = 30                         # Degrees, min. elevation to identify overhead passes
 USE_PYPREDICT=False
 #USE_PYPREDICT=True
+SUN_UPDATE_INTERVAL = 10*60               # Only update every ten minutes
 
 ################################################################################
 
@@ -96,9 +97,11 @@ def get_tle(TLE,sat):
     try:
         idx  = TLE.index(sat2)
     except Exception as e: 
-        print('TLE=',TLE)
+        print('\n*** TRAPPED ERROR in GET_TLE ***')
         print( str(e) )
-        sys.exit(0)
+        print('TLE=',TLE)
+        #sys.exit(0)
+        return None
 
     tle = sat + '\n' \
         + TLE[idx+1] + '\n' \
@@ -158,11 +161,13 @@ class SATELLITE:
         self.isat = isat
         self.qth  = qth
 
+        self.main=None
         self.pass_times = []
         self.t = []
         self.y = []
         self.t2 = []
         self.y2 = []
+        self.last_update = time.time() - SUN_UPDATE_INTERVAL
         
         # Greenwich
         self.greenwich = ephem.Observer()
@@ -185,6 +190,8 @@ class SATELLITE:
         tafter  = time.mktime(date1.timetuple())
         tbefore = time.mktime(date2.timetuple())
         self.tle = get_tle(TLE,name)
+        if not self.tle:
+            return
         tle0=self.tle.split('\n')
         self.sat = ephem.readtle(tle0[0],tle0[1],tle0[2])
         if USE_PYPREDICT:
@@ -287,10 +294,10 @@ class SATELLITE:
 
         # We use the transponder data that has already been parsed
         # For this, we need the sat number
-        self.main=None
-        if self.name=='Moon':
+        NO_TRANSP=['Moon','Orbicraft-Zorkiy']
+        if self.name in NO_TRANSP:
             # There are no transponders but we fake till we make it
-            self.number='Moon'
+            self.number=self.name
         else:
             print('GET_TRANSPONDERS: tle =',self.tle)
             tle2=self.tle.split()
@@ -299,12 +306,12 @@ class SATELLITE:
             print('GET_TRANSPONDERS: number=',self.number)
 
         fname = os.path.expanduser(TRANSP_DATA+'/'+str(self.number)+'.trsp')
-        print(fname)
+        print('fname=',fname)
         #sys.exit(0)
 
         # Read the transponder data for this sat
         config = ConfigParser() 
-        print(config.read(fname)) 
+        print('config.read=',config.read(fname)) 
         self.transponders = OrderedDict()
         for transp in config.sections():
 
@@ -339,7 +346,7 @@ class SATELLITE:
                     items['Inverting']=True
 
             # Find the main transponder
-            if self.name=='Moon':
+            if self.name in NO_TRANSP:
                 if 'MODE V' in transp2:
                     self.main=transp
                     flagged='*****'
@@ -374,8 +381,9 @@ class SATELLITE:
             #sys.exit(0)
 
         if not self.main:
-            print('Hmmmmm - never found main transponder for this sat :-(')
-            sys.exit(0)
+            print('Hmmmmm - never found main transponder for this sat :-(',self.name)
+            if not self.name in NO_TRANSP:
+                sys.exit(0)
 
     # Function to compute current Doppler shifts for a specific sat
     # Also returns az and el info for rotor control
@@ -638,20 +646,29 @@ class SATELLITE:
 
     # Function to return current sun info
     def current_sun_position(self):
-        self.obs.date = datetime.utcnow()
-        self.sun.compute(self.obs)
-        az=self.sun.az
-        el=self.sun.alt
 
-        self.greenwich.date = self.obs.date
-        self.sun.compute(self.greenwich)
-        lon = ( self.sun.ra - self.greenwich.sidereal_time() )*RAD2DEG
-        lat = ( self.sun.dec )*RAD2DEG
+        now=time.time()
+        dt = now - self.last_update
+        if dt>=SUN_UPDATE_INTERVAL:
+            self.last_update=now
+        
+            self.obs.date = datetime.utcnow()
+            self.sun.compute(self.obs)
+            az=self.sun.az
+            el=self.sun.alt
+            
+            self.greenwich.date = self.obs.date
+            self.sun.compute(self.greenwich)
+            lon = ( self.sun.ra - self.greenwich.sidereal_time() )*RAD2DEG
+            lat = ( self.sun.dec )*RAD2DEG
 
-        print('Current Sun: date=',self.greenwich.date, \
-              '\n\taz=',az,'\tel=',el, \
-              '\n\tlat=',lat,'\t','lon=',lon)
-        return [az*RAD2DEG, el*RAD2DEG, lat, lon]
+            print('Current Sun: date=',self.greenwich.date, \
+                  '\n\taz=',az,'\tel=',el, \
+                  '\n\tlat=',lat,'\t','lon=',lon,'\tdt=',dt)
+
+            self.sun_pos = [az*RAD2DEG, el*RAD2DEG, lat, lon]
+            
+        return self.sun_pos
 
 
     # Function to compute moon track for a single pass
@@ -881,10 +898,10 @@ class MAPPING(QMainWindow):
         # Clear prior plots
         if ERASE:
             for line in self.ax.get_lines():
-                print('line=',line)
+                #print('line=',line)
                 line.remove()
             for p in self.blobs:
-                print('p=',line)
+                #print('p=',line)
                 try:
                     p.remove()
                 except:

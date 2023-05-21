@@ -30,13 +30,9 @@ COLORS=['b','g','r','c','m','y','k',
 
 RIT_DELTA=100
 XIT_DELTA=100
-USE_PYPREDICT=False
-#USE_PYPREDICT=True
 
 ################################################################################
 
-if USE_PYPREDICT:
-    import predict
 import requests
 import sys
 import functools
@@ -68,7 +64,9 @@ from collections import OrderedDict
 from params import PARAMS
 from watchdog import WatchDog
 from rig_control import RigControl
-from sat_class import SATELLITE,MAPPING
+from sat_class import SATELLITE,MAPPING,USE_PYPREDICT
+if USE_PYPREDICT:
+    import predict
 
 from settings_qt import *
 from Logging import *
@@ -807,10 +805,10 @@ class SAT_GUI(QMainWindow):
 
     # Handler called when the date selection has changed
     def date_changed(self):
-        #print('Date Changed:')
 
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
+        print('\n!!!!!!!!!!!!!!!!!!!!!!!!! Date Changed:',date)
         date0 = date.toPyDate()
         self.date1 = datetime.strptime( date0.strftime("%Y%m%d"), "%Y%m%d")
         
@@ -1301,7 +1299,7 @@ class SAT_GUI(QMainWindow):
         # Decode sat name and time
         isat = int( round( event.ydata ) )
         sat = self.P.SATELLITE_LIST[isat]
-        print('\nMOUSE CLICK - Sat=',sat,isat)
+        print('\nMOUSE CLICK: New Sat Selected=',sat,isat)
 
         xx = self.ax.get_xlim()
         # print('xx=',xx)

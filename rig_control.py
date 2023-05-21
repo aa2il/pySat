@@ -71,6 +71,7 @@ class RigControl:
     def Updater(self):
         P=self.P
         gui=P.gui
+        #print('\nUPDATER ...')
 
         engaged = gui.rig_engaged or gui.rotor_engaged                 
         if (engaged or self.fdown==None) and gui.Selected:
@@ -135,15 +136,14 @@ class RigControl:
                     self.P.udp_client.Send('Sat:'+gui.Selected)
 
                 # Set XIT for this sat
-                OFFSETS=self.P.SETTINGS['OFFSETS']
                 try:
+                    OFFSETS=self.P.SETTINGS['OFFSETS']
                     gui.rit=OFFSETS[gui.Selected][0]
                     gui.xit=OFFSETS[gui.Selected][1]
                 except Exception as e: 
                     print(e)
                     print('--- Unable to set RIT/XIT ---\tsat=',\
                           gui.Selected)
-                    print('OFFSETS=',OFFSETS)
                     gui.rit=0
                     gui.xit=0
                     #sys.exit(0)        
@@ -224,7 +224,7 @@ class RigControl:
     def track_freqs(self,Force=False,tag='Track'):
         P=self.P
         gui=self.gui
-        print('TRACK_FREQS...',P.transp)
+        print('\nTRACK_FREQS: P.transp=',P.transp)
         
         # Compute uplink freq corresponding to downlink
         df = self.fdown - P.transp['fdn1']
