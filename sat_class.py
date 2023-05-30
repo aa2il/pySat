@@ -40,7 +40,7 @@
 TRANSP_DATA = "~/Python/pySat/trsp"       # Transponder data
 MIN_PEAK_EL  = 30                         # Degrees, min. elevation to identify overhead passes
 USE_PYPREDICT=False
-#USE_PYPREDICT=True
+USE_PYPREDICT=True
 SUN_UPDATE_INTERVAL = 10*60               # Only update every ten minutes
 
 ################################################################################

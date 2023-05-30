@@ -34,6 +34,20 @@ ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
 
 ###############################################################################
 
+# Function to determine if rotor is flipped
+def rotor_flipped(self):
+
+    # Read rotor position if necesary
+    print('FLIP_A_ROO: pos=',self.pos,self.flipper)
+    if not self.P.sock2.active:
+        print('FLIP_A_ROO: Rotor not active?????')
+    else:
+        if any(np.isnan(self.pos)):
+            self.pos=self.P.sock2.get_position()
+        self.flipper=self.pos[1]>90.
+    print('FLIP_A_ROO: pos2=',self.pos,self.flipper)
+
+
 # Function to determine if we need the old flip-a-roo-ski
 # I.e. does sky track cross the 180-deg boundary?
 def flip_a_roo(self):
@@ -44,15 +58,7 @@ def flip_a_roo(self):
     #print('FLIP_A_ROO: az=',az,'nel=',el)
 
     # Query current rotor position & use it to determine if array is flipped
-    print('FLIP_A_ROO: pos=',self.pos,self.flipper)
-    if not self.P.sock2.active:
-        print('FLIP_A_ROO: Rotor not active?????')
-        #return
-    else:
-        if any(np.isnan(self.pos)):
-            self.pos=self.P.sock2.get_position()
-        self.flipper=self.pos[1]>90.
-    print('FLIP_A_ROO: pos2=',self.pos,self.flipper)
+    rotor_flipped(self)
 
     # Compute quadrant each point is in
     quad1 = np.logical_and(az>0  , az<=90)
@@ -117,7 +123,7 @@ def flip_a_roo(self):
         # We need to flip if we cross the boundary significantly OR its a very high overhead pass
         # The very high overhead pass is something we can probably refine later but it should
         # constitue a very small number of passes so we'll just do this for now.
-        if (max1>THRESH and min4<360-THRESH):     # or max_el>75:
+        if self.P.NO_FLIPPER or (max1>THRESH and min4<360-THRESH):     # or max_el>75:
             self.flipper = False
             if self.flipper:
                 print("\n######### They call him UNFlipper UNFlipper UNFlipper-a-roo-ski ######")

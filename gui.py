@@ -698,26 +698,15 @@ class SAT_GUI(QMainWindow):
             
     # Function to engage/disengange rig control
     def ToggleRigControl(self):
+
+        flipped=self.flipper
         if self.Selected:
             self.rig_engaged = not self.rig_engaged
         print('Rig Control is',self.rig_engaged)
+        
+        if not self.rig_engaged:
 
-        if self.rig_engaged:
-            self.btn2.setStyleSheet('QPushButton { \
-            background-color: red; \
-            border :1px inset ; \
-            border-radius: 5px; \
-            border-color: gray; \
-            font: bold 14px; \
-            padding: 4px; \
-            }')
-            self.btn2.setText('Dis-Engage')
-            self.P.sock.split_mode(1)
-
-            # Retune the rig
-            self.ReCenter()
-
-        else:
+            # Manage button
             self.btn2.setStyleSheet('QPushButton { \
             background-color: limegreen; \
             border :1px outset ; \
@@ -729,24 +718,45 @@ class SAT_GUI(QMainWindow):
             self.btn2.setText('Engage')
             self.P.sock.split_mode(0)
             
-        # Put up a reminder for something that is not availabe via CAT
-        if self.rig_engaged and self.P.sock.rig_type2=='IC9700' and False:
-            msgBox = QMessageBox()
-            msgBox.setIcon(QMessageBox.Information)
-            msgBox.setText("Be sure REVERSE mode is set !!!\n\nKeep RF GAIN Centered !!!")
-            msgBox.setWindowTitle("IC9700 Operation")
-            msgBox.setStandardButtons(QMessageBox.Ok)
-            #msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
-            #msgBox.buttonClicked.connect(msgButtonClick)
-        
-            returnValue = msgBox.exec()
-            if returnValue == QMessageBox.Ok:
-                print('OK clicked')
+        else:
+            
+            # Manage button
+            self.btn2.setStyleSheet('QPushButton { \
+            background-color: red; \
+            border :1px inset ; \
+            border-radius: 5px; \
+            border-color: gray; \
+            font: bold 14px; \
+            padding: 4px; \
+            }')
+            self.btn2.setText('Dis-Engage')
+            self.P.sock.split_mode(1)
 
-        # Plot sat track for current orbit on sat map
-        if self.P.SHOW_MAP and self.rig_engaged:
-            self.plot_sat_map_track(self.P.satellite,0)
-                
+            # Check rotor and see if we need to re-calculate
+            rotor_flipped(self)
+            if flipped != self.flipper:
+                self.plot_sky_track(sat,ttt)
+            
+            # Retune the rig
+            self.ReCenter()
+
+            # Plot sat track for current orbit on sat map
+            if self.P.SHOW_MAP:
+                self.plot_sat_map_track(self.P.satellite,0)
+            
+            # Put up a reminder for something that is not availabe via CAT
+            if self.P.sock.rig_type2=='IC9700' and False:
+                msgBox = QMessageBox()
+                msgBox.setIcon(QMessageBox.Information)
+                msgBox.setText("Be sure REVERSE mode is set !!!\n\nKeep RF GAIN Centered !!!")
+                msgBox.setWindowTitle("IC9700 Operation")
+                msgBox.setStandardButtons(QMessageBox.Ok)
+                #msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+                #msgBox.buttonClicked.connect(msgButtonClick)
+        
+                returnValue = msgBox.exec()
+                if returnValue == QMessageBox.Ok:
+                    print('OK clicked')
                 
         
     # Function to increase RIT
@@ -830,7 +840,7 @@ class SAT_GUI(QMainWindow):
     def load_sat_data(self):
 
         print('\nLoad Sat Data - Computing orbits ...')
-        print(self.P.SATELLITE_LIST)
+        print('Satellite List=',self.P.SATELLITE_LIST)
         
         # Set time limits
         date1   = datetime.now() - timedelta(days=NDAYS1)

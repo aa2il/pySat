@@ -140,7 +140,7 @@ class SETTINGS_GUI_QT(QMainWindow):
     def Update(self):
 
         # Collect things related to the list of sats
-        ACTIVE=[]
+        ACTIVE=['None']
         OFFSETS={}
         for sat,cbox,ebox1,ebox2 in zip(SATELLITE_LIST,self.cboxes,self.eboxes1,self.eboxes2):
             if sat!='None':

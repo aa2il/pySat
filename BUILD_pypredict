@@ -1,0 +1,11 @@
+#! /bin/tcsh
+
+# Script to build Pypredict - doesn't work
+
+##########################################################################################
+
+rm -rf Pypredict
+git clone https://github.com/spel-uchile/Pypredict
+
+cd Pypredict
+pip3 install . --no-binary shapely
