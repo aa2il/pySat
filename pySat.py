@@ -2,7 +2,7 @@
 ################################################################################
 #
 # Ham Satellite Orbit Prediction and Rig Control - Rev 1.0
-# Copyright (C) 2021-3 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Gui to show predicted passes for various OSCARs and command rig and rotor to
 # follow a user selected satellite trajectory.
@@ -91,8 +91,13 @@ print('\n***********************************************************************
 print('\n   Satellite Pass Predicter and Rig Control v',VERSION,'beginning ...\n')
 P=PARAMS()
 
+# Put up splash screen
+P.app  = QApplication(sys.argv)
+P.gui  = SAT_GUI(P)
+
 # Test internet connection
 print('Checking internet connection ...')
+P.gui.status_bar.setText('Checking internet connection ...')
 P.host_name,P.host_ip=get_Host_Name_IP()
 print("\nHostname :  ", P.host_name)
 print("IP : ", P.host_ip,'\n')
@@ -106,6 +111,7 @@ else:
     P.INTERNET=True
 
 # Open connection to rig
+P.gui.status_bar.setText('Opening connection to rig ...')
 P.sock = socket_io.open_rig_connection(P.connection,0,P.PORT,0,'SATELLITES',rig=P.rig)
 if P.sock.rig_type=='Icom':
     P.sock.icom_defaults()
@@ -138,6 +144,7 @@ if P.sock.rig_type2=='IC9700':
     #sys.exit(0)    
     
 # Open connection to rotor
+P.gui.status_bar.setText('Opening connection to rotor ...')
 P.sock2 = socket_io.open_rig_connection(P.ROTOR_CONNECTION,0,P.PORT2,0,'ROTOR')
 if not P.sock2.active and P.sock2.connection!='NONE':
     print('*** No connection available to rotor ***')
@@ -167,6 +174,7 @@ else:
 # Open connection to SDR
 if P.USE_SDR:
     print('Looking for the SDR ...')
+    P.gui.status_bar.setText('Looking for SDR ...')
     P.sock3 = socket_io.open_rig_connection(P.SDR_CONNECTION,0,P.PORT3,0,'SATELLITES')
     if not P.sock3.active:
         print('*** No connection available to SDR ***')
@@ -317,6 +325,7 @@ def parse_trsp_data():
     
 # Get TLE data
 print('Getting TLE data ...')
+P.gui.status_bar.setText('Reading TLE data ...')
 if False:
     # Use nasa.txt instead - old
     parse_tle_data()
@@ -352,6 +361,7 @@ if True:
 
 if P.UPDATE_TLE and P.INTERNET:
     print('... Updating SatNogs data from Internet ...')
+    P.gui.status_bar.setText('Retrieving SatNogs Data ...')
     get_satnogs_info()
     
     print('... Updating Transponder data  ...')
@@ -393,6 +403,7 @@ print(" ")
 
 # Open UDP client
 if P.UDP_CLIENT:
+    P.gui.status_bar.setText('Opening UDP client ...')
     for itry in range(5):
         try:
             print('Opening TCP client ...',itry)
@@ -407,9 +418,9 @@ if P.UDP_CLIENT:
         print('--- Unable to connect to UDP socket - giving up ---')
         sys.exit(0)
 
-# Put up gui        
-P.app  = QApplication(sys.argv)
-P.gui  = SAT_GUI(P)
+# Construct gui        
+P.gui.status_bar.setText('Constructing GUI ...')
+P.gui.construct_gui()
 P.monitor = WatchDog(P,5)
 P.ctrl = RigControl(P,1)
 
@@ -428,5 +439,3 @@ P.app.exec_()
 print('Leaving app ...')
 P.sock.split_mode(0)
 sys.exit(0)
-
-    

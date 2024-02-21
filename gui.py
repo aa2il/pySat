@@ -2,7 +2,7 @@
 ################################################################################
 #
 # Satellite GUI - Rev 2.0
-# Copyright (C) 2021-3 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Gui to show predicted passes for various OSCARs.
 #
@@ -42,6 +42,7 @@ import numpy as np
 from PyQt5 import QtCore
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon, QPixmap
+from widgets_qt import *
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -111,11 +112,13 @@ class SAT_GUI(QMainWindow):
         self.event_type = None
 
         # Put up splash screen until we're ready
-        self.splash = QSplashScreen(QPixmap('splash.png'))
-        self.splash.show()
-        time.sleep(.01)
-        self.P.app.processEvents()
-        
+        self.splash=SPLASH_SCREEN(P.app,'splash.png')              # In util.py
+        self.status_bar = self.splash.status_bar
+
+    # Function that actually constructs the gui
+    def construct_gui(self):
+        P=self.P
+
         # Start by putting up the root window
         print('Init GUI ...',P.sock.rig_type2)
         self.win  = QWidget()
@@ -540,7 +543,9 @@ class SAT_GUI(QMainWindow):
         # Make sure all columns are adjusted when we resize the width of the window
         #for i in range(ncols):
         #    self.grid.columnconfigure(self.win, i, weight=1,uniform='twelve')
-        
+
+        # Status bar
+        self.status_bar = StatusBar(self,nrows+1)
         
         # Let's roll!
         self.show()
