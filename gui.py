@@ -73,18 +73,8 @@ from settings_qt import *
 from Logging import *
 from rotor import *
 from constants import *
+from utilities import error_trap
 
-################################################################################
-
-import traceback
-def error_trap(e):
-    print(e)
-    print(traceback.format_exc())
-
-    #exc_type, exc_obj, exc_tb = sys.exc_info()
-    #fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-    #print(exc_type, fname, exc_tb.tb_lineno)
-    
 ################################################################################
 
 # The GUI
@@ -667,10 +657,8 @@ class SAT_GUI(QMainWindow):
             idx = gui.MODES.index( mode )
             gui.mode_cb.setCurrentIndex(idx)
             
-        except Exception as e: 
-            print('================== ReCenter - Failure')
-            print(e)
-            
+        except: 
+            error_trap('GUI->RECENTER - Failure :-(')
 
     # Function to engage/disengange rig control
     def ToggleRotorControl(self):
@@ -837,7 +825,7 @@ class SAT_GUI(QMainWindow):
             self.PeakEl.setText('---')
             self.SRng.setText('---')
         except:
-            pass
+            error_trap('GUI->DATE CHANGED: ????')
 
 ################################################################################
 
@@ -1027,9 +1015,8 @@ class SAT_GUI(QMainWindow):
                     best=name
                     tnext=transit.start
                     
-            except Exception as e: 
-                print('================== Predict Failure for sat',name)
-                error_trap(e)
+            except: 
+                error_trap('GUI->FIND NEXT TRANSIT: Failure for sat '+name)
                 
         print(name,tnext)
         ttt = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(tnext))
