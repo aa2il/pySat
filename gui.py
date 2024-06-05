@@ -612,8 +612,7 @@ class SAT_GUI(QMainWindow):
         self.P.ctrl.set_rig_mode( mode )
 
         self.txt15.setText(mode)
-        if self.statusBar:
-            self.statusBar.showMessage('Set rig mode to '+mode)
+        self.status_bar.setText('Set rig mode to '+mode)
         if self.mode_cb:
             idx = self.MODES.index( mode )
             self.mode_cb.setCurrentIndex(idx)
@@ -728,7 +727,8 @@ class SAT_GUI(QMainWindow):
             # Check rotor and see if we need to re-calculate
             rotor_flipped(self)
             if flipped != self.flipper:
-                self.plot_sky_track(sat,ttt)
+                ttt=self.Satellites[self.Selecteed].pass_times
+                self.plot_sky_track(self.Selected,ttt)  # JBA - Try this -nope ttt undefined
             
             # Retune the rig
             self.ReCenter()
@@ -809,6 +809,11 @@ class SAT_GUI(QMainWindow):
     # Handler called when the date selection has changed
     def date_changed(self):
 
+        # This can get called b4 gui is ready - just ignore it
+        if not self.Ready:
+            print('WARNING - DATE CHANGED but GUI not ready!!!')
+            return
+        
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
         print('\n!!!!!!!!!!!!!!!!!!!!!!!!! Date Changed:',date)
@@ -825,7 +830,7 @@ class SAT_GUI(QMainWindow):
             self.PeakEl.setText('---')
             self.SRng.setText('---')
         except:
-            error_trap('GUI->DATE CHANGED: ????')
+            error_trap('GUI->DATE CHANGED: Unable to clear gui entries ???')
 
 ################################################################################
 
@@ -863,13 +868,13 @@ class SAT_GUI(QMainWindow):
     # Plot passes for all sats
     def draw_passes(self):
 
-        print('\nDraw passes - self.sats=',self.Satellites)
+        #print('\nDraw passes - self.sats=',self.Satellites)
         self.ax = self.fig.add_subplot(111)
 
         # Loop over list of sats
         self.pass_times=[]
         for name in list(self.Satellites.keys()):
-            print('\nDraw Passes - name=',name)
+            print('Draw Passes - name=',name)
             Sat=self.Satellites[name]
             
             # Plot passes for this sat
@@ -973,7 +978,7 @@ class SAT_GUI(QMainWindow):
             
             # Observe sat at current time
             now = time.mktime( datetime.now().timetuple() )
-            print('\nFind best:',name,'\t',now)
+            print('FIND NEXT TRANSIT:',name,'\t',now)
 
             # Look at next transit for this sat
             try:
@@ -1033,7 +1038,7 @@ class SAT_GUI(QMainWindow):
             if Sat.name=='Moon':
             
                 # Donde estan la luna y el sol?
-                [moon_az,moon_el,moon_lat,moon_lon] = Sat.current_moon_position()
+                [moon_az,moon_el,moon_lat,moon_lon,illum] = Sat.current_moon_position()
                 [sun_az, sunn_el,sun_lat, sun_lon]  = Sat.current_sun_position()
                 self.MapWin.DrawSatTrack(Sat.name,moon_lon,moon_lat,title='Current Position of Sun and Moon')
                 self.MapWin.transform_and_plot(sun_lon,sun_lat,'o',clr='orange')
@@ -1051,7 +1056,7 @@ class SAT_GUI(QMainWindow):
 
             # Show footprint at mid-point of pass
             tmid = 0.5*(self.transit.start + self.transit.end)
-            print('tmid=',tmid,datetime.fromtimestamp(tmid))
+            #print('tmid=',tmid,datetime.fromtimestamp(tmid))
             imid = int( len(self.track_lats)/2 )
             self.MapWin.DrawSatTrack(Sat.name,self.track_lons,self.track_lats,ERASE=True,title='Mid-Pass Position of '+Sat.name)
             for idx in [0,imid,-1]:
@@ -1088,6 +1093,11 @@ class SAT_GUI(QMainWindow):
             tt=self.transit.t
             az=self.transit.az
             el=self.transit.el
+
+            # Indicate to use what he should see in the sky
+            lunation,phz=Sat.get_moon_phase()
+            print('lunation=',lunation,'\tphz=',phz)
+            self.status_bar.setText('Moon Phase: '+phz)
 
         else:
             
@@ -1171,8 +1181,8 @@ class SAT_GUI(QMainWindow):
                 self.track_lats  = np.array(lats)
                 self.track_lons  = np.array(lons)
                 self.track_foot  = np.array(footprints)
-                print('\nSHOWING MAP: start/end=',self.transit.start,self.transit.end)
-                print('lats=',self.track_lats)
+                #print('\nSHOWING MAP: start/end=',self.transit.start,self.transit.end)
+                #print('lats=',self.track_lats)
                 self.plot_sat_map_track(Sat,1)
 
         # Update GUI
@@ -1218,7 +1228,7 @@ class SAT_GUI(QMainWindow):
         self.ax2.set_rmax(90)
 
         if sat=='Moon':
-            [az,el,lat,lon] = Sat.current_moon_position()
+            [az,el,lat,lon,illum] = Sat.current_moon_position()
         else:
             [fdop1,fdop2,az,el,rng,lat,lon,footprint] = \
                 Sat.Doppler_Shifts(0,0,self.P.my_qth)
@@ -1238,7 +1248,11 @@ class SAT_GUI(QMainWindow):
     # Function to convert rotor position to actual pointing position in the sky
     def resolve_pointing(self,paz,pel):
 
-        if pel<=90:
+        if pel==None or paz==None:
+            print('*** WARNING *** RESOLVE POINTING - Unepected az/el value(s)',paz,pel)
+            az90=0
+            el90=0
+        elif pel<=90:
             az90 = 90.-paz
             el90 = 90.-max(0.,pel)
         else:
@@ -1261,7 +1275,7 @@ class SAT_GUI(QMainWindow):
             pos=P.sock2.get_position()
         else:
             pos=[np.nan,np.nan]
-        print('PLOT_POSITION: az,el=',az,el,'\tpos=',pos)
+        #print('PLOT_POSITION: az,el=',az,el,'\tpos=',pos)
         self.pos=pos
 
         # Plot current rotor position (the big magenta blob)
@@ -1301,13 +1315,13 @@ class SAT_GUI(QMainWindow):
         # Decode sat name and time
         isat = int( round( event.ydata ) )
         sat = self.P.SATELLITE_LIST[isat]
-        print('\nMOUSE CLICK: New Sat Selected=',sat,isat)
+        print('\n============================== MOUSE CLICK: New Sat Selected=',sat,isat,'========================================\n')
 
         xx = self.ax.get_xlim()
         # print('xx=',xx)
         t = self.date1 + timedelta(days=event.xdata - int(xx[0]) )
         tt = time.mktime(t.timetuple())
-        # print('t=',t,tt)
+        print('\ttime=',t,tt)
 
         # Find closest pass to this time
         pass_times = self.pass_times[isat-1]
@@ -1324,6 +1338,8 @@ class SAT_GUI(QMainWindow):
         if self.P.TEST_MODE:
             #print('\nTEST_MODE:',self.cross180,self.flipper,self.event_type)
             simulate_rotor(self)
+
+        print(' ')
 
 ################################################################################
             
@@ -1350,6 +1366,10 @@ class SAT_GUI(QMainWindow):
     def OpenAmsatWebPage(self):
         link = 'https://www.amsat.org/status'
         webbrowser.open(link, new=2)
+
+        # Rovers are starting to post here
+        link2 = 'https://hams.at'
+        webbrowser.open(link2, new=2)
                     
 ################################################################################
         
@@ -1357,12 +1377,8 @@ class SAT_GUI(QMainWindow):
     def create_menu_bar(self):
         print('Creating Menubar ...')
 
-        # The status bar is a nice concept but takes up too much room for now
-        #self.statusBar=self.statusBar()
-        self.statusBar=None
-        menubar = self.menuBar()
-
         # The File Menu
+        menubar = self.menuBar()
         fileMenu = menubar.addMenu('&File')
 
         settingsAct = QAction('&Settings...', self)

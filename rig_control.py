@@ -28,7 +28,7 @@ import time
 from datetime import timedelta,datetime
 from rig_io.ft_tables import SATELLITE_LIST
 from rotor import *
-from utilities import freq2band
+from utilities import freq2band, error_trap
 
 ################################################################################
 
@@ -140,13 +140,11 @@ class RigControl:
                     OFFSETS=self.P.SETTINGS['OFFSETS']
                     gui.rit=OFFSETS[gui.Selected][0]
                     gui.xit=OFFSETS[gui.Selected][1]
-                except Exception as e: 
-                    print(e)
-                    print('--- Unable to set RIT/XIT ---\tsat=',\
-                          gui.Selected)
+                except:
+                    error_trap('RIG CONTROL -> UPDATER: Unable to set RIT/XIT')
+                    print('\tsat=',gui.Selected)
                     gui.rit=0
                     gui.xit=0
-                    #sys.exit(0)        
                 gui.txt11.setText(str(gui.rit))
                 gui.txt13.setText(str(gui.xit))
 
@@ -224,7 +222,7 @@ class RigControl:
     def track_freqs(self,Force=False,tag='Track'):
         P=self.P
         gui=self.gui
-        print('\nTRACK_FREQS: P.transp=',P.transp)
+        #print('\nTRACK_FREQS: P.transp=',P.transp)
         
         # Compute uplink freq corresponding to downlink
         df = self.fdown - P.transp['fdn1']
@@ -256,8 +254,13 @@ class RigControl:
         #print(self.frqA,self.frqB)
 
         # Form new rotor position
-        rotor_updated,pos,daz,de,new_pos = \
-            rotor_positioning(gui,self.az,self.el,Force)
+        try:
+            rotor_updated,pos,daz,de,new_pos = \
+                rotor_positioning(gui,self.az,self.el,Force)
+        except:
+            error_trap('RIG CONTROL -> TRACK_FREQS: Unable to update rotor position')
+            print(self.az,self.el)
+            pos=[nan,nan]
 
         # Update sky track & sat map
         gui.plot_position(self.az,self.el,pos)

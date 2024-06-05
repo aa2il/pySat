@@ -1,7 +1,7 @@
 ################################################################################
 #
 # rotor.py - Rev 1.0
-# Copyright (C) 2021 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Routines related to rotor positioning
 #
@@ -26,6 +26,8 @@ from PyQt5.QtWidgets import *
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import time
+from datetime import datetime
 
 ###############################################################################
 
@@ -38,14 +40,14 @@ ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
 def rotor_flipped(self):
 
     # Read rotor position if necesary
-    print('FLIP_A_ROO: pos=',self.pos,self.flipper)
+    #print('ROTOR FLIPPED: pos=',self.pos,self.flipper)
     if not self.P.sock2.active:
-        print('FLIP_A_ROO: Rotor not active?????')
+        print('ROTOR FLIPPED: Rotor not active?????')
     else:
         if any(np.isnan(self.pos)):
             self.pos=self.P.sock2.get_position()
         self.flipper=self.pos[1]>90.
-    print('FLIP_A_ROO: pos2=',self.pos,self.flipper)
+    #print('ROTOR FLIPPED: pos2=',self.pos,self.flipper)
 
 
 # Function to determine if we need the old flip-a-roo-ski
@@ -55,7 +57,37 @@ def flip_a_roo(self):
     # Init
     az=self.track_az
     el=self.track_el
-    #print('FLIP_A_ROO: az=',az,'nel=',el)
+    #print('FLIP_A_ROO: az=',az,'\nel=',el)
+
+    # Check if we're already part way into the pass and can ignore prior part of pass
+    if True:
+        now = time.mktime( datetime.now().timetuple() )
+        tt = self.track_t
+        t1 = tt[0]
+        t2 = tt[-1]
+        #print('\nFLIP_A_ROO: now=',now)
+        #print('Complete track: Time,Az,El',len(tt))
+        i=0
+        ibest=None
+        for t,a,e in zip(tt,az,el):
+            if now>=t:
+                ibest=i               # Closest time so far
+            i+=1
+            #print('\t',t,'\t',a,'\t',e,'\t',ibest)
+
+        # If we're partially through the pass, ignore the prior part
+        if ibest!=None and ibest<len(tt)-1:
+            az=az[ibest:]
+            el=el[ibest:]
+            tt=tt[ibest:]
+
+            # Interpolate to get current position
+            dAZ = ( (az[1]-az[0])/(tt[1]-tt[0]) )*(now-tt[0])
+            dEL = ( (el[1]-el[0])/(tt[1]-tt[0]) )*(now-tt[0])
+            #print('FLIP_A_ROO: az=',az,'\nel=',el)
+            az[0]+=dAZ
+            el[0]+=dEL
+            print('FLIP_A_ROO: az=',az,'\nel=',el)
 
     # Query current rotor position & use it to determine if array is flipped
     rotor_flipped(self)
@@ -70,7 +102,7 @@ def flip_a_roo(self):
     n2 = np.sum(quad2)
     n3 = np.sum(quad3)
     n4 = np.sum(quad4)
-    print('FLIP-A-ROO: Quad counts:',n1,n2,n3,n4)
+    #print('FLIP-A-ROO: Quad counts:',n1,n2,n3,n4)
     
     # First, check if the track transists into both the 2nd and 3rd quadrants
     # or into 1st and 4th quadrants
@@ -147,16 +179,37 @@ def flip_a_roo(self):
     if self.P.NO_FLIPPER:
         self.flipper=False
 
-    
+
 # Function to compute new position for the rotor
 def rotor_positioning(gui,az,el,Force):
 
-    print('ROTOR_POSITIONING: az=',az,'\tel=',el,'\tevt type=',gui.event_type,'\tflipper=',gui.flipper,
-          gui.quads12_only,gui.quads34_only)
+    #print('ROTOR_POSITIONING: az=',az,'\tel=',el,'\tevt type=',gui.event_type,'\tflipper=',gui.flipper,
+    #gui.quads12_only,gui.quads34_only)
+
+    # Check if we've selected a future, current or prior pass
+    if gui.event_type==0 or el>=0:
+        # Current event --> don't alter
+        #print('ROTOR_POSITIONING: Current event ...')
+        pass
+    elif gui.event_type==1:
+        # Future event --> point to start
+        #print('ROTOR_POSITIONING: Future event ...')
+        az=gui.track_az[0]
+        el=0
+    elif gui.event_type==-1:
+        # Past event --> point to end
+        #print('ROTOR_POSITIONING: Past event ...')
+        az=gui.track_az[-1]
+        el=0
+    else:
+        # Indeterminant --> point to start
+        #return False,[np.nan,np.nan],np.nan,np.nan,[np.nan,np.nan]
+        #print('ROTOR_POSITIONING: **** INDETERMINANT **** event ...')
+        az=gui.track_az[0]
+        el=0
     
-    if el>=0:
+    if True:
         
-        # Sat is above the horizon ...
         # Limit az if we cross the boundary but don't want to flip
         if not gui.flipper:
             
@@ -178,24 +231,9 @@ def rotor_positioning(gui,az,el,Force):
                 elif az<=182:
                     az=182
         
-        # ... and point to the calculated sat position
-        new_pos=[az,el]
-
-    else:
-        
-        # Sat is below the horizon so point to starting or ending point on track
-        if gui.event_type==1:
-            # Future event --> point to start
-            new_pos=[gui.track_az[0] , 0]
-        elif gui.event_type==-1:
-            # Past event --> point to end
-            new_pos=[gui.track_az[-1] , 0]
-        else:
-            # Indeterminant --> point to start
-            #return False,[np.nan,np.nan],np.nan,np.nan,[np.nan,np.nan]
-            new_pos=[gui.track_az[0] , 0]
-            
-    print('new_pos=',new_pos)
+    # ... and point to the calculated sat position
+    new_pos=[az,el]
+    #print('ROTOR_POSITIONING: new_pos=',new_pos)
 
     # Flip antenna if needed to avoid ambiquity at 180-deg
     if gui.flipper:
@@ -219,7 +257,7 @@ def rotor_positioning(gui,az,el,Force):
             #      '\n\tnew_pos=',new_pos)
         if abs(daz)>ROTOR_THRESH or abs(de)>ROTOR_THRESH:
             if gui.rig_engaged or gui.rotor_engaged or Force:
-                print('ROTOR_POSITIONING: new pos=',new_pos)
+                #print('ROTOR_POSITIONING: new pos=',new_pos)
                 gui.P.sock2.set_position(new_pos)
                 rotor_updated=True
                 

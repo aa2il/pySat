@@ -75,32 +75,39 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from constants import *
+from utilities import error_trap
 
 ################################################################################
 
 # Function to assemble TLE data for a particular satellite
 def get_tle(TLE,sat):
+
+    if not hasattr(get_tle,"TLE_SHOWN"):
+        get_tle.TLE_SHOWN=False
+    
     sat2=sat
     if sat=='CAS-6':
         sat2='TO-108'
-        print('GET_TLE: Warning - name change for TO-107 to CAS-6')
     elif sat=='AO-7':
         sat2='AO-07'
-        print('GET_TLE: Warning - name change for AO-7 to AO-07')
     elif sat=='XW-3':
         sat2='XW 3'
-        print('GET_TLE: Warning - name change for XW-3 to XW 3')
     elif sat=='FS-3':
         sat2='Falconsat-3'
-        print('GET_TLE: Warning - name change for FS-3 to Falconsat-3')
+    elif 'TEVEL' in sat:
+        sat2='Tevel'+sat[5:]
+    if sat!=sat2:
+        print('GET_TLE: Warning - name change for ',sat,' to ',sat2)
 
     try:
         idx  = TLE.index(sat2)
-    except Exception as e: 
-        print('\n*** TRAPPED ERROR in GET_TLE ***')
-        print( str(e) )
-        print('TLE=',TLE)
-        #sys.exit(0)
+    except: 
+        error_trap('GET TLE - Cant find TLE for sat='+sat)
+        if not get_tle.TLE_SHOWN:
+            print('TLE=',TLE)
+            get_tle.TLE_SHOWN=True
+        else:
+            print('See previous trap msg for complete TLE')
         return None
 
     tle = sat + '\n' \
@@ -287,13 +294,14 @@ class SATELLITE:
                 self.y2.append(isat)
 
             self.pass_times.append( 0.5*(transit.start+transit.end) )
-
+            
 
     # Function to read list of transponders for this sat 
     def get_transponders(self):
 
         # We use the transponder data that has already been parsed
         # For this, we need the sat number
+        #NO_TRANSP=['Moon','Orbicraft-Zorkiy','IO-117']
         NO_TRANSP=['Moon','Orbicraft-Zorkiy']
         if self.name in NO_TRANSP:
             # There are no transponders but we fake till we make it
@@ -358,6 +366,12 @@ class SATELLITE:
                     flagged='*****'
                 else:
                     flagged=''
+            elif self.name=='IO-117':
+                if 'MODE U PKT' in transp2:
+                    self.main=transp
+                    flagged='*****'
+                else:
+                    flagged=''
             elif ('PE0SAT' in transp2) or ('L/V' in transp2) or ('U/V CW' in transp):
                 print('*** Skipping',transp)
                 flagged=''
@@ -397,16 +411,14 @@ class SATELLITE:
         now = time.mktime( datetime.now().timetuple() )
         if self.name=='Moon':
             # Hack hack hack!
-            [az,el,lat,lon]   = self.current_moon_position()
+            [az,el,lat,lon,illum]   = self.current_moon_position()
             return [0,0,az,el,230e3,lat,lon,1]
         else:
             if USE_PYPREDICT:
                 obs = predict.observe(self.tle, my_qth,now)
-
-                if True:
-                    obs1=self.observe(now)
-                    print('Doppler:',obs['doppler'],obs1['doppler'])
-                    #sys.exit(0)
+                obs1=self.observe(now)
+                #print('Doppler:',obs['doppler'],obs1['doppler'])
+                #sys.exit(0)
 
             else:
                 obs=self.observe(now)
@@ -487,14 +499,12 @@ class SATELLITE:
         # Get info for the next transit
         try:
             info=self.obs.next_pass(sat)
-        except Exception as e:
+        except: 
             # Trap any errors that occur - not sure why this happens with ephem
             # but seems to be an issue for passes well in the future
-            print('\n*** TRAPPED ERROR in NEXT_TRANSIT ***')
-            print( str(e) )
+            error_trap('NEXT TRANSIT - Trapped Error')
             print('TLE=',tle0)
             print('t=',t,'\t',self.obs.date,'\n')
-            #sys.exit(0)
             return None
 
         # Compute track - need to rip this mess out & use observe!
@@ -548,7 +558,35 @@ class SATELLITE:
         #sys.exit(0)
         
         return transit
+
+    # Function to compute moon lunation and phase
+    def get_moon_phase(self,Date=None):
+        print('Date=',Date)
+        if Date==None:
+            Date=datetime.utcnow()
+        print('Date=',Date)
+        Date = ephem.Date(Date)
+        nnm = ephem.next_new_moon(Date)
+        pnm = ephem.previous_new_moon(Date)
         
+        # 0=new, 0.5=full, 1=new
+        lunation = (Date-pnm)/(nnm-pnm)
+        
+        if lunation<0.1:
+            phz='New Moon'
+        elif lunation<0.25:
+            phz='Waxing Crescent'
+        elif lunation<0.5:
+            phz='Waxing Half'
+        elif lunation<0.75:
+            phz='Waning Half'
+        elif lunation<0.9:
+            phz='Waning Crescent'
+        else:
+            phz='New Moon'
+  
+        return lunation,phz
+
     # Function to handle moon passes
     def fly_me_to_the_moon(self,date1,date2):
         print('\nFLY_ME_TO_THE_MOON: my_qth=',self.qth,'\ndate1=',date1,'\tdate2=',date2)
@@ -562,16 +600,8 @@ class SATELLITE:
 
         # Fake the transponders to use the weak signal portion of the 2m band
         self.get_transponders()
-        print('Moon transp=',self.transponders)
+        #print('Moon transp=',self.transponders)
         
-        # Form location object
-        #qth = ephem.Observer()
-        #qth.lat = str( self.qth[0] )
-        #qth.lon = str( -self.qth[1] )
-        #qth.elevation = self.qth[2]
-        #print('QTH=',qth)
-        #self.qth_moon=self.obs
-
         # Loop over all the days requested
         Done=False
         self.obs.date=date1
@@ -582,16 +612,16 @@ class SATELLITE:
             moon.compute(self.obs)
             rise=self.obs.next_rising(moon)
             local1=ephem.localtime(rise)
-            print('\n',self.obs.date,'\nNext Mooon Rise:',rise,'\t',local1)
-            print('az/el=',moon.az,moon.alt)
+            #print('\n',self.obs.date,'\nNext Mooon Rise:',rise,'\t',local1)
+            #print('az/el=',moon.az,moon.alt)
 
             # ... and corresponding moon setting
             self.obs.date=rise
             moon.compute(self.obs)
             setting=self.obs.next_setting(moon)
             local2=ephem.localtime(setting)
-            print('Following moon setting:',setting,'\t',local2)
-            print('az/el=',moon.az,moon.alt)
+            #print('Following moon setting:',setting,'\t',local2)
+            #print('az/el=',moon.az,moon.alt)
 
             # Return everything in local time for plotting
             transits.append([local1,local2])
@@ -602,7 +632,7 @@ class SATELLITE:
             if self.obs.date>ephem.Date(date2):
                 Done=True        
 
-        print('Moon transits=',transits)
+        #print('Moon transits=',transits)
 
         # Assemble graphing data from the transits
         isat=self.isat
@@ -633,16 +663,19 @@ class SATELLITE:
         self.moon.compute(self.obs)
         az=self.moon.az
         el=self.moon.alt
+        illum=self.moon.phase
 
         self.greenwich.date = self.obs.date
         self.moon.compute(self.greenwich)
         lon = ( self.moon.ra - self.greenwich.sidereal_time() )*RAD2DEG
         lat = ( self.moon.dec )*RAD2DEG
-        
-        print('Current Moon: date=',self.greenwich.date, \
-              '\n\taz=',az,'\tel=',el, \
-              '\n\tlat=',lat,'\t','lon=',lon)
-        return [az*RAD2DEG, el*RAD2DEG, lat, lon]
+
+        if False:
+            print('Current Moon: date=',self.greenwich.date, \
+                  '\n\taz=',az,'\tel=',el, \
+                  '\n\tlat=',lat,'\t','lon=',lon,
+                  '\nIllumination=',illum,'%')
+        return [az*RAD2DEG, el*RAD2DEG, lat, lon,illum]
 
     # Function to return current sun info
     def current_sun_position(self):
@@ -672,7 +705,7 @@ class SATELLITE:
 
 
     # Function to compute moon track for a single pass
-    def gen_moon_track(self,t1,t2=None,dt=30.*MINS2DAYS,VERBOSITY=0):
+    def gen_moon_track(self,t1,t2=None,dt=10.*MINS2DAYS,VERBOSITY=0):
         moon=self.moon
         
         if VERBOSITY>0:
@@ -689,7 +722,8 @@ class SATELLITE:
             t1 = datetime.fromtimestamp(t1,tz=timezone.utc)
             #print('UTC =',t1,type(t1))
         t1=ephem.Date(t1)
-        #print('t1d=',t1,type(t1))
+        if VERBOSITY>0:
+            print('t1d=',t1,type(t1))
 
         # Check if t2 is given
         if t2:
@@ -703,7 +737,7 @@ class SATELLITE:
 
         else:
 
-            # No - take t1 as some time in the pass and find moon rise and set for the pass
+            # No - take t1 as some time in the past and find moon rise and set for the pass
             self.obs.date = t1
             moon.compute(self.obs)
             
@@ -714,8 +748,8 @@ class SATELLITE:
             
             setting=self.obs.next_setting(moon)
             local2=ephem.localtime(setting)
-            print('Next moon setting:',setting,'\t',local2)
-            print('az/el=',moon.az,moon.alt)
+            #print('Next Moon setting:',setting,'\t',local2)
+            #print('az/el=',moon.az,moon.alt)
             
             t1=rise
             t2=setting
@@ -737,7 +771,8 @@ class SATELLITE:
             self.obs.date=t
             moon.compute(self.obs)
 
-            tt.append(t)
+            local=ephem.localtime(t).timestamp()
+            tt.append(local)
             az.append(moon.az*RAD2DEG)
             el.append(moon.alt*RAD2DEG)
             if VERBOSITY>0:
@@ -939,11 +974,11 @@ class MAPPING(QMainWindow):
         dy=0.5*footprint/110.54
         dx=0.5*footprint/(111.32*np.cos(lat0*DEG2RAD))
 
-        print('\nEllipse:',lon0,lat0,footprint)
+        #print('\nEllipse:',lon0,lat0,footprint)
         north_pole = lat0+dy>=80
         south_pole = lat0-dy<=-80
         phz=0
-        print('Poles:',lat0,dy,north_pole,south_pole)
+        #print('Poles:',lat0,dy,north_pole,south_pole)
 
         xx=[]
         yy=[]

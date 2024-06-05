@@ -64,7 +64,7 @@ from PyQt5.QtWidgets import QApplication
 import urllib.request, urllib.error, urllib.parse
 import json
 from dateutil import tz
-from utilities import get_Host_Name_IP
+from utilities import get_Host_Name_IP,error_trap
 
 import rig_io.socket_io as socket_io
 import os
@@ -235,9 +235,8 @@ def get_satnogs_json(url,outfile):
     print('GET SATNOSG: Fetching',outfile,'...')
     try:
         response = urllib.request.urlopen(url)
-    except Exception as e: 
-        print(e)
-        print('--- Unable to fetch satnogs data ---')
+    except:
+        error_trap('GET SATNOGS JSON: Unable to fetch satnogs data ---')
         return None
     txt = response.read().decode("utf-8")
     
@@ -411,11 +410,11 @@ if P.UDP_CLIENT:
             P.udp_client = TCP_Server(P,None,KEYER_UDP_PORT,Server=False)
             print('... TCP Client Opened.')
             break
-        except Exception as e: 
-            print(e)
+        except:
+            error_trap('PYSAT Main - Error opening UDP Client - Try again in 2-seconds...')
             time.sleep(2)
     else:
-        print('--- Unable to connect to UDP socket - giving up ---')
+        print('--- Unable to connect to UDP socket after 5-tries - giving :-(')
         sys.exit(0)
 
 # Construct gui        
