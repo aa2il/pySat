@@ -124,24 +124,52 @@ if P.sock.rig_type2=='IC9700':
     # Pre-amp on, attenuator off
     P.sock.frontend(1,1,0)
 
+    # Check computer time
+    now = datetime.utcnow()
+    print('\nnow=',now)
+
     # Check rig time
     d,t,z=P.sock.get_date_time()
     utc = datetime.strptime(d+' '+t,'%Y%m%d %H%M%S')
-    #utc = utc.replace(tzinfo=tz.tzutc())
     print('Rig date=',d,'\ttime=',t,'\tzone=',z,
           '\nRig utc=',utc)
 
-    now = datetime.utcnow()
-    #now = now.replace(tzinfo=tz.tzutc())
-    print('now=',now)
-
     delta = (now - utc).total_seconds()/60      # In minutes
-    print('delta=',delta)
+    print('delta=',delta,'min.')
 
-    if delta>2.:
+    if not P.INTERNET and delta<-1:
+        
+        # The RPi doesn't have a real-time clock so use rig time if
+        # there is no internet
+        arch=os.getenv('MACHTYPE')
+        if arch=='aarch64':
+            from_zone = tz.tzutc()             # Zulu
+            to_zone = tz.tzlocal()             # Local
+            utc = utc.replace(tzinfo=from_zone)
+            rig = utc.astimezone(to_zone)
+
+            rig_date=rig.date().strftime("%Y-%m-%d")
+            rig_time=rig.time().strftime("%H:%M:%S")
+            val = rig_date+' '+rig_time
+            
+            print('\nSetting system clock from rig to',val,'...') 
+            cmd = 'sudo date --set="'+val+'" &'
+            os.system("echo "+cmd)
+            os.system(cmd)
+            time.sleep(1)
+            #sys.exit(0)
+
+        else:
+            print('\n*** pySAT: NEED SOME CODE TO SET COMPUTER TIME FROM RIG !!!! *** arch=',arch,'\n')
+            sys.exit(0)
+
+    elif abs(delta)>2:
+        
+        # We have an internet connection so we assume the RPi clock is set
+        # Keep rig clock p to date also
         print('Setting rig time ...')
         P.sock.set_date_time(1)        
-    #sys.exit(0)    
+        #sys.exit(0)    
     
 # Open connection to rotor
 P.gui.status_bar.setText('Opening connection to rotor ...')

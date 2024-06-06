@@ -150,6 +150,7 @@ qth.date=now              # Does this by default
 local=ephem.localtime(ephem.Date(now))
 print('\nCurrent time now=',now,'\tlocal=',local)
 
+moon = ephem.Moon()
 moon.compute(qth)
 print('Current Moon: az=',moon.az,'\tel=',moon.alt)
 rise=qth.next_rising(moon)

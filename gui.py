@@ -727,7 +727,7 @@ class SAT_GUI(QMainWindow):
             # Check rotor and see if we need to re-calculate
             rotor_flipped(self)
             if flipped != self.flipper:
-                ttt=self.Satellites[self.Selecteed].pass_times
+                ttt=self.Satellites[self.Selected].pass_times
                 self.plot_sky_track(self.Selected,ttt)  # JBA - Try this -nope ttt undefined
             
             # Retune the rig
