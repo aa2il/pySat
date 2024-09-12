@@ -1,4 +1,3 @@
-#! /usr/bin/python3 -u
 ################################################################################
 #
 # Satellite GUI - Rev 2.0
@@ -39,9 +38,16 @@ import functools
 import webbrowser
 
 import numpy as np
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import QIcon, QPixmap
+try:
+    from PySide6.QtWidgets import *
+    from PySide6 import QtCore
+    from PySide6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
+    QT_VERSION=6
+except ImportError:
+    from PyQt5.QtWidgets import *
+    from PyQt5 import QtCore
+    from PyQt5.QtGui import QIcon, QPixmap
+    QT_VERSION=5
 from widgets_qt import *
 
 import matplotlib.pyplot as plt
@@ -193,7 +199,12 @@ class SAT_GUI(QMainWindow):
 
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
-        date0 = date.toPyDate()
+        print('date=',date)
+        if QT_VERSION==6:
+            date0 = date.toPython()
+        else:
+            date0 = date.toPyDate()
+        print('date0=',date)
         self.date1 = datetime.strptime( date0.strftime("%Y%m%d"), "%Y%m%d") 
         
         # Load satellite data
@@ -566,7 +577,10 @@ class SAT_GUI(QMainWindow):
         self.win.resize(self.win.sizeHint())
         print('Main Window: hint=',self.win.sizeHint(),'\tsize=',self.win.geometry())
         #self.win.resize(900,720)
-        screen = QDesktopWidget().screenGeometry()
+        if QT_VERSION==6:
+            screen = QGuiApplication.primaryScreen().size()
+        else:
+            screen = QDesktopWidget().screenGeometry()
         print('screen=',screen)
         #widget = self.geometry()
         #print('hint=',self.win.sizeHint())
@@ -817,7 +831,10 @@ class SAT_GUI(QMainWindow):
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
         print('\n!!!!!!!!!!!!!!!!!!!!!!!!! Date Changed:',date)
-        date0 = date.toPyDate()
+        if QT_VERSION==6:
+            date0 = date.toPython()
+        else:
+            date0 = date.toPyDate()
         self.date1 = datetime.strptime( date0.strftime("%Y%m%d"), "%Y%m%d")
         
         self.UpdateMap()
@@ -1279,12 +1296,12 @@ class SAT_GUI(QMainWindow):
         self.pos=pos
 
         # Plot current rotor position (the big magenta blob)
-        if pos[0]!=np.nan:
+        if not np.isnan(pos[0]):
             az90,el90 = self.resolve_pointing(pos[0],pos[1])
-            self.rot.set_data( (az90)*RADIANS, el90)
+            self.rot.set_data( [az90*RADIANS], [el90])
 
         # Plot sat position (the black star)
-        self.sky.set_data( (90.-az)*RADIANS, 90.-max(0.,el) )
+        self.sky.set_data( [(90.-az)*RADIANS], [90.-max(0.,el)] )
 
         # Plot Sun position also
         [sun_az,sun_el,lat,lon] = self.Satellites['Moon'].current_sun_position()
@@ -1293,7 +1310,7 @@ class SAT_GUI(QMainWindow):
             sun_az=np.nan
             sun_el=np.nan
         #print('SUN:',sun_az,sun_el)
-        self.sun.set_data( (90.-sun_az)*RADIANS, 90.-max(0.,sun_el) )
+        self.sun.set_data( [(90.-sun_az)*RADIANS], [90.-max(0.,sun_el)] )
         
         self.canv2.draw()
         return

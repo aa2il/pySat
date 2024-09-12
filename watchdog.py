@@ -20,7 +20,10 @@
 #
 ################################################################################
 
-from PyQt5 import QtCore
+try:
+    from PySide6 import QtCore
+except ImportError:
+    from PyQt5 import QtCore
 from datetime import timedelta,datetime
 
 ################################################################################

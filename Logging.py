@@ -1,7 +1,7 @@
 #########################################################################################
 #
 # loogging.py - Rev. 1.0
-# Copyright (C) 2021-2 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Gui for logging contacts to an adif file
 #
@@ -21,8 +21,12 @@
 
 import sys
 import json
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import *
+try:
+    from PySide6.QtWidgets import *
+    from PySide6 import QtCore
+except ImportError:
+    from PyQt5.QtWidgets import *
+    from PyQt5 import QtCore
 from rig_io.ft_tables import SATELLITE_LIST
 from collections import OrderedDict
 import time

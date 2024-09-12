@@ -22,8 +22,10 @@
 
 import sys
 import numpy as np
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import *
+try:
+    from PySide6 import QtCore
+except ImportError:
+    from PyQt5 import QtCore
 import time
 from datetime import timedelta,datetime
 from rig_io.ft_tables import SATELLITE_LIST
@@ -75,7 +77,6 @@ class RigControl:
 
         engaged = gui.rig_engaged or gui.rotor_engaged                 
         if (engaged or self.fdown==None) and gui.Selected:
-        #if gui.Selected:
         
             # Tune to middle of transponder BW if we've selected a new sat
             if gui.New_Sat_Selection:
@@ -96,7 +97,7 @@ class RigControl:
                     P.sock.split_mode(1)
                     self.vfos=['A','B']
                 elif P.sock.rig_type2=='IC9700':
-                    if P.satellite.name=='Moon':
+                    if P.satellite.name in ['Moon','IO-117']:
                         print('Putting IC9700 into Regular mode ...')
                         P.sock.sat_mode(0)
                         self.vfos=['A','B']

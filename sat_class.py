@@ -55,10 +55,11 @@ from collections import OrderedDict
 import time
 from datetime import timedelta,datetime, timezone
 import ephem
-#from math import pi
 
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import *
+try:
+    from PySide6.QtWidgets import *
+except ImportError:
+    from PyQt5.QtWidgets import *
 
 import numpy as np
 import matplotlib.pyplot as plt

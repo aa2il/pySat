@@ -21,8 +21,12 @@
 
 import sys
 import json
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import *
+try:
+    from PySide6.QtWidgets import *
+    from PySide6 import QtCore
+except ImportError:
+    from PyQt5.QtWidgets import *
+    from PyQt5 import QtCore
 from rig_io.ft_tables import SATELLITE_LIST
 
 #########################################################################################

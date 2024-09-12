@@ -21,8 +21,10 @@
 
 import numpy as np
 import sys
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import *
+try:
+    from PySide6.QtWidgets import QMainWindow
+except ImportError:
+    from PyQt5.QtWidgets import QMainWindow
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas

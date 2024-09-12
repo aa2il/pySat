@@ -1,4 +1,6 @@
 #! /usr/bin/python3 -u
+# OLD: /usr/bin/python3 -u
+# NEW: /home/joea/.venv/bin/python -u
 ################################################################################
 #
 # Ham Satellite Orbit Prediction and Rig Control - Rev 1.0
@@ -60,7 +62,12 @@ URL2 = "~/Python/pySat/nasa.txt"                                 # Local copy
 
 import sys
 from pyhamtools.locator import locator_to_latlong
-from PyQt5.QtWidgets import QApplication
+try:
+    from PySide6.QtWidgets import QApplication
+    from PySide6 import QtCore
+except ImportError:
+    from PyQt5.QtWidgets import QApplication
+    from PyQt5 import QtCore
 import urllib.request, urllib.error, urllib.parse
 import json
 from dateutil import tz
