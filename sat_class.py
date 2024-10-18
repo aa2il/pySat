@@ -57,7 +57,10 @@ from datetime import timedelta,datetime, timezone
 import ephem
 
 try:
-    from PySide6.QtWidgets import *
+    if True:
+        from PyQt6.QtWidgets import *
+    else:
+        from PySide6.QtWidgets import *
 except ImportError:
     from PyQt5.QtWidgets import *
 
@@ -239,6 +242,7 @@ class SATELLITE:
             #print('Pass=',npasses,'\tts=',ts,'\tte=',te)
             if npasses>1000:
                 print('Too many passes!')
+                return
                 sys.exit(0)
 
             # AO-7 seems to have a problem with getting stuck in infinite loops

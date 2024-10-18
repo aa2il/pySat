@@ -22,7 +22,10 @@
 import numpy as np
 import sys
 try:
-    from PySide6.QtWidgets import QMainWindow
+    if True:
+        from PyQt6.QtWidgets import QMainWindow
+    else:
+        from PySide6.QtWidgets import QMainWindow
 except ImportError:
     from PyQt5.QtWidgets import QMainWindow
 import matplotlib.pyplot as plt

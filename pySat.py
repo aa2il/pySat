@@ -63,8 +63,12 @@ URL2 = "~/Python/pySat/nasa.txt"                                 # Local copy
 import sys
 from pyhamtools.locator import locator_to_latlong
 try:
-    from PySide6.QtWidgets import QApplication
-    from PySide6 import QtCore
+    if True:
+        from PyQt6.QtWidgets import QApplication
+        from PyQt6 import QtCore
+    else:
+        from PySide6.QtWidgets import QApplication
+        from PySide6 import QtCore
 except ImportError:
     from PyQt5.QtWidgets import QApplication
     from PyQt5 import QtCore
@@ -467,7 +471,7 @@ if sat:
     
 # Event loop
 print('And away we go ...')
-P.app.exec_()
+P.app.exec()
 
 # Exit gracefully
 print('Leaving app ...')

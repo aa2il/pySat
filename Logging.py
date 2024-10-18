@@ -22,8 +22,12 @@
 import sys
 import json
 try:
-    from PySide6.QtWidgets import *
-    from PySide6 import QtCore
+    if True:
+        from PyQt6.QtWidgets import *
+        from PyQt6 import QtCore
+    else:
+        from PySide6.QtWidgets import *
+        from PySide6 import QtCore
 except ImportError:
     from PyQt5.QtWidgets import *
     from PyQt5 import QtCore
@@ -77,7 +81,7 @@ class LOGGING(QMainWindow):
             ebox = QLineEdit(self)
             self.eboxes.append(ebox)
             ebox.setText(qso[key])
-            ebox.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.grid.addWidget(ebox,row,col+1,1,1)
             
             row+=1

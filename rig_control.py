@@ -23,7 +23,10 @@
 import sys
 import numpy as np
 try:
-    from PySide6 import QtCore
+    if True:
+        from PyQt6 import QtCore
+    else:
+        from PySide6 import QtCore
 except ImportError:
     from PyQt5 import QtCore
 import time

@@ -22,8 +22,12 @@
 import sys
 import json
 try:
-    from PySide6.QtWidgets import *
-    from PySide6 import QtCore
+    if True:
+        from PyQt6.QtWidgets import *
+        from PyQt6 import QtCore
+    else:
+        from PySide6.QtWidgets import *
+        from PySide6 import QtCore
 except ImportError:
     from PyQt5.QtWidgets import *
     from PyQt5 import QtCore
@@ -51,7 +55,7 @@ class SETTINGS_GUI_QT(QMainWindow):
         for label,item in zip(labels,self.items):
             
             lab = QLabel(self)
-            lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
             lab.setText(label)
             self.grid.addWidget(lab,row,col,1,1)
 
@@ -61,7 +65,7 @@ class SETTINGS_GUI_QT(QMainWindow):
             except:
                 txt=''
             ebox.setText(txt)
-            ebox.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.grid.addWidget(ebox,row,col+1,1,1)
             
             self.eboxes.append(ebox)            
@@ -69,14 +73,14 @@ class SETTINGS_GUI_QT(QMainWindow):
 
         # Separater for next section
         lab = QLabel(self)
-        lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         lab.setText('----- Known Satellites: -----')
         self.grid.addWidget(lab,row,col,1,1)
 
         if False:
             row+=1
             lab = QLabel(self)
-            lab.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
             lab.setText('Known Satellites:')
             self.grid.addWidget(lab,row,col,1,1)
 
@@ -109,7 +113,7 @@ class SETTINGS_GUI_QT(QMainWindow):
             except:
                 txt="0"
             ebox.setText(txt)
-            ebox.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.grid.addWidget(ebox,row,col+1,1,1)
             
             ebox = QLineEdit(self)
@@ -119,7 +123,7 @@ class SETTINGS_GUI_QT(QMainWindow):
             except:
                 txt="0"
             ebox.setText(txt)
-            ebox.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+            ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.grid.addWidget(ebox,row,col+2,1,1)
             
             isat+=1

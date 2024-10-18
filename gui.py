@@ -39,15 +39,18 @@ import webbrowser
 
 import numpy as np
 try:
-    from PySide6.QtWidgets import *
-    from PySide6 import QtCore
-    from PySide6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
-    QT_VERSION=6
+    if True:
+        from PyQt6.QtWidgets import *
+        from PyQt6 import QtCore
+        from PyQt6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
+    else:
+        from PySide6.QtWidgets import *
+        from PySide6 import QtCore
+        from PySide6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
 except ImportError:
     from PyQt5.QtWidgets import *
     from PyQt5 import QtCore
     from PyQt5.QtGui import QIcon, QPixmap
-    QT_VERSION=5
 from widgets_qt import *
 
 import matplotlib.pyplot as plt
@@ -106,6 +109,9 @@ class SAT_GUI(QMainWindow):
         self.MODES=['USB','CW','FM','LSB']
         self.ax=None
         self.event_type = None
+        print('QT Version=',QtCore.qVersion())
+        self.QT_VERSION=int( QtCore.qVersion().split('.')[0] )
+        print('QT_VERSION=',self.QT_VERSION)
 
         # Put up splash screen until we're ready
         self.splash=SPLASH_SCREEN(P.app,'splash.png')              # In util.py
@@ -139,12 +145,12 @@ class SAT_GUI(QMainWindow):
         self.cal = QCalendarWidget()
         self.grid.addWidget(self.cal,row,col,nrows-1,1)
         self.cal.clicked.connect(self.date_changed)
-        self.cal.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)   # Delete week numbers
+        self.cal.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)   # Delete week numbers
         self.cal.setGridVisible(True)
 
         # Set col width and don't allow calendar size to change width when we resize the window
         self.grid.setColumnStretch(col,1)
-        sizePolicy = QSizePolicy( QSizePolicy.Fixed, QSizePolicy.Minimum)
+        sizePolicy = QSizePolicy( QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
         self.cal.setSizePolicy(sizePolicy)
         print('Calendar: hint=',self.cal.sizeHint(),'\tsize=',self.cal.geometry())
 
@@ -159,7 +165,7 @@ class SAT_GUI(QMainWindow):
 
         # Allow canvas size to change when we resize the window
         # but make is always visible
-        sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
+        sizePolicy = QSizePolicy( QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.MinimumExpanding)
         ##sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Preferred)
         ##sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Maximum)
         #self.canv.setSizePolicy(sizePolicy)
@@ -191,7 +197,7 @@ class SAT_GUI(QMainWindow):
         # Allow canvas size to change when we resize the window
         # but make is always visible
         self.grid.setColumnStretch(ncols-1,1)
-        sizePolicy = QSizePolicy( QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy = QSizePolicy( QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         #sizePolicy = QSizePolicy( QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding)
         #sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Preferred)
         self.canv2.setSizePolicy(sizePolicy)
@@ -200,7 +206,7 @@ class SAT_GUI(QMainWindow):
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
         print('date=',date)
-        if QT_VERSION==6:
+        if self.QT_VERSION==6 and False:
             date0 = date.toPython()
         else:
             date0 = date.toPyDate()
@@ -332,9 +338,9 @@ class SAT_GUI(QMainWindow):
         row=0
         col+=2
         lb=QLabel("Satellite:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.SatName = QLabel('---')
-        self.SatName.setAlignment(QtCore.Qt.AlignCenter)
+        self.SatName.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.SatName,row,col+1)
         self.grid.setColumnStretch(col,1)
@@ -343,39 +349,39 @@ class SAT_GUI(QMainWindow):
         
         row+=1
         lb=QLabel("AOS:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.AOS = QLabel('---')
-        self.AOS.setAlignment(QtCore.Qt.AlignCenter)
+        self.AOS.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.AOS,row,col+1)
         
         row+=1
         lb=QLabel("LOS:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.LOS = QLabel('---')
-        self.LOS.setAlignment(QtCore.Qt.AlignCenter)
+        self.LOS.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.LOS,row,col+1)
 
         row+=1
         lb=QLabel("Peak El:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.PeakEl = QLabel('---')
-        self.PeakEl.setAlignment(QtCore.Qt.AlignCenter)
+        self.PeakEl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.PeakEl,row,col+1)
                 
         row+=1
         lb=QLabel("Slant Rng:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.SRng = QLabel('---')
-        self.SRng.setAlignment(QtCore.Qt.AlignCenter)
+        self.SRng.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.SRng,row,col+1)
 
         row+=1
         self.txt9 = QLabel(self)
-        self.txt9.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt9.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.txt9.setText("Hey!")
         self.grid.addWidget(self.txt9,row,col,1,2)
 
@@ -383,7 +389,7 @@ class SAT_GUI(QMainWindow):
         row=0
         col+=2
         lb=QLabel("Downlink:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         #self.txt1 = QLineEdit(self)
         self.txt1 = QLabel(self)
         self.txt1.setText("Hey!")
@@ -394,7 +400,7 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         lb=QLabel("Uplink:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         #self.txt2 = QLineEdit(self)
         self.txt2 = QLabel(self)
         self.txt2.setText("Hey!")
@@ -403,7 +409,7 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         lb=QLabel("VFO A:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.txt3 = QLabel(self)
         self.txt3.setText("Hey!")
         self.grid.addWidget(lb,row,col)
@@ -411,7 +417,7 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         lb=QLabel("VFO B:")
-        lb.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.txt4 = QLabel(self)
         self.txt4.setText("Hey!")
         self.grid.addWidget(lb,row,col)
@@ -419,18 +425,18 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         self.txt5 = QLabel(self)
-        self.txt5.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt5.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.txt5.setText("Hey!")
         self.grid.addWidget(self.txt5,row,col)
 
         self.txt6 = QLabel(self)
-        self.txt6.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt6.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.txt6.setText("Hey!")
         self.grid.addWidget(self.txt6,row,col+1)
 
         row+=1
         self.txt7 = QLabel(self)
-        self.txt7.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt7.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.txt7.setText("Hey!")
         self.grid.addWidget(self.txt7,row,col,1,3)
 
@@ -439,7 +445,7 @@ class SAT_GUI(QMainWindow):
         col+=3
         self.txt10 = QLabel(self)
         self.txt10.setText("- RIT -")
-        self.txt10.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt10.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt10,row,col,1,ncols2)
         self.grid.setColumnStretch(col,ncols2)
         print('RIT label: hint=',self.txt10.sizeHint(),'\tsize=',self.txt10.geometry())
@@ -447,7 +453,7 @@ class SAT_GUI(QMainWindow):
         row+=1
         self.txt11 = QLineEdit(self)
         self.txt11.setText(str(self.rit))
-        self.txt11.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt11.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt11,row,col,1,ncols2)
         print('RIT: hint=',self.txt11.sizeHint(),'\tsize=',self.txt11.geometry())
 
@@ -468,24 +474,27 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         btn = QPushButton('')
-        btn.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_TitleBarShadeButton')))
+        #btn.setIcon(self.style().standardIcon(
+        #    getattr(QStyle, 'StandardPixmap.SP_TitleBarShadeButton')))
+        btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarShadeButton))
         btn.setToolTip('Click to increase RIT')
         btn.clicked.connect(self.RITup)
         self.grid.addWidget(btn,row,col,1,ncols2)
 
         row+=1
         btn = QPushButton('')
-        btn.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_TitleBarUnshadeButton')))
+        #btn.setIcon(self.style().standardIcon(
+        #    getattr(QStyle, 'SP_TitleBarUnshadeButton')))
+        btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarUnshadeButton))
         btn.setToolTip('Click to decrease RIT')
         btn.clicked.connect(self.RITdn)
         self.grid.addWidget(btn,row,col,1,ncols2)
 
         row+=1
         btn = QPushButton('')
-        btn.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_DialogCloseButton')))
+        #btn.setIcon(self.style().standardIcon(
+        #    getattr(QStyle, 'SP_DialogCloseButton')))
+        btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton))
         btn.setToolTip('Click to clear RIT')
         btn.clicked.connect(self.RITclear)
         self.grid.addWidget(btn,row,col,1,ncols2)
@@ -493,7 +502,7 @@ class SAT_GUI(QMainWindow):
         row+=1
         self.txt15 = QLabel(self)
         self.txt15.setText(str('HEY!'))
-        self.txt15.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt15.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt15,row,col,1,2*ncols2)
 
         # Panel to implement XIT
@@ -501,7 +510,7 @@ class SAT_GUI(QMainWindow):
         col+=ncols2
         self.txt12 = QLabel(self)
         self.txt12.setText("- XIT -")
-        self.txt12.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt12.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt12,row,col,1,ncols2)
         self.grid.setColumnStretch(col,ncols2)
         print('XIT label: hint=',self.txt12.sizeHint(),'\tsize=',self.txt12.geometry())
@@ -509,7 +518,7 @@ class SAT_GUI(QMainWindow):
         row+=1
         self.txt13 = QLineEdit(self)
         self.txt13.setText(str(self.xit))
-        self.txt13.setAlignment(QtCore.Qt.AlignCenter | QtCore.Qt.AlignVCenter)
+        self.txt13.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt13,row,col,1,ncols2)
         print('XIT: hint=',self.txt13.sizeHint(),'\tsize=',self.txt13.geometry())
 
@@ -519,24 +528,27 @@ class SAT_GUI(QMainWindow):
                 
         row+=1
         btn = QPushButton('')
-        btn.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_TitleBarShadeButton')))
+        #btn.setIcon(self.style().standardIcon(
+        #    getattr(QStyle, 'SP_TitleBarShadeButton')))
+        btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarShadeButton))
         btn.setToolTip('Click to increase XIT')
         btn.clicked.connect(self.XITup)
         self.grid.addWidget(btn,row,col,1,ncols2)
 
         row+=1
         btn = QPushButton('')
-        btn.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_TitleBarUnshadeButton')))
+        #btn.setIcon(self.style().standardIcon(
+        #    getattr(QStyle, 'SP_TitleBarUnshadeButton')))
+        btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarUnshadeButton))
         btn.setToolTip('Click to decrease XIT')
         btn.clicked.connect(self.XITdn)
         self.grid.addWidget(btn,row,col,1,ncols2)
 
         row+=1
         btn = QPushButton('')
-        btn.setIcon(self.style().standardIcon(
-            getattr(QStyle, 'SP_DialogCloseButton')))
+        #btn.setIcon(self.style().standardIcon(
+        #    getattr(QStyle, 'SP_DialogCloseButton')))
+        btn.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogCloseButton))
         btn.setToolTip('Click to clear XIT')
         btn.clicked.connect(self.XITclear)
         self.grid.addWidget(btn,row,col,1,ncols2)
@@ -577,7 +589,7 @@ class SAT_GUI(QMainWindow):
         self.win.resize(self.win.sizeHint())
         print('Main Window: hint=',self.win.sizeHint(),'\tsize=',self.win.geometry())
         #self.win.resize(900,720)
-        if QT_VERSION==6:
+        if self.QT_VERSION==6:
             screen = QGuiApplication.primaryScreen().size()
         else:
             screen = QDesktopWidget().screenGeometry()
@@ -597,22 +609,23 @@ class SAT_GUI(QMainWindow):
         print("()(()()()()()( User has clicked the red x on the main window ()()()()()))")
 
         msgBox = QMessageBox()
-        msgBox.setIcon(QMessageBox.Information)
+        msgBox.setIcon(QMessageBox.Icon.Information)
         msgBox.setText("Really Quit?")
         msgBox.setWindowTitle("Really Quit")
-        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        msgBox.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
         
         returnValue = msgBox.exec()
-        if returnValue == QMessageBox.Cancel:
+        if returnValue == QMessageBox.StandardButton.Cancel:
             #print('Cancel clicked')
             event.ignore()
-        elif returnValue == QMessageBox.Ok:
+        elif returnValue == QMessageBox.StandardButton.Ok:
             #print('OK clicked')
             event.accept()
         
             if self.P.TEST_MODE:
                 self.PlotWin.close()
-            qApp.quit()
+            #qApp.quit()
+            QApplication.quit()
         
 
     # Function to set rig mode
@@ -754,15 +767,15 @@ class SAT_GUI(QMainWindow):
             # Put up a reminder for something that is not availabe via CAT
             if self.P.sock.rig_type2=='IC9700' and False:
                 msgBox = QMessageBox()
-                msgBox.setIcon(QMessageBox.Information)
+                msgBox.setIcon(QMessageBox.Icon.Information)
                 msgBox.setText("Be sure REVERSE mode is set !!!\n\nKeep RF GAIN Centered !!!")
                 msgBox.setWindowTitle("IC9700 Operation")
-                msgBox.setStandardButtons(QMessageBox.Ok)
+                msgBox.setStandardButtons(QMessageBox.StandardButton.Ok)
                 #msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
                 #msgBox.buttonClicked.connect(msgButtonClick)
         
                 returnValue = msgBox.exec()
-                if returnValue == QMessageBox.Ok:
+                if returnValue == QMessageBox.StandardButton.Ok:
                     print('OK clicked')
                 
         
@@ -1428,7 +1441,8 @@ class SAT_GUI(QMainWindow):
         exitAct = QAction('&Exit', self)
         #exitAct.setShortcut('Ctrl+Q')
         exitAct.setStatusTip('Exit Application')
-        exitAct.triggered.connect(qApp.quit)
+        #exitAct.triggered.connect(qApp.quit)
+        exitAct.triggered.connect(QApplication.quit)
         fileMenu.addAction(exitAct)
 
         # The Mode Menu
