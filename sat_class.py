@@ -45,11 +45,12 @@ SUN_UPDATE_INTERVAL = 10*60               # Only update every ten minutes
 
 ################################################################################
 
-if USE_PYPREDICT:
-    import predict
-    
 import os
 import sys
+if sys.platform == "win32":
+    USE_PYPREDICT=False
+if USE_PYPREDICT:
+    import predict
 from configparser import ConfigParser 
 from collections import OrderedDict
 import time

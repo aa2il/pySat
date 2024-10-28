@@ -26,7 +26,7 @@
 
 #pyqt5
 pyqt6
-PySide6
+#PySide6
 matplotlib
 cartopy
 pyserial
