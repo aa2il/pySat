@@ -1,10 +1,11 @@
-#! /usr/bin/python3 -u
-# OLD: /usr/bin/python3 -u
-# NEW: /home/joea/.venv/bin/python -u
+#! /home/joea/miniconda3/envs/aa2il/bin/python -u
+#
+# NEW: /home/joea/miniconda3/envs/aa2il/bin/python -u
+# OLD: /usr/bin/python3 -u 
 ################################################################################
 #
 # Ham Satellite Orbit Prediction and Rig Control - Rev 1.0
-# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-5 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
 #
 # Gui to show predicted passes for various OSCARs and command rig and rotor to
 # follow a user selected satellite trajectory.
