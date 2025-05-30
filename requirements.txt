@@ -1,20 +1,5 @@
 ###############################################################################
 #
-# This was how this used to work:
-#     pip3 install -r requirements.txt
-#
-#
-# but, in true linux fashion, it was broken in Python 3.11 - great jobs guys!
-#
-# Try this:
-#
-#    sudo apt install python3.12-venv
-#    mkdir -p ~/.venvs
-#    python3 -m venv ~/.venv
-#    ~/.venv/bin/python -m pip install -r requirements.txt
-#
-###############################################################################
-#
 # Also need the "libs" and "data" directories which are available in this
 # repository.
 # Set the PYTHONPATH environment variable to point to where "libs" is installed,
@@ -36,6 +21,11 @@ scipy
 
 pypredict
 pyephem
+
+psutil
+pytz
+pyaudio
+
 
 
 
