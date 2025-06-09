@@ -1,8 +1,7 @@
-#! /usr/bin/python3 -u
 ################################################################################
 #
 # sat_class.py - Rev 2.0
-# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-5 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Class containing individula satellite data
 #
@@ -320,12 +319,12 @@ class SATELLITE:
             print('GET_TRANSPONDERS: number=',self.number)
 
         fname = os.path.expanduser(TRANSP_DATA+'/'+str(self.number)+'.trsp')
-        print('fname=',fname)
+        print('GET_TRANSPONDERS: fname=',fname)
         #sys.exit(0)
 
         # Read the transponder data for this sat
         config = ConfigParser() 
-        print('config.read=',config.read(fname)) 
+        print('GET_TRANSPONDERS: config.read=',config.read(fname)) 
         self.transponders = OrderedDict()
         for transp in config.sections():
 
@@ -846,7 +845,15 @@ class MAPPING(QMainWindow):
         self.show()
         self.canv.draw()
         self.blobs=[]
-        
+
+        # Make sure window has some size to it
+        qr = self.win.frameGeometry()
+        w=qr.width()
+        h=qr.height()
+        print('qr=',qr,w,h)
+        if w<400 or h<400:
+            self.win.resize( max(400,w) , max(h,400) )
+            
 
     def ComputeSatTrack(self,Sat,tstart=None,npasses=1):
         if tstart==None:

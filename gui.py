@@ -1,7 +1,7 @@
 ################################################################################
 #
 # Satellite GUI - Rev 2.0
-# Copyright (C) 2021-4 by Joseph B. Attili, aa2il AT arrl DOT net
+# Copyright (C) 2021-5 by Joseph B. Attili, aa2il AT arrl DOT net
 #
 # Gui to show predicted passes for various OSCARs.
 #
@@ -51,7 +51,7 @@ except ImportError:
     from PyQt5.QtWidgets import *
     from PyQt5 import QtCore
     from PyQt5.QtGui import QIcon, QPixmap
-from widgets_qt import *
+from widgets_qt import SPLASH_SCREEN,StatusBar,get_screen_size
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
@@ -580,6 +580,12 @@ class SAT_GUI(QMainWindow):
             self.MapWin.show()
         else:
             self.MapWin.hide()
+        qr = self.MapWin.frameGeometry()
+        w=qr.width()
+        h=qr.height()
+        print('qr=',qr,w,h)
+        if w<400 or h<400:
+            self.MapWin.resize( max(400,w) , max(h,400) )
             
         if P.TEST_MODE:
             self.PlotWin=PLOTTING(P)
@@ -588,20 +594,19 @@ class SAT_GUI(QMainWindow):
         print('Main Window: hint=',self.win.sizeHint(),'\tsize=',self.win.geometry())
         self.win.resize(self.win.sizeHint())
         print('Main Window: hint=',self.win.sizeHint(),'\tsize=',self.win.geometry())
-        #self.win.resize(900,720)
-        if self.QT_VERSION==6:
-            screen = QGuiApplication.primaryScreen().size()
-        else:
-            screen = QDesktopWidget().screenGeometry()
-        print('screen=',screen)
-        #widget = self.geometry()
-        #print('hint=',self.win.sizeHint())
-        #self.setMainimumSize( widget.width() , widget.height() )    # Set minimum size of gui window
-          
-        #screen_resolution = P.app.desktop().screenGeometry()
-        #width, height = screen_resolution.width(), screen_resolution.height()
-        #print("Screen Res:",screen_resolution,width, height)
-
+        width,height=get_screen_size(P.app)
+        print('screen=',width,height)
+        qr = self.win.frameGeometry()
+        w=qr.width()
+        h=qr.height()
+        print('qr=',qr,w,h)
+        if w>width or h>height:
+            self.win.resize( min(w,width) , max(750,min(h,height)) )
+            qr = self.win.frameGeometry()
+            w=qr.width()
+            h=qr.height()
+            print('qr=',qr,w,h)
+        
 ################################################################################
         
     # Capture 'x' in upper right corner so that we can shut down gracefully
@@ -613,6 +618,13 @@ class SAT_GUI(QMainWindow):
         msgBox.setText("Really Quit?")
         msgBox.setWindowTitle("Really Quit")
         msgBox.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        
+        qr = msgBox.frameGeometry()
+        w=qr.width()
+        h=qr.height()
+        print('qr=',qr,w,h)
+        if w<100 or h<100:
+            self.win.resize( max(w,100) , max(y,100) )
         
         returnValue = msgBox.exec()
         if returnValue == QMessageBox.StandardButton.Cancel:
@@ -844,8 +856,10 @@ class SAT_GUI(QMainWindow):
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
         print('\n!!!!!!!!!!!!!!!!!!!!!!!!! Date Changed:',date)
-        if QT_VERSION==6:
-            date0 = date.toPython()
+        if self.QT_VERSION==6:
+            #print('date=',date,type(date))
+            #date0 = date.toPython()                # PySide - not consistent!
+            date0 = date.toPyDate()                 # PyQt
         else:
             date0 = date.toPyDate()
         self.date1 = datetime.strptime( date0.strftime("%Y%m%d"), "%Y%m%d")
@@ -1088,9 +1102,11 @@ class SAT_GUI(QMainWindow):
             tmid = 0.5*(self.transit.start + self.transit.end)
             #print('tmid=',tmid,datetime.fromtimestamp(tmid))
             imid = int( len(self.track_lats)/2 )
-            self.MapWin.DrawSatTrack(Sat.name,self.track_lons,self.track_lats,ERASE=True,title='Mid-Pass Position of '+Sat.name)
+            self.MapWin.DrawSatTrack(Sat.name,self.track_lons,self.track_lats,ERASE=True,
+                                     title='Mid-Pass Position of '+Sat.name)
             for idx in [0,imid,-1]:
-                self.MapWin.DrawSatFootprint(Sat.name,self.track_lons[idx],self.track_lats[idx],self.track_foot[idx],ERASE=False)
+                self.MapWin.DrawSatFootprint(Sat.name,self.track_lons[idx],
+                                             self.track_lats[idx],self.track_foot[idx],ERASE=False)
             
             
     # Routine to update track info

@@ -378,8 +378,8 @@ if True:
         URL2=os.getcwd()+'/nasa.txt'                # Override for now
     fname=os.path.expanduser(URL2)
     print('URL2=',fname)
-    if not os.path.isfile(fname):
-        print('nasa.txt not found - Need to update TLE data')
+    if not os.path.isfile(fname) or not os.path.isdir('trsp'):
+        print('nasa.txt and/or trsp/ not found - Need to update TLE data')
         P.UPDATE_TLE = True
     else:
         ti_c = os.path.getctime(fname)
