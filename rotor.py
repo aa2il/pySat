@@ -21,12 +21,15 @@
 
 import numpy as np
 import sys
-try:
-    if True:
-        from PyQt6.QtWidgets import QMainWindow
-    else:
-        from PySide6.QtWidgets import QMainWindow
-except ImportError:
+if True:
+    # Dynamic importing - this works!
+    from widgets_qt import QTLIB
+    exec('from '+QTLIB+'.QtWidgets import QMainWindow')
+elif False:
+    from PyQt6.QtWidgets import QMainWindow
+elif False:
+    from PySide6.QtWidgets import QMainWindow
+else:
     from PyQt5.QtWidgets import QMainWindow
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure

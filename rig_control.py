@@ -1,4 +1,3 @@
-#! /usr/bin/python3 -u
 ################################################################################
 #
 # RigControl.py - Rev 1.0
@@ -22,12 +21,15 @@
 
 import sys
 import numpy as np
-try:
-    if True:
-        from PyQt6 import QtCore
-    else:
-        from PySide6 import QtCore
-except ImportError:
+if True:
+    # Dynamic importing - this works!
+    from widgets_qt import QTLIB
+    exec('from '+QTLIB+' import QtCore')
+elif False:
+    from PyQt6 import QtCore
+elif False:
+    from PySide6 import QtCore
+else:
     from PyQt5 import QtCore
 import time
 from datetime import timedelta,datetime
@@ -229,13 +231,19 @@ class RigControl:
         #print('\nTRACK_FREQS: P.transp=',P.transp)
         
         # Compute uplink freq corresponding to downlink
-        df = self.fdown - P.transp['fdn1']
-        if P.transp['Inverting']:
-            self.fup = P.transp['fup2'] - df
-            #print('Inv:',P.transp['fup2'],df,self.fup)
-        else:
-            self.fup = P.transp['fup1'] + df
-            #print('Non:',P.transp['fup1'],df,self.fup)
+        try:
+            df = self.fdown - P.transp['fdn1']
+            if P.transp['Inverting']:
+                self.fup = P.transp['fup2'] - df
+                #print('Inv:',P.transp['fup2'],df,self.fup)
+            else:
+                self.fup = P.transp['fup1'] + df
+                #print('Non:',P.transp['fup1'],df,self.fup)
+        except:
+            error_trap('RIG CONTROL -> TRACK FREQS - Whoops!')
+            print('\tsat=',gui.Selected)
+            return
+            
             
         # Compute Doppler shifts for up and down links
         [self.fdop1,self.fdop2,self.az,self.el,rng,lat,lon,footprint] = \

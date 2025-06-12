@@ -56,12 +56,15 @@ import time
 from datetime import timedelta,datetime, timezone
 import ephem
 
-try:
-    if True:
-        from PyQt6.QtWidgets import *
-    else:
-        from PySide6.QtWidgets import *
-except ImportError:
+if True:
+    # Dynamic importing - this works!
+    from widgets_qt import QTLIB
+    exec('from '+QTLIB+'.QtWidgets import QMainWindow,QWidget,QGridLayout')
+elif False:
+    from PyQt6.QtWidgets import *
+elif False:
+    from PySide6.QtWidgets import *
+else:
     from PyQt5.QtWidgets import *
 
 import numpy as np
@@ -846,14 +849,14 @@ class MAPPING(QMainWindow):
         self.canv.draw()
         self.blobs=[]
 
-        # Make sure window has some size to it
+        # Make sure window has some size to it (problem if headless on RPi)
         qr = self.win.frameGeometry()
         w=qr.width()
         h=qr.height()
         print('qr=',qr,w,h)
         if w<400 or h<400:
             self.win.resize( max(400,w) , max(h,400) )
-            
+        #sys.exit(0)
 
     def ComputeSatTrack(self,Sat,tstart=None,npasses=1):
         if tstart==None:

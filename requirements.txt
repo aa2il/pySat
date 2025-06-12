@@ -1,5 +1,10 @@
 ###############################################################################
 #
+# Under uv:
+#     rm -r .venv/ pyproject.toml .python-version uv.lock
+#     uv init
+#     uv add -r requirements.txt
+#
 # Also need the "libs" and "data" directories which are available in this
 # repository.
 # Set the PYTHONPATH environment variable to point to where "libs" is installed,
@@ -9,8 +14,8 @@
 #
 ###############################################################################
 
-pyqt6
-#PySide6
+#pyqt6
+PySide6
 matplotlib
 cartopy
 pyserial

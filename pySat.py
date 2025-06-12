@@ -65,14 +65,18 @@ URL2 = "~/Python/pySat/nasa.txt"                                 # Local copy
 
 import sys
 from pyhamtools.locator import locator_to_latlong
-try:
-    if True:
-        from PyQt6.QtWidgets import QApplication
-        from PyQt6 import QtCore
-    else:
-        from PySide6.QtWidgets import QApplication
-        from PySide6 import QtCore
-except ImportError:
+if True:
+    # Dynamic importing - this works!
+    from widgets_qt import QTLIB
+    exec('from '+QTLIB+'.QtWidgets import QApplication')
+    exec('from '+QTLIB+' import QtCore')
+elif False:
+    from PyQt6.QtWidgets import QApplication
+    from PyQt6 import QtCore
+elif False:
+    from PySide6.QtWidgets import QApplication
+    from PySide6 import QtCore
+else:
     from PyQt5.QtWidgets import QApplication
     from PyQt5 import QtCore
 import urllib.request, urllib.error, urllib.parse

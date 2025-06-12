@@ -21,14 +21,18 @@
 
 import sys
 import json
-try:
-    if True:
-        from PyQt6.QtWidgets import *
-        from PyQt6 import QtCore
-    else:
-        from PySide6.QtWidgets import *
-        from PySide6 import QtCore
-except ImportError:
+if True:
+    # Dynamic importing - this works!
+    from widgets_qt import QTLIB
+    exec('from '+QTLIB+'.QtWidgets import QMainWindow,QWidget,QGridLayout,QLabel,QLineEdit,QCheckBox,QPushButton')
+    exec('from '+QTLIB+' import QtCore')
+elif False:
+    from PyQt6.QtWidgets import *
+    from PyQt6 import QtCore
+elif False:
+    from PySide6.QtWidgets import *
+    from PySide6 import QtCore
+else:
     from PyQt5.QtWidgets import *
     from PyQt5 import QtCore
 from rig_io.ft_tables import SATELLITE_LIST

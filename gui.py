@@ -38,16 +38,21 @@ import functools
 import webbrowser
 
 import numpy as np
-try:
-    if True:
-        from PyQt6.QtWidgets import *
-        from PyQt6 import QtCore
-        from PyQt6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
-    else:
-        from PySide6.QtWidgets import *
-        from PySide6 import QtCore
-        from PySide6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
-except ImportError:
+if True:
+    # Dynamic importing - this works!
+    from widgets_qt import QTLIB
+    exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QSizePolicy,QStyle')
+    exec('from '+QTLIB+' import QtCore')
+    exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QGuiApplication')
+elif False:
+    from PyQt6.QtWidgets import *
+    from PyQt6 import QtCore
+    from PyQt6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
+elif False:
+    from PySide6.QtWidgets import *
+    from PySide6 import QtCore
+    from PySide6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
+else:
     from PyQt5.QtWidgets import *
     from PyQt5 import QtCore
     from PyQt5.QtGui import QIcon, QPixmap
@@ -110,8 +115,8 @@ class SAT_GUI(QMainWindow):
         self.ax=None
         self.event_type = None
         print('QT Version=',QtCore.qVersion())
-        self.QT_VERSION=int( QtCore.qVersion().split('.')[0] )
-        print('QT_VERSION=',self.QT_VERSION)
+        #self.QT_VERSION=int( QtCore.qVersion().split('.')[0] )
+        #print('QT_VERSION=',self.QT_VERSION)
 
         # Put up splash screen until we're ready
         self.splash=SPLASH_SCREEN(P.app,'splash.png')              # In util.py
@@ -206,7 +211,8 @@ class SAT_GUI(QMainWindow):
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
         print('date=',date)
-        if self.QT_VERSION==6 and False:
+        print('QTLIB=',QTLIB)
+        if 'PySide' in QTLIB:
             date0 = date.toPython()
         else:
             date0 = date.toPyDate()
@@ -618,6 +624,7 @@ class SAT_GUI(QMainWindow):
         msgBox.setText("Really Quit?")
         msgBox.setWindowTitle("Really Quit")
         msgBox.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+        #msgBox.show()   ???
         
         qr = msgBox.frameGeometry()
         w=qr.width()
@@ -856,12 +863,11 @@ class SAT_GUI(QMainWindow):
         # Fetch the currently selected date, this is a QDate object
         date = self.cal.selectedDate()
         print('\n!!!!!!!!!!!!!!!!!!!!!!!!! Date Changed:',date)
-        if self.QT_VERSION==6:
-            #print('date=',date,type(date))
-            #date0 = date.toPython()                # PySide - not consistent!
-            date0 = date.toPyDate()                 # PyQt
+        print('QTLIB=',QTLIB)
+        if 'PySide' in QTLIB:
+            date0 = date.toPython()                # PySide - not consistent!
         else:
-            date0 = date.toPyDate()
+            date0 = date.toPyDate()                 # PyQt
         self.date1 = datetime.strptime( date0.strftime("%Y%m%d"), "%Y%m%d")
         
         self.UpdateMap()
@@ -1022,7 +1028,7 @@ class SAT_GUI(QMainWindow):
             
             # Observe sat at current time
             now = time.mktime( datetime.now().timetuple() )
-            print('FIND NEXT TRANSIT:',name,'\t',now)
+            print('FIND NEXT TRANSIT: name=',name,'\tnow=',now)
 
             # Look at next transit for this sat
             try:
@@ -1067,9 +1073,15 @@ class SAT_GUI(QMainWindow):
             except: 
                 error_trap('GUI->FIND NEXT TRANSIT: Failure for sat '+name)
                 
-        print(name,tnext)
-        ttt = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(tnext))
-        print('\nNext transit:',best,ttt,'\n')
+        print('FIND NEXT TANSIT: name=',name,'\ttnext=',tnext)
+        try:
+            ttt = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(tnext))
+            print('\nNext transit:',best,ttt,'\n')
+        except: 
+            error_trap('GUI->FIND NEXT TRANSIT: Failure for sat '+name)
+            best=None
+            ttt=None
+            
         return [best,tnext]
 
 
