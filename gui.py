@@ -41,7 +41,7 @@ import numpy as np
 if True:
     # Dynamic importing - this works!
     from widgets_qt import QTLIB
-    exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QSizePolicy,QStyle')
+    exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QSizePolicy,QStyle,QMessageBox')
     exec('from '+QTLIB+' import QtCore')
     exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QGuiApplication')
 elif False:

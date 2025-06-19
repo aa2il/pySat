@@ -5,6 +5,9 @@
 #     uv init
 #     uv add -r requirements.txt
 #
+# On RPI, also need:
+#     uv pip install -r requirements.txt
+#
 # Also need the "libs" and "data" directories which are available in this
 # repository.
 # Set the PYTHONPATH environment variable to point to where "libs" is installed,
