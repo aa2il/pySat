@@ -134,7 +134,7 @@ P.sock = socket_io.open_rig_connection(P.connection,0,P.PORT,0,'SATELLITES',rig=
 if P.sock.rig_type=='Icom':
     P.sock.icom_defaults()
 print('RIG:',P.sock.rig_type,P.sock.rig_type1,P.sock.rig_type2)
-    #sys.exit(0)
+#sys.exit(0)
 
 # Make sure rig is properly setup
 if P.sock.rig_type2=='IC9700':
@@ -147,10 +147,12 @@ if P.sock.rig_type2=='IC9700':
     print('\nnow=',now)
 
     # Check rig time
-    d,t,z=P.sock.get_date_time()
+    d,t,z=P.sock.get_date_time(VERBOSITY=1)
+    print('d=',d,'\tt=',t)
     utc = datetime.strptime(d+' '+t,'%Y%m%d %H%M%S')
     print('Rig date=',d,'\ttime=',t,'\tzone=',z,
           '\nRig utc=',utc)
+    #sys.exit(0)
 
     delta = (now - utc).total_seconds()/60      # In minutes
     print('delta=',delta,'min.')
