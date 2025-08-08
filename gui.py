@@ -38,24 +38,11 @@ import functools
 import webbrowser
 
 import numpy as np
-if True:
-    # Dynamic importing - this works!
-    from widgets_qt import QTLIB
-    exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QSizePolicy,QStyle,QMessageBox')
-    exec('from '+QTLIB+' import QtCore')
-    exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QGuiApplication')
-elif False:
-    from PyQt6.QtWidgets import *
-    from PyQt6 import QtCore
-    from PyQt6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
-elif False:
-    from PySide6.QtWidgets import *
-    from PySide6 import QtCore
-    from PySide6.QtGui import QIcon, QPixmap, QAction, QGuiApplication
-else:
-    from PyQt5.QtWidgets import *
-    from PyQt5 import QtCore
-    from PyQt5.QtGui import QIcon, QPixmap
+
+from widgets_qt import QTLIB
+exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QSizePolicy,QStyle,QMessageBox')
+exec('from '+QTLIB+' import QtCore')
+exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QGuiApplication')
 from widgets_qt import SPLASH_SCREEN,StatusBar,get_screen_size
 
 import matplotlib.pyplot as plt
@@ -79,7 +66,8 @@ from collections import OrderedDict
 from params import PARAMS
 from watchdog import WatchDog
 from rig_control import RigControl
-from sat_class import SATELLITE,MAPPING,USE_PYPREDICT
+from sat_class import SATELLITE,USE_PYPREDICT
+from mapping import MAPPING
 if USE_PYPREDICT:
     import predict
 
@@ -89,6 +77,34 @@ from rotor import *
 from constants import *
 from utilities import error_trap
 
+################################################################################
+
+class INFO_WINDOW(QMainWindow):
+    def __init__(self,P,sat,parent=None):
+        super(INFO_WINDOW, self).__init__(parent)
+
+        # Init
+        self.P=P
+        self.win  = QWidget()
+        self.setCentralWidget(self.win)
+        self.setWindowTitle(sat+' Info')
+        self.grid = QGridLayout(self.win)
+
+        row=0
+        col=0
+        lab = QLabel()
+        lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lab.setText(sat)
+        self.grid.addWidget(lab,row,col,1,1)
+
+        row+=2
+        button1 = QPushButton('OK')
+        button1.setToolTip('Click to Close')
+        button1.clicked.connect(self.close)
+        self.grid.addWidget(button1,row,col,1,1)
+
+        self.show()
+        
 ################################################################################
 
 # The GUI
@@ -114,9 +130,7 @@ class SAT_GUI(QMainWindow):
         self.MODES=['USB','CW','FM','LSB']
         self.ax=None
         self.event_type = None
-        print('QT Version=',QtCore.qVersion())
-        #self.QT_VERSION=int( QtCore.qVersion().split('.')[0] )
-        #print('QT_VERSION=',self.QT_VERSION)
+        self.info=None
 
         # Put up splash screen until we're ready
         self.splash=SPLASH_SCREEN(P.app,'splash.png')              # In util.py
@@ -159,7 +173,7 @@ class SAT_GUI(QMainWindow):
         self.cal.setSizePolicy(sizePolicy)
         print('Calendar: hint=',self.cal.sizeHint(),'\tsize=',self.cal.geometry())
 
-        # The first 0canvas where we will put the graph with the pass times
+        # The first canvas where we will put the graph with the pass times
         row=1
         col=0
         self.fig = Figure()
@@ -905,15 +919,19 @@ class SAT_GUI(QMainWindow):
         if self.P.GRID2:
             self.Satellites2 = OrderedDict()
         self.pass_times=[]
-        for isat in range(1,len(self.P.SATELLITE_LIST) ):
-            name=self.P.SATELLITE_LIST[isat]
+        SAT_LIST=self.P.SATELLITE_LIST.copy()
+        for isat in ['Moon','Sun']:
+            if isat not in self.P.SATELLITE_LIST:
+                SAT_LIST.append(isat)
+        for isat in range(1,len(SAT_LIST) ):
+            name=SAT_LIST[isat]
             self.Satellites[name]=SATELLITE(isat,name,self.P.my_qth,
-                                            date1,date2,self.P.TLE)
+                                            date1,date2,self.P.TLE,self.P.SHOWERS)
             if self.P.GRID2:
                 self.Satellites2[name]=SATELLITE(isat,name,self.P.other_qth,
-                                            date1,date2,self.P.TLE)
+                                                 date1,date2,self.P.TLE,self.P.SHOWERS)
                 sat2=self.Satellites2[name]
-
+                
         
     # Plot passes for all sats
     def draw_passes(self):
@@ -923,8 +941,11 @@ class SAT_GUI(QMainWindow):
 
         # Loop over list of sats
         self.pass_times=[]
-        for name in list(self.Satellites.keys()):
+        #for name in list(self.Satellites.keys()):
+        for name in self.P.SATELLITE_LIST:
             print('Draw Passes - name=',name)
+            if name=='None':
+                continue
             Sat=self.Satellites[name]
             
             # Plot passes for this sat
@@ -956,27 +977,26 @@ class SAT_GUI(QMainWindow):
         self.ax.set_yticklabels(self.P.SATELLITE_LIST[1:])
         self.ax.invert_yaxis()
 
-        if True:
-            # Expand or shrink axis's width & height so we fill the canvas
-            #self.fig.tight_layout(pad=0)
-            ph1=.15
-            ph2=.1
-            pw1=.08
-            pw2=.12
-            box = self.ax.get_position()
-            print('box=',box)
-            self.ax.set_position([box.x0 - pw1*box.width,
-                                  box.y0 - ph1*box.height,
-                                  (1+pw1+pw2)*box.width,
-                                  (1+ph1+ph2)*box.height])
-
-            # Put a legend below current axis
-            #self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, -2*p),
-            #               fancybox=True, shadow=True, ncol=5)
+        # Expand or shrink axis's width & height so we fill the canvas
+        #self.fig.tight_layout(pad=0)
+        ph1=.15
+        ph2=.1
+        pw1=.08
+        pw2=.12
+        box = self.ax.get_position()
+        print('box=',box)
+        self.ax.set_position([box.x0 - pw1*box.width,
+                              box.y0 - ph1*box.height,
+                              (1+pw1+pw2)*box.width,
+                              (1+ph1+ph2)*box.height])
+        
+        # Put a legend below current axis
+        #self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, -2*p),
+        #               fancybox=True, shadow=True, ncol=5)
 
         # Re-draw the canvas
         self.canv.draw()
-
+        #sys.exit(0)
 
     # Function to draw spots on the map
     def UpdateMap(self):
@@ -1022,7 +1042,7 @@ class SAT_GUI(QMainWindow):
             sat_names=list(self.Satellites.keys())
         for name in sat_names:
             Sat=self.Satellites[name]
-            if name=='Moon' or not Sat.main:
+            if name in CELESTIAL_BODY_LIST or not Sat.main:
                 print('FIND NEXT TRANSIT: Hmmmm - no transponder for this sat - skipping')
                 continue
             
@@ -1094,8 +1114,8 @@ class SAT_GUI(QMainWindow):
             if Sat.name=='Moon':
             
                 # Donde estan la luna y el sol?
-                [moon_az,moon_el,moon_lat,moon_lon,illum] = Sat.current_moon_position()
-                [sun_az, sunn_el,sun_lat, sun_lon]  = Sat.current_sun_position()
+                [moon_az,moon_el,moon_lat,moon_lon,illum] = Sat.current_radiant_position()
+                [sun_az, sun_el, sun_lat, sun_lon, junk] = self.Satellites['Sun'].current_radiant_position()
                 self.MapWin.DrawSatTrack(Sat.name,moon_lon,moon_lat,title='Current Position of Sun and Moon')
                 self.MapWin.transform_and_plot(sun_lon,sun_lat,'o',clr='orange')
                 #self.MapWin.setWindowTitle('Current Position of Sun and Moon')
@@ -1139,23 +1159,23 @@ class SAT_GUI(QMainWindow):
         self.P.satellite = Sat
 
         # Plot sat track for current orbit on sat map
-        if self.P.SHOW_MAP and sat=='Moon':
+        if self.P.SHOW_MAP and sat in CELESTIAL_BODY_LIST:
             print('================================================ MMMMMMOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOONNNNNNNNNN =====')
             self.plot_sat_map_track(Sat,0)
             
-        # The moon is special
-        if sat=='Moon':
-            
-            # Generate a moon track
-            self.transit = Sat.gen_moon_track(ttt,VERBOSITY=1)
+        # The Sun, Moon and meteor showers are special
+        if sat in CELESTIAL_BODY_LIST+METEOR_SHOWER_LIST:
+
+            self.transit = Sat.gen_radiant_track(ttt,VERBOSITY=1)
             tt=self.transit.t
             az=self.transit.az
             el=self.transit.el
 
             # Indicate to use what he should see in the sky
-            lunation,phz=Sat.get_moon_phase()
-            print('lunation=',lunation,'\tphz=',phz)
-            self.status_bar.setText('Moon Phase: '+phz)
+            if sat=='Moon':
+                lunation,phz=Sat.get_moon_phase()
+                print('lunation=',lunation,'\tphz=',phz)
+                self.status_bar.setText('Moon Phase: '+phz)
 
         else:
             
@@ -1285,8 +1305,9 @@ class SAT_GUI(QMainWindow):
         self.sun, = self.ax2.plot(np.nan,np.nan,'o',color='orange')
         self.ax2.set_rmax(90)
 
-        if sat=='Moon':
-            [az,el,lat,lon,illum] = Sat.current_moon_position()
+        if sat in CELESTIAL_BODY_LIST+METEOR_SHOWER_LIST:
+            [az,el,lat,lon,illum] = Sat.current_radiant_position()
+            #[az,el,lat,lon,illum] = Sat.current_moon_position()
         else:
             [fdop1,fdop2,az,el,rng,lat,lon,footprint] = \
                 Sat.Doppler_Shifts(0,0,self.P.my_qth)
@@ -1345,7 +1366,7 @@ class SAT_GUI(QMainWindow):
         self.sky.set_data( [(90.-az)*RADIANS], [90.-max(0.,el)] )
 
         # Plot Sun position also
-        [sun_az,sun_el,lat,lon] = self.Satellites['Moon'].current_sun_position()
+        [sun_az,sun_el,lat,lon,junk] = self.Satellites['Sun'].current_radiant_position()
         #print('SUN:',sun_az,sun_el)
         if sun_el<-10:
             sun_az=np.nan
@@ -1374,29 +1395,42 @@ class SAT_GUI(QMainWindow):
         isat = int( round( event.ydata ) )
         sat = self.P.SATELLITE_LIST[isat]
         print('\n============================== MOUSE CLICK: New Sat Selected=',sat,isat,'========================================\n')
+        #print('\tButton=',event.button)
 
-        xx = self.ax.get_xlim()
-        # print('xx=',xx)
-        t = self.date1 + timedelta(days=event.xdata - int(xx[0]) )
-        tt = time.mktime(t.timetuple())
-        print('\ttime=',t,tt)
+        if event.button==1:
+            
+            # Left click
+            print('\tLeft Click - select sat and pass ...')
+            xx = self.ax.get_xlim()
+            # print('xx=',xx)
+            t = self.date1 + timedelta(days=event.xdata - int(xx[0]) )
+            tt = time.mktime(t.timetuple())
+            print('\ttime=',t,tt)
 
-        # Find closest pass to this time
-        pass_times = self.pass_times[isat-1]
-        #print pass_times
-        dt = abs( pass_times - tt )
-        idx = np.argmin(dt)
-        ttt = pass_times[idx]
-        # print('idx=',idx,'\tttt=',ttt)
+            # Find closest pass to this time
+            pass_times = self.pass_times[isat-1]
+            #print pass_times
+            dt = abs( pass_times - tt )
+            idx = np.argmin(dt)
+            ttt = pass_times[idx]
+            # print('idx=',idx,'\tttt=',ttt)
 
-        # Plot sky track
-        self.plot_sky_track(sat,ttt)
+            # Plot sky track
+            self.plot_sky_track(sat,ttt)
 
-        # Rotor diagnostics/alg development
-        if self.P.TEST_MODE:
-            #print('\nTEST_MODE:',self.cross180,self.flipper,self.event_type)
-            simulate_rotor(self)
+            # Rotor diagnostics/alg development
+            if self.P.TEST_MODE:
+                #print('\nTEST_MODE:',self.cross180,self.flipper,self.event_type)
+                simulate_rotor(self)
 
+        elif event.button==3:
+
+            # Right click
+            print('\tRight Click - Get info ...',self.info)
+            self.info  = INFO_WINDOW(self.P,sat)
+            #self.info.show()
+            print('info=',self.info)
+            
         print(' ')
 
 ################################################################################

@@ -16,4 +16,5 @@ dependencies = [
     "pyside6>=6.9.1",
     "pytz>=2025.2",
     "scipy>=1.15.3",
+    "xmltodict>=0.14.2",
 ]

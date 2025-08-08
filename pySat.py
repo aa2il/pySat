@@ -1,7 +1,5 @@
 #!/usr/bin/env -S uv run --script
 #
-#! /home/joea/miniconda3/envs/aa2il/bin/python -u
-#
 # NEW: /home/joea/miniconda3/envs/aa2il/bin/python -u
 # OLD: /usr/bin/python3 -u 
 ################################################################################
@@ -65,20 +63,11 @@ URL2 = "~/Python/pySat/nasa.txt"                                 # Local copy
 
 import sys
 from pyhamtools.locator import locator_to_latlong
-if True:
-    # Dynamic importing - this works!
-    from widgets_qt import QTLIB
-    exec('from '+QTLIB+'.QtWidgets import QApplication')
-    exec('from '+QTLIB+' import QtCore')
-elif False:
-    from PyQt6.QtWidgets import QApplication
-    from PyQt6 import QtCore
-elif False:
-    from PySide6.QtWidgets import QApplication
-    from PySide6 import QtCore
-else:
-    from PyQt5.QtWidgets import QApplication
-    from PyQt5 import QtCore
+
+from widgets_qt import QTLIB
+exec('from '+QTLIB+'.QtWidgets import QApplication')
+exec('from '+QTLIB+' import QtCore')
+
 import urllib.request, urllib.error, urllib.parse
 import json
 from dateutil import tz
@@ -89,6 +78,7 @@ import os
 import time
 from datetime import timedelta,datetime
 from collections import OrderedDict
+from pprint import pprint
 
 from params import PARAMS
 from watchdog import WatchDog
@@ -98,6 +88,7 @@ from gui import SAT_GUI
 from tcp_server import *
 from latlon2maiden import *
 from fileio import read_gps_coords
+from meteor_showers import *
 
 ################################################################################
 
@@ -108,6 +99,11 @@ VERSION='1.0'
 print('\n****************************************************************************')
 print('\n   Satellite Pass Predicter and Rig Control v',VERSION,'beginning ...\n')
 P=PARAMS()
+print("P=")
+pprint(vars(P))
+print('\n\tPython version=',sys.version_info[0],'.',
+      sys.version_info[1],'.',sys.version_info[2])
+print('\tQT Version=',QtCore.qVersion(),'\n')
 
 # Put up splash screen
 P.app  = QApplication(sys.argv)
@@ -448,6 +444,9 @@ P.TLE=html.replace('\n\n','\n').split('\n')
 #sys.exit(0)
 print(" ")
 
+# Get meteor shower info also    
+P.SHOWERS = get_meteor_showers()
+    
 # Open UDP client
 if P.UDP_CLIENT:
     P.gui.status_bar.setText('Opening UDP client ...')
@@ -477,7 +476,7 @@ sat,ttt=P.gui.find_next_transit([P.sat_name])
 print('Here we go...')
 if sat:
     P.gui.plot_sky_track(sat,ttt)
-    
+
 # Event loop
 print('And away we go ...')
 P.app.exec()

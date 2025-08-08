@@ -56,33 +56,13 @@ import time
 from datetime import timedelta,datetime, timezone
 import ephem
 
-if True:
-    # Dynamic importing - this works!
-    from widgets_qt import QTLIB
-    exec('from '+QTLIB+'.QtWidgets import QMainWindow,QWidget,QGridLayout')
-elif False:
-    from PyQt6.QtWidgets import *
-elif False:
-    from PySide6.QtWidgets import *
-else:
-    from PyQt5.QtWidgets import *
+from widgets_qt import QTLIB
+exec('from '+QTLIB+'.QtWidgets import QMainWindow,QWidget,QGridLayout')
 
 import numpy as np
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-from matplotlib.offsetbox import AnchoredText
-import matplotlib.patches as mpatches
-from matplotlib.image import imread
-
-from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
-import matplotlib.ticker as mticker
-from shapely.geometry.polygon import Polygon
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-
 from constants import *
 from utilities import error_trap
+from rig_io.ft_tables import CELESTIAL_BODY_LIST,METEOR_SHOWER_LIST
 
 ################################################################################
 
@@ -167,9 +147,10 @@ class TRANSIT:
 
 # Structure to contain data for a satellite
 class SATELLITE:
-    def __init__(self,isat,name,qth,date1,date2,TLE):
+    def __init__(self,isat,name,qth,date1,date2,TLE,SHOWERS):
 
-        print('\nSATELLITE CLASS: isat=',isat,'-\tSat:',name, \
+        print('\n=====================================================================')
+        print('SATELLITE CLASS: isat=',isat,'-\tSat:',name, \
               '\ttb-ta:',date1,date2,'\tqth:',qth)
         self.name = name
         self.isat = isat
@@ -195,9 +176,13 @@ class SATELLITE:
         self.obs.elevation = self.qth[2]
         self.obs.pressure=0
         
-        # The moon is special since we don't use TLEs
-        if name=='Moon':
-            self.fly_me_to_the_moon(date1,date2)
+        # Celestial and meteor showers are special since we don't use TLEs
+        if name in CELESTIAL_BODY_LIST:
+            self.meteor_shower(name,date1,date2)
+            #self.fly_me_to_the_moon(date1,date2)
+            return
+        elif name in METEOR_SHOWER_LIST:
+            self.meteor_shower(SHOWERS[name],date1,date2)
             return
 
         # Predict transits of this (artificial) satellite over qth for the specified time span
@@ -417,9 +402,13 @@ class SATELLITE:
 
         # Observe sat at current time
         now = time.mktime( datetime.now().timetuple() )
-        if self.name=='Moon':
+        if self.name=='MoonDoggy':
             # Hack hack hack!
             [az,el,lat,lon,illum]   = self.current_moon_position()
+            return [0,0,az,el,230e3,lat,lon,1]
+        elif self.name in CELESTIAL_BODY_LIST+METEOR_SHOWER_LIST:
+            # Hack hack hack!
+            [az,el,lat,lon,illum]   = self.current_radiant_position()
             return [0,0,az,el,230e3,lat,lon,1]
         else:
             if USE_PYPREDICT:
@@ -595,38 +584,53 @@ class SATELLITE:
   
         return lunation,phz
 
-    # Function to handle moon passes
-    def fly_me_to_the_moon(self,date1,date2):
-        print('\nFLY_ME_TO_THE_MOON: my_qth=',self.qth,'\ndate1=',date1,'\tdate2=',date2)
+    # Function to handle meteor showers
+    def meteor_shower(self,shower,date1,date2):
+        print('\nMETEOR_SHOWER: my_qth=',self.qth,'\ndate1=',date1,'\tdate2=',date2)
 
-        # The Moon
-        moon = ephem.Moon()
-        self.moon= moon
-
-        # The Sun
-        self.sun = ephem.Sun()
+        # Create fixed body at radiant
+        if shower=='Moon':
+            self.radiant = ephem.Moon()
+        elif shower=='Sun':
+            self.radiant = ephem.Sun()
+        else:
+            self.radiant = ephem.FixedBody()
+            ra = float( shower.RA )
+            decl = float( shower.DE )
+            print('\tRA=',ra,'\tdecl=',decl)
+            self.radiant._ra  = ephem.degrees(ra*DEG2RAD)
+            self.radiant._dec = ephem.degrees(decl*DEG2RAD)
+            self.radiant._epoch = ephem.J2000
+            #sys.exit(0)
 
         # Fake the transponders to use the weak signal portion of the 2m band
-        self.get_transponders()
+        # Not sure why I thought we needed to do this?
+        #self.get_transponders()
         #print('Moon transp=',self.transponders)
-        
+                    
         # Loop over all the days requested
         Done=False
         self.obs.date=date1
         transits=[]
         while not Done:
 
-            # Find next moon rise ...
-            moon.compute(self.obs)
-            rise=self.obs.next_rising(moon)
+            # Find next rise ...
+            self.radiant.compute(self.obs)
+            try:
+                rise=self.obs.next_rising(self.radiant)
+            except:
+                rise=self.obs.date
             local1=ephem.localtime(rise)
             #print('\n',self.obs.date,'\nNext Mooon Rise:',rise,'\t',local1)
             #print('az/el=',moon.az,moon.alt)
 
-            # ... and corresponding moon setting
+            # ... and corresponding set ...
             self.obs.date=rise
-            moon.compute(self.obs)
-            setting=self.obs.next_setting(moon)
+            self.radiant.compute(self.obs)
+            try:
+                setting=self.obs.next_setting(self.radiant)
+            except:
+                setting=self.obs.date+1
             local2=ephem.localtime(setting)
             #print('Following moon setting:',setting,'\t',local2)
             #print('az/el=',moon.az,moon.alt)
@@ -665,61 +669,36 @@ class SATELLITE:
                 
         return transits
 
-    # Function to return current moon info
-    def current_moon_position(self):
+    # Function to return current radiantinfo
+    def current_radiant_position(self):
         self.obs.date = datetime.utcnow()
-        self.moon.compute(self.obs)
-        az=self.moon.az
-        el=self.moon.alt
-        illum=self.moon.phase
+        self.radiant.compute(self.obs)
+        az=self.radiant.az
+        el=self.radiant.alt
+        if self.name=='Moon':
+            illum=self.radiant.phase
+        else:
+            illum=0
 
         self.greenwich.date = self.obs.date
-        self.moon.compute(self.greenwich)
-        lon = ( self.moon.ra - self.greenwich.sidereal_time() )*RAD2DEG
-        lat = ( self.moon.dec )*RAD2DEG
+        self.radiant.compute(self.greenwich)
+        lon = ( self.radiant.ra - self.greenwich.sidereal_time() )*RAD2DEG
+        lat = ( self.radiant.dec )*RAD2DEG
 
         if False:
             print('Current Moon: date=',self.greenwich.date, \
                   '\n\taz=',az,'\tel=',el, \
                   '\n\tlat=',lat,'\t','lon=',lon,
                   '\nIllumination=',illum,'%')
-        return [az*RAD2DEG, el*RAD2DEG, lat, lon,illum]
-
-    # Function to return current sun info
-    def current_sun_position(self):
-
-        now=time.time()
-        dt = now - self.last_update
-        if dt>=SUN_UPDATE_INTERVAL:
-            self.last_update=now
-        
-            self.obs.date = datetime.utcnow()
-            self.sun.compute(self.obs)
-            az=self.sun.az
-            el=self.sun.alt
-            
-            self.greenwich.date = self.obs.date
-            self.sun.compute(self.greenwich)
-            lon = ( self.sun.ra - self.greenwich.sidereal_time() )*RAD2DEG
-            lat = ( self.sun.dec )*RAD2DEG
-
-            print('Current Sun: date=',self.greenwich.date, \
-                  '\n\taz=',az,'\tel=',el, \
-                  '\n\tlat=',lat,'\t','lon=',lon,'\tdt=',dt)
-
-            self.sun_pos = [az*RAD2DEG, el*RAD2DEG, lat, lon]
-            
-        return self.sun_pos
-
-
+        return [az*RAD2DEG, el*RAD2DEG, lat, lon, illum]
+    
     # Function to compute moon track for a single pass
-    def gen_moon_track(self,t1,t2=None,dt=10.*MINS2DAYS,VERBOSITY=0):
-        moon=self.moon
+    def gen_radiant_track(self,t1,t2=None,dt=10.*MINS2DAYS,VERBOSITY=0):
         
         if VERBOSITY>0:
-            print('\nGEN_MOON_TRACK: t1=',t1,'\tt2=',t2,'\tdt=',dt)
+            print('\nGEN_RADIANT_TRACK: t1=',t1,'\tt2=',t2,'\tdt=',dt)
             print('obs=',self.obs)
-            print('moon=',moon)
+            print('radiant=',self.radiant)
             print('t1a=',t1,type(t1),isinstance(t1,float))
 
         # Convert t1 (start time or time in the pass) to ephem datetime object
@@ -747,14 +726,20 @@ class SATELLITE:
 
             # No - take t1 as some time in the past and find moon rise and set for the pass
             self.obs.date = t1
-            moon.compute(self.obs)
-            
-            rise=self.obs.previous_rising(moon)
+            self.radiant.compute(self.obs)
+
+            try:
+                rise=self.obs.previous_rising(self.radiant)
+            except:
+                rise=self.obs.date
             local1=ephem.localtime(rise)
             print('\nDate for Computation=',self.obs.date,'\nPrev Mooon Rise:',rise,'\t',local1)
-            print('az/el=',moon.az,moon.alt)
-            
-            setting=self.obs.next_setting(moon)
+            print('az/el=',self.radiant.az,self.radiant.alt)
+
+            try:
+                setting=self.obs.next_setting(self.radiant)
+            except:
+                setting=self.obs.date+1
             local2=ephem.localtime(setting)
             #print('Next Moon setting:',setting,'\t',local2)
             #print('az/el=',moon.az,moon.alt)
@@ -763,7 +748,7 @@ class SATELLITE:
             t2=setting
             #print('Rise=',t1,type(t1),local1,'\tSet=',t2,type(t2),local2)
 
-        # Compute moon track
+        # Compute track
         t=t1
         Done=False
         tt=[]
@@ -777,14 +762,14 @@ class SATELLITE:
                 Done=True
                 t=t2
             self.obs.date=t
-            moon.compute(self.obs)
+            self.radiant.compute(self.obs)
 
             local=ephem.localtime(t).timestamp()
             tt.append(local)
-            az.append(moon.az*RAD2DEG)
-            el.append(moon.alt*RAD2DEG)
+            az.append(self.radiant.az*RAD2DEG)
+            el.append(self.radiant.alt*RAD2DEG)
             if VERBOSITY>0:
-                print('Track: t=',self.obs.date,'\taz=',moon.az,'\tel=',moon.alt)
+                print('Track: t=',self.obs.date,'\taz=',self.radiant.az,'\tel=',self.radiant.alt)
             
             t+=dt
 
@@ -795,273 +780,3 @@ class SATELLITE:
         
         return transit
 
-    
-################################################################################
-
-class MAPPING(QMainWindow):
-    def __init__(self,P,parent=None):
-        super(MAPPING, self).__init__(parent)
-
-        # Init
-        self.P=P
-        self.win  = QWidget()
-        self.setCentralWidget(self.win)
-        self.setWindowTitle('Satellite Track')
-        self.grid = QGridLayout(self.win)
-
-        self.fig  = Figure()
-        self.canv = FigureCanvas(self.fig)
-        self.grid.addWidget(self.canv,0,0)
-        self.ax=None
-
-        # Create figure centered on USA
-        lon0=-75
-        self.proj=ccrs.PlateCarree(central_longitude=lon0) 
-        self.ax = self.fig.add_subplot(1, 1, 1, projection=self.proj)
-        if False:
-            # This doesn't work under pyinstaller ...
-            self.ax.stock_img()
-        else:
-            # ... so we load image directly instead
-            fname='../data/50-natural-earth-1-downsampled.png'
-            print('fname=',fname)
-            img = imread(fname)
-            self.ax.imshow(img, origin='upper', transform=ccrs.PlateCarree(),
-                      extent=[-180, 180, -90, 90])
-
-        self.ax.set_aspect('auto')
-        self.fig.tight_layout(pad=0)
-            
-        # Create a feature for States/Admin 1 regions at 1:50m from Natural Earth
-        states_provinces = cfeature.NaturalEarthFeature(
-            category='cultural',
-            name='admin_1_states_provinces_lines',
-            scale='50m',
-            facecolor='none')
-
-        # Add boundaries
-        self.ax.add_feature(cfeature.LAND)
-        self.ax.add_feature(cfeature.COASTLINE)
-        self.ax.add_feature(cfeature.BORDERS)
-        self.ax.add_feature(states_provinces, edgecolor='gray')
-        
-        self.show()
-        self.canv.draw()
-        self.blobs=[]
-
-        # Make sure window has some size to it (problem if headless on RPi)
-        qr = self.win.frameGeometry()
-        w=qr.width()
-        h=qr.height()
-        print('qr=',qr,w,h)
-        if w<400 or h<400:
-            self.win.resize( max(400,w) , max(h,400) )
-        #sys.exit(0)
-
-    def ComputeSatTrack(self,Sat,tstart=None,npasses=1):
-        if tstart==None:
-            tstart = datetime.now()
-
-        tle0=Sat.tle.split('\n')
-        print('COMPUTE SAT TRACK: tle=',tle0)
-
-        tle2=tle0[2].split()
-        #inclination=float(tle2[2])
-        revs=float(tle2[7])
-        rev_mins=24.*60./revs
-        print('rev per day=',revs,'\t',rev_mins)
-        
-        lons=[]
-        lats=[]
-        footprints=[]
-        for m in range(0,int(npasses*rev_mins+2),1):
-            dt = timedelta(minutes=m)
-            t = time.mktime( (tstart+dt).timetuple() )
-            
-            if USE_PYPREDICT:
-                obs = predict.observe(Sat.tle,self.P.my_qth,t)
-            else:
-                obs = Sat.observe(t)
-                
-            lon=obs['longitude']
-            lat=obs['latitude']
-            footprint=obs['footprint']
-
-            # DEBUG
-            if False:
-                print(obs['orbit'],'\t',tstart+dt,'\t',lon,'\t',lat,
-                      '\t',footprint)
-                    
-                obs1=Sat.observe(t)
-                lon1=obs1['longitude']
-                lat1=obs1['latitude']
-                footprint1=obs1['footprint']
-                print(obs1['orbit'],'\t',tstart+dt,'\t',lon1,'\t',lat1,
-                          '\t',footprint1)
-                print('*** COMPUTE SAT TRACK - DEBUG - EXITING ***')
-                sys.exit(0)
-
-            lons.append(lon)
-            lats.append(lat)
-            footprints.append(footprint)
-
-        return lons,lats,footprints
-
-    def transform_and_plot(self,lons,lats,style,clr=None):
-        if np.isscalar(lons):
-            lons = np.array( [lons] )
-        if np.isscalar(lats):
-            lats = np.array( [lats] )
-        xx=[]
-        yy=[]
-        x_prev=np.nan
-        phz=0
-        for lon,lat in zip(lons,lats):
-            x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
-            x+=phz
-            dx=x-x_prev
-            #print('XFORM and PLOT:\t',lon,'\t',lat,'\t',dx,'\t',x,'\t',y)
-            if dx>120:
-                phz-=360
-                x-=360
-            elif dx<-120:
-                phz+=360
-                x+=360
-            xx.append(x)
-
-            #yy.append(max(min(y,90),-90))
-            yy.append(y)
-            x_prev=x
-
-        if not clr:
-            clr=style[0]
-        #p=self.ax.plot(xx,yy,style,color=clr,transform=self.proj)
-        p=self.ax.plot(xx,yy,style,transform=self.proj)
-        return p[0]
-        
-    def DrawSatTrack(self,name,lons,lats,ERASE=True,title=None):
-
-        # Set title to sat name
-        if title==None:
-            title=name
-        self.setWindowTitle(title)
-        
-        # Clear prior plots
-        if ERASE:
-            for line in self.ax.get_lines():
-                #print('line=',line)
-                line.remove()
-            for p in self.blobs:
-                #print('p=',line)
-                try:
-                    p.remove()
-                except:
-                    pass
-            self.blobs=[]
-
-        # Plot sat track
-        self.transform_and_plot(-self.P.my_qth[1],self.P.my_qth[0],'mo')
-        if name=='Moon':
-            self.transform_and_plot(lons,lats,'bo')
-            return
-        elif name=='Sun':
-            self.transform_and_plot(lons,lats,'yo')
-            return
-        self.transform_and_plot(lons,lats,'b-')
-        self.transform_and_plot(lons[0],lats[0],'g*')
-        self.transform_and_plot(lons[-1],lats[-1],'r*')
-
-        self.canv.draw()
-        return
-    
-        
-    def DrawSatFootprint(self,name,lon0,lat0,footprint,ERASE=True):
-
-        # Clear prior footprints
-        if ERASE:
-            for p in self.blobs:
-                print(p)
-                p.remove()
-            self.blobs=[]
-
-        # Add footprint "ellipse"
-        #Latitude: 1 deg = 110.54 km
-        #Longitude: 1 deg = 111.320*cos(latitude) km
-        dy=0.5*footprint/110.54
-        dx=0.5*footprint/(111.32*np.cos(lat0*DEG2RAD))
-
-        #print('\nEllipse:',lon0,lat0,footprint)
-        north_pole = lat0+dy>=80
-        south_pole = lat0-dy<=-80
-        phz=0
-        #print('Poles:',lat0,dy,north_pole,south_pole)
-
-        xx=[]
-        yy=[]
-        pgon=[]
-        lon_prev=np.nan
-        step=5
-        for alpha in range(0,360+step,step):
-            lat=lat0+dy*np.sin(alpha*DEG2RAD)
-            dx=0.5*footprint/(111.32*np.cos(lat*DEG2RAD))
-            lon=lon0 + dx*np.cos(alpha*DEG2RAD)
-            
-            x,y = self.proj.transform_point(lon,lat, ccrs.Geodetic())
-            #print(alpha,'\t',dx,'\t',lon,'\t',lat,'\t',x,'\t',y)
-
-            # Only keep valid points - near the poles, this can get squirrly
-            if dx>0 and dx<180:
-                x+=phz
-                dlon=x-lon_prev
-                if dlon>120:
-                    if north_pole or south_pole:
-                        if north_pole:
-                            y0=90
-                        else:
-                            y0=-90
-                        pgon.append((-180+phz,y))
-                        #print(pgon[-1])
-                        pgon.append((-180+phz,y0))
-                        #print(pgon[-1])
-                        pgon.append((180+phz,y0))
-                        #print(pgon[-1])
-                        pgon.append((180+phz,y))
-                        #print(pgon[-1])
-                    else:
-                        phz-=360
-                        x-=360
-                elif dlon<-120:
-                    if north_pole or south_pole:
-                        if north_pole:
-                            y0=90
-                        else:
-                            y0=-90
-                        pgon.append((180+phz,y))
-                        #print(pgon[-1])
-                        pgon.append((180+phz,y0))
-                        #print(pgon[-1])
-                        pgon.append((-180+phz,y0))
-                        #print(pgon[-1])
-                        pgon.append((-180+phz,y))
-                        #print(pgon[-1])
-                    else:
-                        phz+=360
-                        x+=360
-                        
-                lon_prev=x
-                #xx.append(lon)
-                #yy.append(lat)
-                #y=max(min(y,90),-90)
-                pgon.append((x,y))
-                
-        #self.transform_and_plot(xx,yy,'g-')
-        #self.transform_and_plot(xx[0],yy[0],'go')
-        pgon=Polygon( tuple(pgon) )
-        p=self.ax.add_geometries([pgon], crs=self.proj, facecolor='r',
-                          edgecolor='red', alpha=0.3)
-        self.blobs.append(p)
-
-        p=self.transform_and_plot(lon0,lat0,'k*')
-        self.blobs.append(p)
-        
-        self.canv.draw()

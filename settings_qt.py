@@ -21,21 +21,10 @@
 
 import sys
 import json
-if True:
-    # Dynamic importing - this works!
-    from widgets_qt import QTLIB
-    exec('from '+QTLIB+'.QtWidgets import QMainWindow,QWidget,QGridLayout,QLabel,QLineEdit,QCheckBox,QPushButton')
-    exec('from '+QTLIB+' import QtCore')
-elif False:
-    from PyQt6.QtWidgets import *
-    from PyQt6 import QtCore
-elif False:
-    from PySide6.QtWidgets import *
-    from PySide6 import QtCore
-else:
-    from PyQt5.QtWidgets import *
-    from PyQt5 import QtCore
-from rig_io.ft_tables import SATELLITE_LIST
+from widgets_qt import QTLIB
+exec('from '+QTLIB+'.QtWidgets import QMainWindow,QWidget,QGridLayout,QLabel,QLineEdit,QCheckBox,QPushButton')
+exec('from '+QTLIB+' import QtCore')
+from rig_io.ft_tables import SATELLITE_LIST,CELESTIAL_BODY_LIST,METEOR_SHOWER_LIST
 
 #########################################################################################
 
@@ -49,6 +38,7 @@ class SETTINGS_GUI_QT(QMainWindow):
         self.setCentralWidget(self.win)
         self.setWindowTitle('pySat Settings')
         self.grid = QGridLayout(self.win)
+        self.ALL_OBJECTS = SATELLITE_LIST + CELESTIAL_BODY_LIST + METEOR_SHOWER_LIST
 
         # Boxes to hold geographic info (i.e. gps data)
         row=0
@@ -75,12 +65,6 @@ class SETTINGS_GUI_QT(QMainWindow):
             self.eboxes.append(ebox)            
             row+=1
 
-        # Separater for next section
-        lab = QLabel(self)
-        lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-        lab.setText('----- Known Satellites: -----')
-        self.grid.addWidget(lab,row,col,1,1)
-
         if False:
             row+=1
             lab = QLabel(self)
@@ -98,37 +82,57 @@ class SETTINGS_GUI_QT(QMainWindow):
         else:
             OFFSETS=None
         row0=row+1
-        for sat in SATELLITE_LIST:
+        for sat in self.ALL_OBJECTS:
             row+=1
             if row>row0+16:
                 row=row0
                 col+=4
-            
+
+            # Separater for next section
+            if sat in [SATELLITE_LIST[0],CELESTIAL_BODY_LIST[0],METEOR_SHOWER_LIST[0]]:
+                lab = QLabel(self)
+                lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+                if sat==SATELLITE_LIST[0]:
+                    txt='----- Known Satellites: ----- \tTX Offset\rRX Offset'
+                elif sat==CELESTIAL_BODY_LIST[0]:
+                    txt='----- Celestial Bodies: -----'
+                else:
+                    txt='----- Meteor Shower: --------'
+                lab.setText(txt)
+                self.grid.addWidget(lab,row,col,1,1)
+                row+=1
+
+            # Checkbox to indicate if we want to use this object
             cbox = QCheckBox(sat)
             self.grid.addWidget(cbox,row,col,1,1)
             self.cboxes.append(cbox)
             if sat!='None' and sat in P.SATELLITE_LIST:
                 cbox.setChecked(True)
-                
-            ebox = QLineEdit(self)
-            self.eboxes1.append(ebox)
-            try:
-                txt=str(OFFSETS[sat][0])
-            except:
-                txt="0"
-            ebox.setText(txt)
-            ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            self.grid.addWidget(ebox,row,col+1,1,1)
+
+            # Entry boxes for TX and RX offsets
+            if sat in SATELLITE_LIST:
+                ebox = QLineEdit(self)
+                self.eboxes1.append(ebox)
+                try:
+                    txt=str(OFFSETS[sat][0])
+                except:
+                    txt="0"
+                ebox.setText(txt)
+                ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+                self.grid.addWidget(ebox,row,col+1,1,1)
             
-            ebox = QLineEdit(self)
-            self.eboxes2.append(ebox)
-            try:
-                txt=str(OFFSETS[sat][1])
-            except:
-                txt="0"
-            ebox.setText(txt)
-            ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            self.grid.addWidget(ebox,row,col+2,1,1)
+                ebox = QLineEdit(self)
+                self.eboxes2.append(ebox)
+                try:
+                    txt=str(OFFSETS[sat][1])
+                except:
+                    txt="0"
+                ebox.setText(txt)
+                ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+                self.grid.addWidget(ebox,row,col+2,1,1)
+            else:
+                self.eboxes1.append(None)
+                self.eboxes2.append(None)
             
             isat+=1
                 
@@ -154,9 +158,13 @@ class SETTINGS_GUI_QT(QMainWindow):
         # Collect things related to the list of sats
         ACTIVE=['None']
         OFFSETS={}
-        for sat,cbox,ebox1,ebox2 in zip(SATELLITE_LIST,self.cboxes,self.eboxes1,self.eboxes2):
+        for sat,cbox,ebox1,ebox2 in zip(self.ALL_OBJECTS,self.cboxes,self.eboxes1,self.eboxes2):
+            print('SETTINGS UPDATE: sat=',sat)
             if sat!='None':
-                OFFSETS[sat] = [int(ebox1.text()) , int(ebox2.text())]
+                if ebox1:
+                    OFFSETS[sat] = [int(ebox1.text()) , int(ebox2.text())]
+                else:
+                    OFFSETS[sat] = []
                 if cbox.isChecked():
                     ACTIVE.append(sat)
 

@@ -21,20 +21,11 @@
 
 import sys
 import json
-if True:
-    # Dynamic importing - this works!
-    from widgets_qt import QTLIB
-    exec('from '+QTLIB+'.QtWidgets import QMainWindow,QWidget,QGridLayout,QLabel,QLineEdit,QPushButton')
-    exec('from '+QTLIB+' import QtCore')
-elif False:
-    from PyQt6.QtWidgets import *
-    from PyQt6 import QtCore
-elif False:
-    from PySide6.QtWidgets import *
-    from PySide6 import QtCore
-else:
-    from PyQt5.QtWidgets import *
-    from PyQt5 import QtCore
+
+from widgets_qt import QTLIB
+exec('from '+QTLIB+'.QtWidgets import QMainWindow,QWidget,QGridLayout,QLabel,QLineEdit,QPushButton')
+exec('from '+QTLIB+' import QtCore')
+
 from rig_io.ft_tables import SATELLITE_LIST
 from collections import OrderedDict
 import time
@@ -48,6 +39,7 @@ class LOGGING(QMainWindow):
         super(LOGGING, self).__init__(parent)
 
         # Init
+        print('LOGGING init ...')
         self.P=P
         self.win  = QWidget()
         self.setCentralWidget(self.win)
@@ -76,7 +68,7 @@ class LOGGING(QMainWindow):
         self.eboxes=[]
         row0=row+1
         for key in keys:
-            print('key=',key)
+            #print('\tkey=',key)
             
             lab = QLabel(key)
             self.grid.addWidget(lab,row,col,1,1)
