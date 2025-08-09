@@ -5,6 +5,49 @@ GUI showing satellite pass predictions.  Can also control radio and antenna roto
 ![Screen Shot]( Docs/sat.png)
 ![Screen Shot]( Docs/track.png)
 
+# Installation under Linux using uv:
+
+0) This seems to be the easiest/best solution.  You will need to install uv on your system (once):
+
+      curl -LsSf https://astral.sh/uv/install.sh | sh      
+      rehash     
+
+1) Clone gitub pySat, libs and data repositories
+      
+      cd
+      mkdir Python
+      cd Python
+      git clone https://github.com/aa2il/pySat
+      git clone https://github.com/aa2il/libs
+      git clone https://github.com/aa2il/data
+
+2) One of the features of uv is that the virtual environment is included in the github repository.  You should NOT have to do anything since uv will install the environment and required packages the first time you run wclock.:
+
+For the record, here is how I set up the environment:
+
+     cd ~/Python/pySat
+     uv init
+     rm main.py
+     uv add -r requirements.txt
+
+Note: pySat.py uses qt, not tk, so there is no problem with the recent versions of python (e.g. 3.13).
+
+3) Make sure pySat.py is executable and set PYTHON PATH so os can find libraries:
+
+     cd ~/Python/pySat
+     chmod +x pySat.py
+
+   - Under tcsh:      setenv PYTHONPATH $HOME/Python/libs
+   - Under bash:      export PYTHONPATH="$HOME/Python/libs"
+   
+4) Bombs away:
+
+     uv run pySat.py
+
+   or, 
+
+     ./pySat.py
+
 # Installation under Linux:
 
 1) Uses python3 and pyqt

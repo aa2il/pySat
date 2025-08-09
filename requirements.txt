@@ -8,6 +8,9 @@
 # On RPI, also need:
 #     uv pip install -r requirements.txt
 #
+# On RPi, QT does not render everything correctly.  I haven't been able to
+# find a solution to this yet but keep trying ...  See also demos/hello3.py
+#
 # Also need the "libs" and "data" directories which are available in this
 # repository.
 # Set the PYTHONPATH environment variable to point to where "libs" is installed,
@@ -17,8 +20,8 @@
 #
 ###############################################################################
 
-#pyqt6
-PySide6
+pyqt6
+#PySide6
 matplotlib
 cartopy
 pyserial

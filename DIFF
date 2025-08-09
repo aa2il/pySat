@@ -35,7 +35,7 @@ echo OLD=$old
 
 rm -f DIFFS
 set PREDICT="pypredict-1.7.0"
-foreach i (*.py *.txt $PREDICT/*.c  $PREDICT/*.py  $PREDICT/JBA work/* DIFF *.bat trsp/Moon.trsp trsp/None.trsp)
+foreach i (*.py *.txt IMO*.xml $PREDICT/*.c  $PREDICT/*.py  $PREDICT/JBA work/* DIFF *.bat trsp/Moon.trsp trsp/None.trsp)
     echo $i
     set n=`diff $old/$i $i | wc -l`
     if( !( -e $old/$i ) )then
