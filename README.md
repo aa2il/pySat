@@ -9,7 +9,12 @@ GUI showing satellite pass predictions.  Can also control radio and antenna roto
 
 0) This seems to be the easiest/best solution.  You will need to install uv on your system (once):
 
-      curl -LsSf https://astral.sh/uv/install.sh | sh      
+      curl -LsSf https://astral.sh/uv/install.sh | sh
+      rehash
+
+which will install uv in ~/.local/bin/uv .   If you want it system wide, try this:
+
+      curl -LsSf https://astral.sh/uv/install.sh | sudo env UV_INSTALL_DIR="/usr/local/bin" sh
       rehash     
 
 1) Clone gitub pySat, libs and data repositories
@@ -48,6 +53,29 @@ Note: pySat.py uses qt, not tk, so there is no problem with the recent versions 
 
      ./pySat.py
 
+5) Notes: On RPi using X11 and VNC, QT does not render everything correctly.
+   I "think" the fix is to add
+
+       video=HDMI-A-1:1920x1080M@60D
+
+   to the end of the line in /boot/firmware/cmdline.txt.   This seems to work
+   but I'm not convinced yet ... keep trying ...      See also demos/hello3.py
+   
+   It does, however, work just fine if we use RDP instead of VNC (tested both
+   X11 and labwc display managers.)  So the problem appears to be with VNC.
+
+   RDP is also a can of worms.   Install via
+
+      sudo apt install xrdp
+      sudo systemctl status xrdp
+
+   BUT, in the RPi, it doesn't work with the user pi so we need to create
+   another user and work there.  What a crock!
+
+   BTW, can replace "status" in the systemclt command with "start" or "stop"
+   so start/stop the xrdp daemon and with "enable" or "disable" to enable/disable
+   the daemon at atart-up (boot).
+                                      
 # Installation under Linux:
 
 1) Uses python3 and pyqt

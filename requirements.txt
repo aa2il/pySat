@@ -8,8 +8,14 @@
 # On RPI, also need:
 #     uv pip install -r requirements.txt
 #
-# On RPi, QT does not render everything correctly.  I haven't been able to
-# find a solution to this yet but keep trying ...  See also demos/hello3.py
+# On RPi using X11 and VNC, QT does not render everything correctly.
+# I "think" the fix is to add       video=HDMI-A-1:1920x1080M@60D
+# to the end of the line in /boot/firmware/cmdline.txt.   This seems to work
+# but I'm not convinced yet ... keep trying ...      See also demos/hello3.py
+# See also demos/hello3.py
+#
+# It does, however, work just fine if we use RDP instead of VNC (tested both
+# X11 and labwc display managers.)  So the problem appears to be with VNC
 #
 # Also need the "libs" and "data" directories which are available in this
 # repository.
