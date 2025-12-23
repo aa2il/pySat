@@ -190,6 +190,7 @@ if P.sock.rig_type2=='IC9700':
 # Open connection to rotor
 P.gui.status_bar.setText('Opening connection to rotor ...')
 P.sock2 = socket_io.open_rig_connection(P.ROTOR_CONNECTION,0,P.PORT2,0,'ROTOR')
+#sys.exit(0)
 if not P.sock2.active and P.sock2.connection!='NONE':
     print('*** No connection available to rotor ***')
     sys.exit(0)

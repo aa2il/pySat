@@ -1043,7 +1043,8 @@ class SAT_GUI(QMainWindow):
         for name in sat_names:
             Sat=self.Satellites[name]
             if name in CELESTIAL_BODY_LIST or not Sat.main:
-                print('FIND NEXT TRANSIT: Hmmmm - no transponder for this sat - skipping')
+                print('FIND NEXT TRANSIT: name=',name,
+                      '\tHmmmm - no transponder for this sat - skipping')
                 continue
             
             # Observe sat at current time
@@ -1358,7 +1359,7 @@ class SAT_GUI(QMainWindow):
         self.pos=pos
 
         # Plot current rotor position (the big magenta blob)
-        if not np.isnan(pos[0]):
+        if pos[0]!=None and not np.isnan(pos[0]):
             az90,el90 = self.resolve_pointing(pos[0],pos[1])
             self.rot.set_data( [az90*RADIANS], [el90])
 

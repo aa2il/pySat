@@ -21,16 +21,10 @@
 
 import numpy as np
 import sys
-if True:
-    # Dynamic importing - this works!
-    from widgets_qt import QTLIB
-    exec('from '+QTLIB+'.QtWidgets import QMainWindow')
-elif False:
-    from PyQt6.QtWidgets import QMainWindow
-elif False:
-    from PySide6.QtWidgets import QMainWindow
-else:
-    from PyQt5.QtWidgets import QMainWindow
+
+from widgets_qt import QTLIB
+exec('from '+QTLIB+'.QtWidgets import QMainWindow')
+
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -48,8 +42,12 @@ ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
 def rotor_flipped(self):
 
     # Read rotor position if necesary
-    #print('ROTOR FLIPPED: pos=',self.pos,self.flipper)
-    if not self.P.sock2.active:
+    print('ROTOR FLIPPED: pos=',self.pos,'\tflipper=',self.flipper,
+          '\n\tsock2=',self.P.sock2,self.P.sock2.connection,self.P.sock2.active)
+    if self.P.sock2.connection=='NONE':
+        print('ROTOR FLIPPED: No Rotor!!!!!')
+        self.flipper=False
+    elif not self.P.sock2.active:
         print('ROTOR FLIPPED: Rotor not active?????')
     else:
         if any(np.isnan(self.pos)):
@@ -253,7 +251,7 @@ def rotor_positioning(gui,az,el,Force):
 
     # Update rotor 
     rotor_updated=False
-    if gui.P.sock2.active:
+    if gui.P.sock2.connection!='NONE' and gui.P.sock2.active:
             
         # Current rotor position
         pos=gui.P.sock2.get_position()

@@ -266,14 +266,21 @@ class RigControl:
         #print(self.frqA,self.frqB)
 
         # Form new rotor position
-        try:
+        if 1:
             rotor_updated,pos,daz,de,new_pos = \
                 rotor_positioning(gui,self.az,self.el,Force)
+        """
+        try:
         except:
             error_trap('RIG CONTROL -> TRACK_FREQS: Unable to update rotor position')
             print(self.az,self.el)
-            pos=[nan,nan]
-
+            rotor_updated=False
+            pos=[np.nan,np.nan]
+            new_pos=[np.nan,np.nan]
+            daz=np.nan
+            de=np.nan
+        """
+        
         # Update sky track & sat map
         gui.plot_position(self.az,self.el,pos)
         engaged = gui.rig_engaged or gui.rotor_engaged
@@ -300,8 +307,15 @@ class RigControl:
         gui.txt3.setText("{:,}".format(int(self.frqA)))
         gui.txt4.setText("{:,}".format(int(self.frqB)))
 
-        gui.txt5.setText("Az: {: 3d}".format(int(new_pos[0])))
-        gui.txt6.setText("El: {: 3d}".format(int(new_pos[1])))
+        #print('=== new_pos=',new_pos)
+        if not np.isnan(new_pos[0]):
+            gui.txt5.setText("Az: {: 3d}".format(int(new_pos[0])))
+        else:
+            gui.txt6.setText("El: {: f}".format(new_pos[0]))
+        if not np.isnan(new_pos[1]):
+            gui.txt6.setText("El: {: 3d}".format(int(new_pos[1])))
+        else:
+            gui.txt6.setText("El: {: f}".format(new_pos[1]))
         if gui.flipper:
             gui.txt7.setText('Flip-a-roo-ski!')
         else:

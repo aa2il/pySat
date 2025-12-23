@@ -34,15 +34,9 @@ pyserial
 numpy
 pyhamtools
 scipy
-
 pypredict
 pyephem
-
 psutil
 pytz
-
+pandas
 xmltodict
-
-
-
-
