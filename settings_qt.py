@@ -61,7 +61,8 @@ class SETTINGS_GUI_QT(QMainWindow):
             ebox.setText(txt)
             ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.grid.addWidget(ebox,row,col+1,1,1)
-            
+            print(label,row,col)
+
             self.eboxes.append(ebox)            
             row+=1
 
@@ -96,15 +97,19 @@ class SETTINGS_GUI_QT(QMainWindow):
                     txt='----- Known Satellites: ----- \tTX Offset\rRX Offset'
                 elif sat==CELESTIAL_BODY_LIST[0]:
                     txt='----- Celestial Bodies: -----'
+                    row=row0
+                    col+=5
                 else:
                     txt='----- Meteor Shower: --------'
                 lab.setText(txt)
                 self.grid.addWidget(lab,row,col,1,1)
+                print(txt,row,col)
                 row+=1
 
             # Checkbox to indicate if we want to use this object
             cbox = QCheckBox(sat)
             self.grid.addWidget(cbox,row,col,1,1)
+            print(sat,row,col)
             self.cboxes.append(cbox)
             if sat!='None' and sat in P.SATELLITE_LIST:
                 cbox.setChecked(True)
@@ -138,7 +143,7 @@ class SETTINGS_GUI_QT(QMainWindow):
                 
         # Buttons to complete or abandon the update
         row+=2
-        col+=1
+        #col+=1
         button1 = QPushButton('OK')
         button1.setToolTip('Click to Update Settings')
         button1.clicked.connect(self.Update)

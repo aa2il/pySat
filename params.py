@@ -19,7 +19,7 @@
 #
 ################################################################################
 
-import os
+import os,sys
 from rig_io.ft_tables import SATELLITE_LIST,CONNECTIONS,SAT_RIGS
 import argparse
 from settings import read_settings
@@ -134,13 +134,24 @@ class PARAMS:
                 self.MY_GRID = 'DM12'
                 
         try:
-            self.SATELLITE_LIST = self.SETTINGS['ACTIVE']
+            ACTIVE = self.SETTINGS['ACTIVE']
 
             # There is a goofy legacy thing that I need to look into
             # that requires the first "sat" in the list be 'None'
-            if 'None' not in self.SATELLITE_LIST:
-                self.SATELLITE_LIST = ['None'] + self.SATELLITE_LIST
+            if 'None' not in ACTIVE:
+                ACTIVE = ['None'] + ACTIVE
+
+            self.SATELLITE_LIST = []
+            for sat in ACTIVE:
+                if sat in SATELLITE_LIST:
+                    self.SATELLITE_LIST.append(sat)
+                else:
+                    print(sat,'not in list of known satellites - ignored')
+            
         except:
             self.SATELLITE_LIST = SATELLITE_LIST
 
-        #print('PARAMS: SATELLITE LIST=',self.SATELLITE_LIST)
+        if False:
+            print('PARAMS: SATELLITE LIST=',self.SATELLITE_LIST)
+            print('Known SATS:',SATELLITE_LIST)
+            sys.exit(0)
