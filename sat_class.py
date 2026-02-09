@@ -39,7 +39,7 @@
 TRANSP_DATA = "~/Python/pySat/trsp"       # Transponder data
 MIN_PEAK_EL  = 30                         # Degrees, min. elevation to identify overhead passes
 USE_PYPREDICT=False
-USE_PYPREDICT=True
+#USE_PYPREDICT=True                       # This doesn't alwyas converge for some reason
 SUN_UPDATE_INTERVAL = 10*60               # Only update every ten minutes
 
 ################################################################################
@@ -216,7 +216,8 @@ class SATELLITE:
 
             else:
                 transit = self.next_transit(tafter)
-                #print('HEY:',tafter,tbefore,transit.start,transit.end)
+                #if name=='AO-7':
+                #    print('\t',tafter,tbefore,transit.start,transit.end)
                 
                 if transit==None or transit.start>tbefore:
                     break

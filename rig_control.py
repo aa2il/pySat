@@ -80,12 +80,18 @@ class RigControl:
         gui=P.gui
         #print('\nUPDATER ...')
 
+        need_update=gui.refresh.isSet()
+        if need_update:
+            print('UPDATER - Needs and update!',gui.Selected)
+            gui.refresh.clear()
+        
         engaged = gui.rig_engaged or gui.rotor_engaged                 
-        if (engaged or self.fdown==None) and gui.Selected:
+        if (need_update or engaged or self.fdown==None) and gui.Selected:
         
             # Tune to middle of transponder BW if we've selected a new sat
             if gui.New_Sat_Selection:
                 print('\nNew Sat Selected:',gui.Selected)
+                gui.setFocus()
                 P.satellite = gui.Satellites[gui.Selected]
                 if P.satellite.main:
                     P.transp    = P.satellite.transponders[P.satellite.main]
@@ -99,16 +105,19 @@ class RigControl:
                 # Put rig into sat mode
                 if P.sock.rig_type2=='FT991a':
                     print('Putting FT991a into SPLIT mode ...')
-                    P.sock.split_mode(1)
+                    P.sock.split_mode(1,VERBOSITY=1)
+                    P.SAT_MODE = True
                     self.vfos=['A','B']
                 elif P.sock.rig_type2=='IC9700':
                     if P.satellite.name in ['Moon','IO-117']:
-                        print('Putting IC9700 into Regular mode ...')
-                        P.sock.sat_mode(0)
+                        print('Putting IC9700 into Regular (non-SAT) mode ...')
+                        P.sock.sat_mode(0,VERBOSITY=1)
+                        P.SAT_MODE = False
                         self.vfos=['A','B']
                     else:
                         print('Putting IC9700 into SAT mode ...')
-                        P.sock.sat_mode(1)
+                        P.sock.sat_mode(1,VERBOSITY=1)
+                        P.SAT_MODE = True
                         self.vfos=['M','S']
                     self.check_ic9700_bands(P)
                 elif P.sock.rig_type2=='pySDR':
@@ -144,10 +153,12 @@ class RigControl:
                 # Set XIT for this sat
                 try:
                     OFFSETS=self.P.SETTINGS['OFFSETS']
+                    #print('\toffsets=',OFFSETS,'\tSelected=',gui.Selected)
+                    print('\toffsets=',OFFSETS[gui.Selected])
                     gui.rit=OFFSETS[gui.Selected][0]
                     gui.xit=OFFSETS[gui.Selected][1]
                 except:
-                    error_trap('RIG CONTROL -> UPDATER: Unable to set RIT/XIT')
+                    error_trap('RIG CONTROL->UPDATER: Unable to set RIT/XIT')
                     print('\tsat=',gui.Selected)
                     gui.rit=0
                     gui.xit=0
@@ -179,8 +190,10 @@ class RigControl:
         else:
             self.track_freqs(tag='Update')
 
-        # Update AOS/LOS indicator
+        # Update AOS/LOS indicator and other gui items that may have changed
         self.update_aos_los()
+        self.P.SatModeAct.setChecked(self.P.SAT_MODE)
+        
 
     # Routine to check VFO bands - the IC9700 is quirky if the bands are reversed
     def check_ic9700_bands(self,P):
@@ -249,17 +262,17 @@ class RigControl:
         [self.fdop1,self.fdop2,self.az,self.el,rng,lat,lon,footprint] = \
             P.satellite.Doppler_Shifts(self.fdown,self.fup,P.my_qth)
 
-        # Set up and down link freqs
+        # Set up link freq
         if len(self.vfos)>1:
             self.frqB = int(self.fup+self.fdop2 + gui.xit)
             if gui.rig_engaged or Force:
-                P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1])
+                P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1],VERBOSITY=1)
 
         # Compute downlink freq at rig = frq at sat + Doppler
         self.frqA = int(self.fdown+self.fdop1 + gui.rit)
         if gui.rig_engaged or Force:
-            print('TRACK FREQS: VFO A=',self.frqA,'\tVFO B=',self.frqB)
-            P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0])
+            print('\nTRACK FREQS: VFO A=',self.frqA,'\tVFO B=',self.frqB)
+            P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0],VERBOSITY=1)
             if P.USE_SDR:
                 #print('Setting SDR freq to:',1e-3*self.frqA)
                 P.sock3.set_freq(1e-3*self.frqA)

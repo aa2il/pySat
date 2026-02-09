@@ -38,7 +38,11 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
 from constants import DEG2RAD
 from utilities import error_trap
-#from rig_io.ft_tables import CELESTIAL_BODY_LIST,METEOR_SHOWER_LIST
+import time
+from datetime import timedelta,datetime
+from sat_class import USE_PYPREDICT
+if USE_PYPREDICT:
+    import predict
 
 ################################################################################
 

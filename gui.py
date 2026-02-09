@@ -38,11 +38,12 @@ import functools
 import webbrowser
 
 import numpy as np
+import threading
 
 from widgets_qt import QTLIB
 exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QSizePolicy,QStyle,QMessageBox')
-exec('from '+QTLIB+' import QtCore')
-exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QGuiApplication')
+exec('from '+QTLIB+'.QtCore import Qt,QObject,QEvent')
+exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QGuiApplication, QIntValidator')
 from widgets_qt import SPLASH_SCREEN,StatusBar,get_screen_size
 
 import matplotlib.pyplot as plt
@@ -75,10 +76,42 @@ from settings_qt import *
 from Logging import *
 from rotor import *
 from constants import *
-from utilities import error_trap
+from utilities import error_trap,open_web_page
 
 ################################################################################
 
+# Class to handle keyboard arrow keys in RIT/XIT boxes
+class ArrowKeyFilter(QObject):
+
+    # Capture up & down arrows
+    def eventFilter(self, obj, event):
+        
+        if event.type() == QEvent.Type.KeyPress:
+            if event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
+
+                # Ignore the event to stop default behavior
+                gui=self.parent()
+                print('burp',obj,gui)
+                if obj==gui.txt11: 
+                    print('RIT!')
+                    if event.key() == Qt.Key.Key_Up:
+                        gui.RITup()
+                    else:
+                        gui.RITdn()
+                elif obj==gui.txt13:
+                    print('XIT!')
+                    if event.key() == Qt.Key.Key_Up:
+                        gui.XITup()
+                    else:
+                        gui.XITdn()
+                
+                #self.parent().setFocus()
+                #return True
+                               
+        # For other events, continue normal event processing
+        return super().eventFilter(obj, event)
+
+                               
 class INFO_WINDOW(QMainWindow):
     def __init__(self,P,sat,parent=None):
         super(INFO_WINDOW, self).__init__(parent)
@@ -93,7 +126,7 @@ class INFO_WINDOW(QMainWindow):
         row=0
         col=0
         lab = QLabel()
-        lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lab.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         lab.setText(sat)
         self.grid.addWidget(lab,row,col,1,1)
 
@@ -131,10 +164,40 @@ class SAT_GUI(QMainWindow):
         self.ax=None
         self.event_type = None
         self.info=None
+        self.refresh = threading.Event()
 
         # Put up splash screen until we're ready
         self.splash=SPLASH_SCREEN(P.app,'splash.png')              # In util.py
         self.status_bar = self.splash.status_bar
+
+        #self.key_filter = ArrowKeyFilter(self)
+        #self.installEventFilter(self.key_filter)
+        
+
+    # Install keyboard event handler
+    def keyPressEvent99(self, event):
+        if event.key() == Qt.Key.Key_Space.value:
+            print('Space Bar was presased')
+        elif event.key() == Qt.Key.Key_Up.value:
+            print('Up Arrow -->XIT Up')
+            event.accept()
+            self.XITup()
+        elif event.key() == Qt.Key.Key_Down.value:
+            print('Down Arrow -->XIT Up')
+            event.accept()
+            self.XITdn()
+        elif event.key() == Qt.Key.Key_Left.value:
+            print('Left Arrow -->XIT Up')
+            event.accept()
+            self.RITdn()
+        elif event.key() == Qt.Key.Key_Right.value:
+            print('Right Arrow -->XIT Up')
+            event.accept()
+            self.RITup()
+        #elif event.key() == Qt.Key.Key_Escape.value:
+        #    print('Escape!')
+        #    self.close()
+            
 
     # Function that actually constructs the gui
     def construct_gui(self):
@@ -166,12 +229,19 @@ class SAT_GUI(QMainWindow):
         self.cal.clicked.connect(self.date_changed)
         self.cal.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)   # Delete week numbers
         self.cal.setGridVisible(True)
+        #self.cal.setNavigationBarVisible(False)
+        #self.cal.setDateEditEnabled(False)
+
+        #self.key_filter = ArrowKeyFilter(self)
+        #self.cal.installEventFilter(self.key_filter)
+
 
         # Set col width and don't allow calendar size to change width when we resize the window
         self.grid.setColumnStretch(col,1)
         sizePolicy = QSizePolicy( QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
         self.cal.setSizePolicy(sizePolicy)
         print('Calendar: hint=',self.cal.sizeHint(),'\tsize=',self.cal.geometry())
+        #self.cal.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         # The first canvas where we will put the graph with the pass times
         row=1
@@ -188,6 +258,7 @@ class SAT_GUI(QMainWindow):
         ##sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Preferred)
         ##sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Maximum)
         #self.canv.setSizePolicy(sizePolicy)
+        #self.canv.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         
         # Attach mouse click to handler
         cid = self.canv.mpl_connect('button_press_event', self.MouseClick)
@@ -234,12 +305,14 @@ class SAT_GUI(QMainWindow):
         self.date1 = datetime.strptime( date0.strftime("%Y%m%d"), "%Y%m%d") 
         
         # Load satellite data
+        self.P.gui.status_bar.setText('Loading Satellite Data ...')
         self.load_sat_data()
         
         # Plot passes
         self.draw_passes()
 
         # User selections
+        self.P.gui.status_bar.setText('Lots of Buttons ...')
         row=0
         col+=1
 
@@ -358,9 +431,9 @@ class SAT_GUI(QMainWindow):
         row=0
         col+=2
         lb=QLabel("Satellite:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.SatName = QLabel('---')
-        self.SatName.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.SatName.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.SatName,row,col+1)
         self.grid.setColumnStretch(col,1)
@@ -369,39 +442,39 @@ class SAT_GUI(QMainWindow):
         
         row+=1
         lb=QLabel("AOS:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.AOS = QLabel('---')
-        self.AOS.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.AOS.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.AOS,row,col+1)
         
         row+=1
         lb=QLabel("LOS:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.LOS = QLabel('---')
-        self.LOS.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.LOS.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.LOS,row,col+1)
 
         row+=1
         lb=QLabel("Peak El:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.PeakEl = QLabel('---')
-        self.PeakEl.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.PeakEl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.PeakEl,row,col+1)
                 
         row+=1
         lb=QLabel("Slant Rng:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.SRng = QLabel('---')
-        self.SRng.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.SRng.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(lb,row,col)
         self.grid.addWidget(self.SRng,row,col+1)
 
         row+=1
         self.txt9 = QLabel(self)
-        self.txt9.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt9.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.txt9.setText("Hey!")
         self.grid.addWidget(self.txt9,row,col,1,2)
 
@@ -409,7 +482,7 @@ class SAT_GUI(QMainWindow):
         row=0
         col+=2
         lb=QLabel("Downlink:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         #self.txt1 = QLineEdit(self)
         self.txt1 = QLabel(self)
         self.txt1.setText("Hey!")
@@ -420,7 +493,7 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         lb=QLabel("Uplink:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         #self.txt2 = QLineEdit(self)
         self.txt2 = QLabel(self)
         self.txt2.setText("Hey!")
@@ -429,7 +502,7 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         lb=QLabel("VFO A:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.txt3 = QLabel(self)
         self.txt3.setText("Hey!")
         self.grid.addWidget(lb,row,col)
@@ -437,7 +510,7 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         lb=QLabel("VFO B:")
-        lb.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        lb.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         self.txt4 = QLabel(self)
         self.txt4.setText("Hey!")
         self.grid.addWidget(lb,row,col)
@@ -445,18 +518,18 @@ class SAT_GUI(QMainWindow):
 
         row+=1
         self.txt5 = QLabel(self)
-        self.txt5.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt5.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.txt5.setText("Hey!")
         self.grid.addWidget(self.txt5,row,col)
 
         self.txt6 = QLabel(self)
-        self.txt6.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt6.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.txt6.setText("Hey!")
         self.grid.addWidget(self.txt6,row,col+1)
 
         row+=1
         self.txt7 = QLabel(self)
-        self.txt7.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt7.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.txt7.setText("Hey!")
         self.grid.addWidget(self.txt7,row,col,1,3)
 
@@ -465,18 +538,26 @@ class SAT_GUI(QMainWindow):
         col+=3
         self.txt10 = QLabel(self)
         self.txt10.setText("- RIT -")
-        self.txt10.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt10.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt10,row,col,1,ncols2)
         self.grid.setColumnStretch(col,ncols2)
         print('RIT label: hint=',self.txt10.sizeHint(),'\tsize=',self.txt10.geometry())
+        self.txt1.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         row+=1
         self.txt11 = QLineEdit(self)
+        self.txt11.setValidator(QIntValidator())
+        #self.txt11.setMaxLength(6)
         self.txt11.setText(str(self.rit))
-        self.txt11.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt11.textChanged.connect(self.RITchanged)
+        #self.txt11.editingFinished.connect(self.RITenterPressed)
+        self.txt11.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt11,row,col,1,ncols2)
         print('RIT: hint=',self.txt11.sizeHint(),'\tsize=',self.txt11.geometry())
 
+        self.txt11.key_filter = ArrowKeyFilter(self)
+        self.txt11.installEventFilter(self.txt11.key_filter)
+        
         f = self.txt11.font()
         f.setPointSize(10)
         self.txt11.setFont(f)
@@ -522,7 +603,7 @@ class SAT_GUI(QMainWindow):
         row+=1
         self.txt15 = QLabel(self)
         self.txt15.setText(str('HEY!'))
-        self.txt15.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt15.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt15,row,col,1,2*ncols2)
 
         # Panel to implement XIT
@@ -530,17 +611,24 @@ class SAT_GUI(QMainWindow):
         col+=ncols2
         self.txt12 = QLabel(self)
         self.txt12.setText("- XIT -")
-        self.txt12.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt12.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt12,row,col,1,ncols2)
         self.grid.setColumnStretch(col,ncols2)
         print('XIT label: hint=',self.txt12.sizeHint(),'\tsize=',self.txt12.geometry())
 
         row+=1
         self.txt13 = QLineEdit(self)
+        self.txt13.setValidator(QIntValidator())
+        #self.txt13.setMaxLength(6)
         self.txt13.setText(str(self.xit))
-        self.txt13.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
+        self.txt13.textChanged.connect(self.XITchanged)
+        #self.txt13.editingFinished.connect(self.RITenterPressed)
+        self.txt13.setAlignment(Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter)
         self.grid.addWidget(self.txt13,row,col,1,ncols2)
         print('XIT: hint=',self.txt13.sizeHint(),'\tsize=',self.txt13.geometry())
+
+        self.txt13.key_filter = ArrowKeyFilter(self)
+        self.txt13.installEventFilter(self.txt13.key_filter)
 
         f = self.txt13.font()
         f.setPointSize(10)
@@ -581,9 +669,11 @@ class SAT_GUI(QMainWindow):
         self.status_bar = StatusBar(self,nrows+1)
         
         # Let's roll!
+        self.P.gui.status_bar.setText('Lets Rock!')
         self.show()
         self.Ready=True
         self.splash.destroy()
+        self.setFocus()
         
         # Check if we have a valid set of settings
         self.LoggingWin.hide()
@@ -628,7 +718,7 @@ class SAT_GUI(QMainWindow):
             print('qr=',qr,w,h)
         
 ################################################################################
-        
+
     # Capture 'x' in upper right corner so that we can shut down gracefully
     def closeEvent(self, event):
         print("()(()()()()()( User has clicked the red x on the main window ()()()()()))")
@@ -768,7 +858,14 @@ class SAT_GUI(QMainWindow):
             padding: 4px; \
             }')
             self.btn2.setText('Engage')
-            self.P.sock.split_mode(0)
+
+            print('RIG=',self.P.rig,'\tconnection=',self.P.connection)
+            if self.P.connection in ['HAMLIB','DIRECT']:
+                #self.P.sock.sat_mode(0,VERBOSITY=1)
+                pass
+            else:
+                self.P.sock.split_mode(0,VERBOSITY=1)
+            self.P.SAT_MODE=False
             
         else:
             
@@ -782,13 +879,22 @@ class SAT_GUI(QMainWindow):
             padding: 4px; \
             }')
             self.btn2.setText('Dis-Engage')
-            self.P.sock.split_mode(1)
+
+            # JBA - not sure why its like this????
+            print('RIG=',self.P.rig,'\tconnection=',self.P.connection)
+            if self.P.connection in ['HAMLIB','DIRECT']:
+                self.P.sock.sat_mode(1,VERBOSITY=1)
+            else:
+                self.P.sock.split_mode(1,VERBOSITY=1)
+            self.P.SAT_MODE=True
 
             # Check rotor and see if we need to re-calculate
             rotor_flipped(self)
+            print('TOGGLE RIG CONTROL: flipped=',flipped,self.flipper,'\tAOS=',self.aos)
             if flipped != self.flipper:
-                ttt=self.Satellites[self.Selected].pass_times
-                self.plot_sky_track(self.Selected,ttt)  # JBA - Try this -nope ttt undefined
+                #ttt=self.Satellites[self.Selected].pass_times
+                #self.plot_sky_track(self.Selected,ttt)      # JBA - Try this - nope ttt is a long list
+                self.plot_sky_track(self.Selected,self.aos)
             
             # Retune the rig
             self.ReCenter()
@@ -811,8 +917,19 @@ class SAT_GUI(QMainWindow):
                 if returnValue == QMessageBox.StandardButton.Ok:
                     print('OK clicked')
                 
+################################################################################
         
-    # Function to increase RIT
+    # Function to change RIT
+    def RITchanged(self,text):
+        #print("contents of RIT text box (txt11): "+text)
+        if text==None or text=='':
+            self.rit=0
+        else:
+            self.rit=int(text)
+        
+    #def RITenterPressed(self):
+    #    print("RIT Enter Pressed!")
+
     def RITup(self):
         self.rit += RIT_DELTA
         print('\nRITup:',self.rit)
@@ -831,7 +948,14 @@ class SAT_GUI(QMainWindow):
         self.txt11.setText(str(self.rit))
         #self.P.ctrl.track_freqs(True,tag='RIT-CLR')
         
-    # Function to increase XIT
+    # Functions to change XIT
+    def XITchanged(self,text):
+        #print("contents of XIT text box (txt13): "+text)
+        if text==None or text=='':
+            self.xit=0
+        else:
+            self.xit=int(text)
+        
     def XITup(self):
         self.xit += XIT_DELTA
         print('\nXITup:',self.xit)
@@ -1184,8 +1308,11 @@ class SAT_GUI(QMainWindow):
             tle  = Sat.tle
         
             if USE_PYPREDICT:
+                print('\nPLOT SKY TRACK: tle=',tle)
                 p = predict.transits(tle, self.P.my_qth, ending_after=ttt)
+                print('PLOT SKY TRACK: p=',p,'\n\tttt=',ttt)
                 self.transit = next(p)
+                print('PLOT SKY TRACK: transit=',self.transit)
 
                 # Debug
                 if False:
@@ -1418,6 +1545,7 @@ class SAT_GUI(QMainWindow):
 
             # Plot sky track
             self.plot_sky_track(sat,ttt)
+            self.refresh.set()
 
             # Rotor diagnostics/alg development
             if self.P.TEST_MODE:
@@ -1441,6 +1569,23 @@ class SAT_GUI(QMainWindow):
         self.P.NO_FLIPPER = not self.P.NO_FLIPPER
         print('Toggled NO FLIPPER ...',self.P.NO_FLIPPER,state)
     
+    # Callback to toggle Ring In/Out of Sat Mode
+    def SatModeCB(self,state):
+        self.P.SAT_MODE = not self.P.SAT_MODE
+        print('Toggled SAT MODE ...',self.P.SAT_MODE,state,
+              self.P.connection,flush=True)
+        if self.P.SAT_MODE:
+            if self.P.connection in ['HAMLIB','DIRECT']:
+                self.P.sock.sat_mode(1,VERBOSITY=1)
+            else:
+                self.P.sock.split_mode(1,VERBOSITY=1)
+        else:
+            if self.P.connection in ['HAMLIB','DIRECT']:
+                self.P.sock.sat_mode(0,VERBOSITY=1)
+                #pass
+            else:
+                self.P.sock.split_mode(0,VERBOSITY=1)
+    
     # Callback to toggle Showing Map
     def ShowMapCB(self,state):
         self.P.SHOW_MAP = not self.P.SHOW_MAP
@@ -1455,14 +1600,28 @@ class SAT_GUI(QMainWindow):
         print('Sending rotor home ...')
         self.P.sock2.set_position([0,0])
 
+    # Function to send the rotor east
+    def RotorEast(self):
+        print('Sending rotor east ...')
+        self.P.sock2.set_position([90,0])
+
+    # Function to send the rotor west
+    def RotorWest(self):
+        print('Sending rotor west ...')
+        self.P.sock2.set_position([-90,0])
+
+    # Function to stop rotor 
+    def RotorStop(self):
+        print('Rotor Stop ...')
+        self.P.sock2.stop_rotor()
+        
     # Function to open the AMSAT satellite status web page 
     def OpenAmsatWebPage(self):
-        link = 'https://www.amsat.org/status'
-        webbrowser.open(link, new=2)
+        # Status page
+        open_web_page('https://www.amsat.org/status')
 
         # Rovers are starting to post here
-        link2 = 'https://hams.at'
-        webbrowser.open(link2, new=2)
+        open_web_page('https://hams.at')
                     
 ################################################################################
         
@@ -1489,6 +1648,13 @@ class SAT_GUI(QMainWindow):
         GetStatusAct.triggered.connect( self.OpenAmsatWebPage )
         fileMenu.addAction(GetStatusAct)
 
+        SatModeAct = QAction('&Sat Mode', self, checkable=True)        
+        SatModeAct.setStatusTip('Rig In/Out Sat Mode')
+        SatModeAct.triggered.connect(self.SatModeCB)
+        SatModeAct.setChecked(self.P.SAT_MODE)
+        fileMenu.addAction(SatModeAct)
+        self.P.SatModeAct=SatModeAct
+            
         NoFlipperAct = QAction('&No Flipper', self, checkable=True)        
         NoFlipperAct.setStatusTip('No Flipper')
         NoFlipperAct.triggered.connect(self.NoFlipperCB)
@@ -1500,7 +1666,9 @@ class SAT_GUI(QMainWindow):
         ShowMapAct.triggered.connect(self.ShowMapCB)
         ShowMapAct.setChecked(self.P.SHOW_MAP)
         fileMenu.addAction(ShowMapAct)
-            
+
+        fileMenu.addSeparator()
+        
         exitAct = QAction('&Exit', self)
         #exitAct.setShortcut('Ctrl+Q')
         exitAct.setStatusTip('Exit Application')
@@ -1518,8 +1686,26 @@ class SAT_GUI(QMainWindow):
 
         # Rotor Menu
         rotorMenu = menubar.addMenu('&Rotor')
-        Act = QAction('&Rotor Home', self)
-        Act.setStatusTip('Send Rotor to (0,0)')
-        Act.triggered.connect( functools.partial( self.RotorHome ))
-        rotorMenu.addAction(Act)
+
+        RotorStop = QAction('&Rotor Stop', self)
+        RotorStop.setStatusTip('Immediately Stop Rotor')
+        RotorStop.triggered.connect( functools.partial( self.RotorStop ))
+        rotorMenu.addAction(RotorStop)
+
+        rotorMenu.addSeparator()
+        
+        RotorHome = QAction('&Rotor Home', self)
+        RotorHome.setStatusTip('Send Rotor to (0,0)')
+        RotorHome.triggered.connect( functools.partial( self.RotorHome ))
+        rotorMenu.addAction(RotorHome)
+
+        RotorEast = QAction('&Rotor East', self)
+        RotorEast.setStatusTip('Send Rotor to (90,0)')
+        RotorEast.triggered.connect( functools.partial( self.RotorEast ))
+        rotorMenu.addAction(RotorEast)
+
+        RotorWest = QAction('&Rotor West', self)
+        RotorWest.setStatusTip('Send Rotor to (-90,0)')
+        RotorWest.triggered.connect( functools.partial( self.RotorWest ))
+        rotorMenu.addAction(RotorWest)
 

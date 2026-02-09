@@ -94,7 +94,7 @@ class SETTINGS_GUI_QT(QMainWindow):
                 lab = QLabel(self)
                 lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
                 if sat==SATELLITE_LIST[0]:
-                    txt='----- Known Satellites: ----- \tTX Offset\rRX Offset'
+                    txt='----- Known Satellites: ----- \tRX Offset\rTX Offset'
                 elif sat==CELESTIAL_BODY_LIST[0]:
                     txt='----- Celestial Bodies: -----'
                     row=row0

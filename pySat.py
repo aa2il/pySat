@@ -485,4 +485,5 @@ P.app.exec()
 # Exit gracefully
 print('Leaving app ...')
 P.sock.split_mode(0)
+P.SAT_MODE = False
 sys.exit(0)

@@ -86,6 +86,7 @@ class PARAMS:
         self.GPS           = args.gps
         self.TEST_MODE     = args.test
         self.SHOW_MAP      = args.map
+        self.SAT_MODE      = False
 
         self.GRID2         = args.grid2
             

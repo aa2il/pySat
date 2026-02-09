@@ -27,6 +27,7 @@
 ###############################################################################
 
 pyqt6
+#pyqt6==6.7.1          # Need to specify this version on RPi
 #PySide6
 matplotlib
 cartopy
