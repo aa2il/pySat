@@ -5,10 +5,19 @@
 ################################################################################
 #
 # Ham Satellite Orbit Prediction and Rig Control - Rev 1.0
-# Copyright (C) 2021-5 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
+# Copyright (C) 2021-6 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
 #
 # Gui to show predicted passes for various OSCARs and command rig and rotor to
 # follow a user selected satellite trajectory.
+#
+# ToDo:
+# - Set span of 9700 bandscope to width of transponder
+# - Have pykeyer send message for arrow key and mouse wheel for XIT
+#    or just plug in keyer so we can use the paddles for this - hi hi
+# - Block for paddles
+# - Why doesnt XIT scheme work for AO-73 - still about 1400 Hz shift
+#   over entire pass  (e.g. 4000 -> 2600)
+# - Add ability to adjust filter size
 #
 # Notes:
 # - To get a list of operational OSCARs, can check at
@@ -89,6 +98,7 @@ from tcp_server import *
 from latlon2maiden import *
 from fileio import read_gps_coords
 from meteor_showers import *
+from utilities import Memory_Monitor
 
 ################################################################################
 
@@ -105,9 +115,14 @@ print('\n\tPython version=',sys.version_info[0],'.',
       sys.version_info[1],'.',sys.version_info[2])
 print('\tQT Version=',QtCore.qVersion(),'\n')
 
+# Memory Monitor
+if True:
+    P.MEM = Memory_Monitor('/tmp/SATELLITES_MEMORY.TXT')
+
 # Put up splash screen
 P.app  = QApplication(sys.argv)
 P.gui  = SAT_GUI(P)
+P.MEM.take_snapshot('After Splash')
 
 # Test internet connection
 print('Checking internet connection ...')
@@ -368,6 +383,7 @@ def parse_trsp_data():
     
     
 # Get TLE data
+P.MEM.take_snapshot('Before TLE ...')
 print('Getting TLE data ...')
 P.gui.status_bar.setText('Reading TLE data ...')
 if False:
@@ -444,6 +460,7 @@ P.TLE=html.replace('\n\n','\n').split('\n')
 #print('TLE=',P.TLE)
 #sys.exit(0)
 print(" ")
+P.MEM.take_snapshot('... After TLE')
 
 # Get meteor shower info also    
 P.SHOWERS = get_meteor_showers()
@@ -479,6 +496,7 @@ if sat:
     P.gui.plot_sky_track(sat,ttt)
 
 # Event loop
+P.MEM.take_snapshot('Ready to go!')
 print('And away we go ...')
 P.app.exec()
 

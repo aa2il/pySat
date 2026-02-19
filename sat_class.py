@@ -1,7 +1,7 @@
 ################################################################################
 #
 # sat_class.py - Rev 2.0
-# Copyright (C) 2021-5 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
+# Copyright (C) 2021-6 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
 #
 # Class containing individula satellite data
 #
@@ -38,8 +38,8 @@
 #TRANSP_DATA = "~/.config/Gpredict/trsp"   # Transponder data as parsed by gpredict
 TRANSP_DATA = "~/Python/pySat/trsp"       # Transponder data
 MIN_PEAK_EL  = 30                         # Degrees, min. elevation to identify overhead passes
-USE_PYPREDICT=False
-#USE_PYPREDICT=True                       # This doesn't alwyas converge for some reason
+USE_PYPREDICT=False                       # This also fails to converge on occastion - I think i've fixed this?
+#USE_PYPREDICT=True                       # This doesn't always converge for some reason - proably same problem as ephem, try it sometime
 SUN_UPDATE_INTERVAL = 10*60               # Only update every ten minutes
 
 ################################################################################
@@ -215,11 +215,17 @@ class SATELLITE:
                     break
 
             else:
+                # Can get stuck here also - problem is a while loop in next_transit - see below
+                #print('HEY:',self.name,npasses,tafter,tbefore)
                 transit = self.next_transit(tafter)
-                #if name=='AO-7':
-                #    print('\t',tafter,tbefore,transit.start,transit.end)
+                #print('\t',transit.start,transit.end)
                 
-                if transit==None or transit.start>tbefore:
+                #if transit==None or transit.start>tbefore:
+                    #break
+                if transit==None:
+                    tafter+=1
+                    continue
+                elif transit.start>tbefore:
                     break
                 else:
                     tafter=transit.end+1
@@ -506,10 +512,22 @@ class SATELLITE:
             return None
 
         # Compute track - need to rip this mess out & use observe!
+        # We can get stuck here if dt is too low - mitigation is in progress ...
+        # The basic unit for an ephem dates is 1-day
+        # Need to take a look at the constants ephem.hour, .minute & .second
         rise = info[0]
         setting = info[4]
+        max_alt = info[3]
         t =rise
         dt=(setting-rise)/20.
+        if max_alt<=0:
+            print('NEXT TRANSIT: Skipping pseudo-pass with max alt=',max_alt,' below the horizon')
+            print('\tsetting=',setting,'\trise=',t,'\tdt=',dt,dt*20*24*3600)
+            #sys.exit(0)
+            return None
+        #print('NEXT TRANSIT: setting=',setting,'\trise=',t,'\tdt=',dt,'\tmax alt=',max_alt)
+        #print('\tdt=',dt,dt*20*24*3600)
+        
         tt=[]
         az=[]
         el=[]
@@ -517,6 +535,7 @@ class SATELLITE:
         lons=[]
         footprints=[]
         while t<setting:
+            #print('NEXT TRANSIT: t=',t,'\tdt=',dt)
             self.obs.date=t
             sat.compute(self.obs)
 

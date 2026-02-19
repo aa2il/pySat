@@ -1,7 +1,7 @@
 ################################################################################
 #
 # meteor_showers.py - Rev 2.0
-# Copyright (C) 2025 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
+# Copyright (C) 2025-6 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
 #
 # Code relating containing meteor showers.
 #

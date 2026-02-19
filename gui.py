@@ -1,12 +1,20 @@
 ################################################################################
 #
 # Satellite GUI - Rev 2.0
-# Copyright (C) 2021-5 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
+# Copyright (C) 2021-6 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
 #
 # Gui to show predicted passes for various OSCARs.
 #
 # Jan. 2023 - pypredict uses a lot of unix system calls and will not compile on
 # windows ---> Migrating to pyemphem.
+#
+# A note about splash screen image:
+#    - Use image magic to add a thin border around original image:
+#          convert -border 5 -bordercolor white splash.png splash2.png
+#    - Get size of new image:
+#          identify -ping splash2.png
+#    - Add a border to bottom to an image so we have a place for text:
+#          convert -background white -splice 0x15+0+242 splash2.png splash3.png
 #
 ################################################################################
 #
@@ -40,21 +48,20 @@ import webbrowser
 import numpy as np
 import threading
 
-from widgets_qt import QTLIB
+from widgets_qt import QTLIB,SPLASH_SCREEN,StatusBar,get_screen_size
 exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QSizePolicy,QStyle,QMessageBox')
 exec('from '+QTLIB+'.QtCore import Qt,QObject,QEvent')
 exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QGuiApplication, QIntValidator')
-from widgets_qt import SPLASH_SCREEN,StatusBar,get_screen_size
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-if sys.version_info[0]==3:
-    import urllib.request, urllib.error, urllib.parse
-else:
-    import urllib2
+#if sys.version_info[0]==3:
+import urllib.request, urllib.error, urllib.parse
+#else:
+#    import urllib2
 
 import rig_io.socket_io as socket_io
 import pytz
@@ -80,26 +87,28 @@ from utilities import error_trap,open_web_page
 
 ################################################################################
 
-# Class to handle keyboard arrow keys in RIT/XIT boxes
-class ArrowKeyFilter(QObject):
+# Class to handle keyboard arrow keys and mouse wheel movement in RIT/XIT boxes
+class EventHandler(QObject):
 
-    # Capture up & down arrows
+    # A surprising number of events end up here
+    # Handle only those that we are interested in
     def eventFilter(self, obj, event):
         
+        gui=self.parent()
+        
+        # Capture up & down arrows 
         if event.type() == QEvent.Type.KeyPress:
             if event.key() in (Qt.Key.Key_Up, Qt.Key.Key_Down):
 
-                # Ignore the event to stop default behavior
-                gui=self.parent()
-                print('burp',obj,gui)
+                #print('burp',obj,gui)
                 if obj==gui.txt11: 
-                    print('RIT!')
+                    #print('RIT Up/Dn')
                     if event.key() == Qt.Key.Key_Up:
                         gui.RITup()
                     else:
                         gui.RITdn()
                 elif obj==gui.txt13:
-                    print('XIT!')
+                    #print('XIT Up/Dn')
                     if event.key() == Qt.Key.Key_Up:
                         gui.XITup()
                     else:
@@ -107,10 +116,35 @@ class ArrowKeyFilter(QObject):
                 
                 #self.parent().setFocus()
                 #return True
-                               
+                
+        # Capture Mouse wheel
+        elif event.type() == QEvent.Type.Wheel:
+            #print('Howdy Ho!',event,event.type(),event.angleDelta())
+            
+            if obj==gui.txt11: 
+                #print('RIT Wheel')
+                if event.angleDelta().y()>0:
+                    gui.RITup()
+                else:
+                    gui.RITdn()
+            elif obj==gui.txt13:
+                #print('XIT Wheel')
+                if event.angleDelta().y()>0:
+                    gui.XITup()
+                else:
+                    gui.XITdn()
+                
+        # For future reference, if we ever that a need for this
+        #if event.type() == QEvent.Type.MouseButtonPress:
+        #    if obj.objectName() == 'button1':
+        #        print('Button 1 was pressed')
+        #    elif obj.objectName() == 'button2':
+        #        print('Button 2 was pressed')
+                
         # For other events, continue normal event processing
         return super().eventFilter(obj, event)
 
+################################################################################
                                
 class INFO_WINDOW(QMainWindow):
     def __init__(self,P,sat,parent=None):
@@ -170,34 +204,6 @@ class SAT_GUI(QMainWindow):
         self.splash=SPLASH_SCREEN(P.app,'splash.png')              # In util.py
         self.status_bar = self.splash.status_bar
 
-        #self.key_filter = ArrowKeyFilter(self)
-        #self.installEventFilter(self.key_filter)
-        
-
-    # Install keyboard event handler
-    def keyPressEvent99(self, event):
-        if event.key() == Qt.Key.Key_Space.value:
-            print('Space Bar was presased')
-        elif event.key() == Qt.Key.Key_Up.value:
-            print('Up Arrow -->XIT Up')
-            event.accept()
-            self.XITup()
-        elif event.key() == Qt.Key.Key_Down.value:
-            print('Down Arrow -->XIT Up')
-            event.accept()
-            self.XITdn()
-        elif event.key() == Qt.Key.Key_Left.value:
-            print('Left Arrow -->XIT Up')
-            event.accept()
-            self.RITdn()
-        elif event.key() == Qt.Key.Key_Right.value:
-            print('Right Arrow -->XIT Up')
-            event.accept()
-            self.RITup()
-        #elif event.key() == Qt.Key.Key_Escape.value:
-        #    print('Escape!')
-        #    self.close()
-            
 
     # Function that actually constructs the gui
     def construct_gui(self):
@@ -229,19 +235,12 @@ class SAT_GUI(QMainWindow):
         self.cal.clicked.connect(self.date_changed)
         self.cal.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)   # Delete week numbers
         self.cal.setGridVisible(True)
-        #self.cal.setNavigationBarVisible(False)
-        #self.cal.setDateEditEnabled(False)
-
-        #self.key_filter = ArrowKeyFilter(self)
-        #self.cal.installEventFilter(self.key_filter)
-
 
         # Set col width and don't allow calendar size to change width when we resize the window
         self.grid.setColumnStretch(col,1)
         sizePolicy = QSizePolicy( QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
         self.cal.setSizePolicy(sizePolicy)
         print('Calendar: hint=',self.cal.sizeHint(),'\tsize=',self.cal.geometry())
-        #self.cal.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         # The first canvas where we will put the graph with the pass times
         row=1
@@ -258,7 +257,6 @@ class SAT_GUI(QMainWindow):
         ##sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Preferred)
         ##sizePolicy = QSizePolicy( QSizePolicy.Preferred, QSizePolicy.Maximum)
         #self.canv.setSizePolicy(sizePolicy)
-        #self.canv.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         
         # Attach mouse click to handler
         cid = self.canv.mpl_connect('button_press_event', self.MouseClick)
@@ -555,7 +553,7 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.txt11,row,col,1,ncols2)
         print('RIT: hint=',self.txt11.sizeHint(),'\tsize=',self.txt11.geometry())
 
-        self.txt11.key_filter = ArrowKeyFilter(self)
+        self.txt11.key_filter = EventHandler(self)
         self.txt11.installEventFilter(self.txt11.key_filter)
         
         f = self.txt11.font()
@@ -627,7 +625,7 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.txt13,row,col,1,ncols2)
         print('XIT: hint=',self.txt13.sizeHint(),'\tsize=',self.txt13.geometry())
 
-        self.txt13.key_filter = ArrowKeyFilter(self)
+        self.txt13.key_filter = EventHandler(self)
         self.txt13.installEventFilter(self.txt13.key_filter)
 
         f = self.txt13.font()
@@ -1151,7 +1149,7 @@ class SAT_GUI(QMainWindow):
         grd=self.P.MY_GRID
         if len(grd)>6:
             grd=grd[:6]
-        self.ax.set_title('Satellite Passes over '+grd+' for '+DATE+ '(Local Time)')
+        self.ax.set_title('Satellite Passes over '+grd+' for '+DATE+ ' (Local Time)')
         self.canv.draw()
 
         self.cal.setSelectedDate(self.date1)

@@ -1,7 +1,7 @@
 #########################################################################################
 #
 # settings.py - Rev. 1.0
-# Copyright (C) 2021-5 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
+# Copyright (C) 2021-6 by Joseph B. Attili, joe DOT aa2il AT gmail DOT com
 #
 # Gui for basic settings.
 #
@@ -94,7 +94,8 @@ class SETTINGS_GUI_QT(QMainWindow):
                 lab = QLabel(self)
                 lab.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
                 if sat==SATELLITE_LIST[0]:
-                    txt='----- Known Satellites: ----- \tRX Offset\rTX Offset'
+                    txt='----- Known Satellites: -----' + 20*' ' + \
+                        'RX Offset\rTX Offset'
                 elif sat==CELESTIAL_BODY_LIST[0]:
                     txt='----- Celestial Bodies: -----'
                     row=row0
@@ -183,7 +184,7 @@ class SETTINGS_GUI_QT(QMainWindow):
         
         # Write out the resource file
         with open(self.P.RCFILE, "w") as outfile:
-            json.dump(self.P.SETTINGS, outfile)
+            json.dump(self.P.SETTINGS, outfile, indent=4)
 
         # Hide the sub-window
         self.hide()

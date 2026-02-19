@@ -56,6 +56,8 @@ foreach i (*.py *.txt IMO*.xml $PREDICT/*.c  $PREDICT/*.py  $PREDICT/JBA work/* 
     endif
 end
 
+kompare ~/.satrc $ROOT/.satrc
+
 chmod +x pySat.py DIFF
 
 cat DIFFS
