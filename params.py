@@ -37,6 +37,8 @@ class PARAMS:
         arg_proc.add_argument("-n", help="No. Days",type=int,default=10)
         arg_proc.add_argument('-update', action='store_true',\
                               help='Update TLE Data from Internet')
+        arg_proc.add_argument('-skip_satnogs', action='store_true',\
+                              help='Skip updationg satnogs data - useful if their website is sluggish')
         arg_proc.add_argument("-grid", help="Grid Square",
                               type=str,default=None)
         arg_proc.add_argument("-rig", help="Connection Type",
@@ -71,6 +73,7 @@ class PARAMS:
         args = arg_proc.parse_args()
         self.NDAYS2     = args.n
         self.UPDATE_TLE = args.update
+        self.SKIP_SATNOGS = args.skip_satnogs
         if args.sat:
             self.sat_name  = args.sat.upper()
         else:

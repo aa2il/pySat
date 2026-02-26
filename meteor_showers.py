@@ -28,8 +28,9 @@
 ################################################################################
 
 import os
-import xmltodict
+import xmltodict,xml.dom.minidom
 from collections import OrderedDict
+from rig_io.ft_tables import METEOR_SHOWER_LIST
 
 ################################################################################
 
@@ -40,35 +41,52 @@ class Meteor_Shower:
 def get_meteor_showers():
 
     SHOWERS=OrderedDict()
-    METEOR_FILE=os.path.expanduser('IMO_Working_Meteor_Shower_List.xml')
+    fname='~/Python/pySat/IMO_Working_Meteor_Shower_List.xml'
+    METEOR_FILE=os.path.expanduser(fname)
 
-    with open(METEOR_FILE) as f:
+    with open(METEOR_FILE,'r') as f:
         xml_string = f.read()
+
+    if False:
+        # Re-format XML data so its easier to read
+        temp = xml.dom.minidom.parseString(xml_string)
+        pretty_xml = temp.toprettyxml()
+        print(pretty_xml)
+
+        with open(METEOR_FILE,'w',encoding="utf-8") as f:
+            f.write(pretty_xml)
         
     METEOR_SHOWERS = xmltodict.parse(xml_string)
     #print(METEOR_SHOWERS)
     keys=list( METEOR_SHOWERS )
-    #print(keys)
+    print('GET METEOR SHOWERS: keys=',keys)
     #print(keys[0])
     
     SHOWERS1 = METEOR_SHOWERS[keys[0]]
     #print(SHOWERS1)
     keys1 = list( SHOWERS1 )
-    #print(keys1)
+    print('GET METEOR SHOWERS: keys1=',keys1)
     #print(keys1[0])
 
     SHOWERS2 = SHOWERS1[keys1[0]]
-    #print(SHOWERS2)
-    #print(SHOWERS2[0])
-    #print(len(SHOWERS2))
+    if False:
+        print(SHOWERS2)
+        print(SHOWERS2[0])
+        print(len(SHOWERS2))
 
     #return SHOWERS2
 
     for shower in SHOWERS2:
         #print(shower)
-        #SHOWERS.append( Meteor_Shower(**shower) )
-        #SHOWERS[shower['IAU_code']] = shower
-        SHOWERS[shower['IAU_code']] = Meteor_Shower(**shower)
+        code=shower['IAU_code']        
+        name=shower['name']        
+        peak=shower['peak']        
+        start=shower['start']        
+        stop=shower['end']        
+        SHOWERS[code] = Meteor_Shower(**shower)
+        if code in METEOR_SHOWER_LIST:
+            print(code,'\t',start,'-',stop,'\t',name)
+    #print(SHOWERS)
 
     return SHOWERS
     

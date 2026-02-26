@@ -70,7 +70,7 @@ URL2 = "~/Python/pySat/nasa.txt"                                 # Local copy
 
 ################################################################################
 
-import sys
+import sys,os,re
 from pyhamtools.locator import locator_to_latlong
 
 from widgets_qt import QTLIB
@@ -83,7 +83,6 @@ from dateutil import tz
 from utilities import get_Host_Name_IP,error_trap
 
 import rig_io.socket_io as socket_io
-import os
 import time
 from datetime import timedelta,datetime
 from collections import OrderedDict
@@ -96,13 +95,13 @@ from sat_class import SATELLITE
 from gui import SAT_GUI
 from tcp_server import *
 from latlon2maiden import *
-from fileio import read_gps_coords
+from fileio import read_gps_coords,read_json_file,pretty_json
 from meteor_showers import *
 from utilities import Memory_Monitor
 
 ################################################################################
 
-VERSION='1.0'
+VERSION='1.1'
 
 ################################################################################
 
@@ -114,6 +113,57 @@ pprint(vars(P))
 print('\n\tPython version=',sys.version_info[0],'.',
       sys.version_info[1],'.',sys.version_info[2])
 print('\tQT Version=',QtCore.qVersion(),'\n')
+
+"""
+Some experimental code showing show to parse satnogs files
+It is also possible to get the individual data for only the sats we are
+interested in.  For example, for the ISS:
+
+https://db.satnogs.org/api/satellites/?norad_cat_id=25544&status=&in_orbit=&sat_id=
+https://db.satnogs.org/api/transmitters/?uuid=&mode=&uplink_mode=&type=&satellite__norad_cat_id=25544&alive=&status=&service=&sat_id=
+https://db.satnogs.org/api/tle/?norad_cat_id=25544&tle_source=&sat_id=
+
+This would be a lot faster than fetching the data for all sats.  Can get norad ids from nasa.txt.
+May need to do this s satnogs website seems very slow of late.
+
+The fact of the matter is, we are only using the transmitter data from here and these dont change so
+we probably shouldn't even bother fetching this stuff all the time!  There is TLE data here also
+but we've een using nasa.txt for a long time now and it seems fine
+
+"""
+if False:
+    sat_info     = read_json_file('satellites.json')
+    tles         = read_json_file('tle.json')
+    transmitters = read_json_file('transmitters.json')
+    #print(sat_info)
+    #print(len(sat_info))
+    #print(sat_info[0])
+    #print(pretty_json(sat_info[0]))
+    
+    print('Satellite List=',P.SATELLITE_LIST)
+    for sat in P.SATELLITE_LIST:
+        if sat!='None':
+            print('\nFetching SATNOGS data for ',sat,' ...')
+            for i in range(len(sat_info)):
+                names = re.split(r'[;,\r]+',sat_info[i]['names'])
+
+                # Sift through all sats in the satnogs data and find the norad id of the sat we're nterested in
+                if sat_info[i]['name']==sat or sat in  names:
+                    #print(pretty_json(sat_info[i]))
+                    norad_id=int(sat_info[i]['norad_cat_id'])
+                    print(norad_id)
+
+                    # Use the norad id to find the tle for this sat
+                    for tle in tles:
+                        if tle['norad_cat_id']==norad_id:
+                            print(tle)
+
+                    # Now find all transmitters associated with this sat
+                    for tx in transmitters:
+                        if tx['norad_cat_id']==norad_id:
+                            print(tx['description'])
+                    
+    sys.exit(0)
 
 # Memory Monitor
 if True:
@@ -292,25 +342,28 @@ if P.GRID2:
 
 # Function to fetch data from satnogs
 def get_satnogs_json(url,outfile):
-    print('GET SATNOSG: Fetching',outfile,'...')
+    print('GET SATNOSG: Fetching',outfile,'\turl=',url,'...')
     try:
         response = urllib.request.urlopen(url)
+        #response = urllib.request.urlopen(url,timeout=30)
     except:
         error_trap('GET SATNOGS JSON: Unable to fetch satnogs data ---')
         return None
     txt = response.read().decode("utf-8")
-    
-    print('txt=',txt)
-    print(type(txt),len(txt))
-
-    fp=open(outfile,'w', encoding="utf-8")
-    fp.write(txt)
-    fp.close()
+    #print('txt=',txt)
 
     obj=json.loads(txt)
-    #print('obj=',obj)
+    print('obj=',obj)
     #for key in obj:
     #    print(key)
+    
+    pretty_obj = json.dumps(obj, indent=4)
+    print('pretty obj=',pretty_obj)
+
+    fp=open(outfile,'w', encoding="utf-8")
+    #fp.write(txt)
+    fp.write(pretty_obj)
+    fp.close()
 
     return obj
 
@@ -321,15 +374,17 @@ def get_satnogs_info():
     URL3="https://db.satnogs.org/api/"
     root=get_satnogs_json(URL3,'api.json')
     print('root=',root)
-    print(root.keys())
+    print('root keys=',root.keys())
     
     # This is the transponder data, i.e. transmitters.json
     for item in root.keys():
         URL4=URL3+item+'/'
+        print('URL=',URL4)
         get_satnogs_json(URL4,item+'.json')
+        #sys.exit(0)
 
-
-# Function to parse tle data
+        
+# Function to parse satnogs tle data
 def parse_tle_data():
     item='tle'
     item='satellites'
@@ -343,7 +398,8 @@ def parse_tle_data():
         if id in [25544,7530] or False:
             print(obj)
     
-# Function to parse transmitter data
+# Function to parse satnogs transmitter data and
+# create trsp description files similar to those generated by gpredict
 def parse_trsp_data():
     item='transmitters'
     with open(item+'.json') as fp:
@@ -420,9 +476,10 @@ if True:
     #sys.exit(0)
 
 if P.UPDATE_TLE and P.INTERNET:
-    print('... Updating SatNogs data from Internet ...')
-    P.gui.status_bar.setText('Retrieving SatNogs Data ...')
-    get_satnogs_info()
+    if not P.SKIP_SATNOGS:
+        print('... Updating SatNogs data from Internet ...')
+        P.gui.status_bar.setText('Retrieving SatNogs Data ...')
+        get_satnogs_info()
     
     print('... Updating Transponder data  ...')
     parse_trsp_data()
