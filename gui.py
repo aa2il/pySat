@@ -41,7 +41,7 @@ XIT_DELTA=100
 ################################################################################
 
 import requests
-import sys
+import sys,os
 import functools
 import webbrowser
 
@@ -49,24 +49,18 @@ import numpy as np
 import threading
 
 from widgets_qt import QTLIB,SPLASH_SCREEN,StatusBar,get_screen_size
-exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QSizePolicy,QStyle,QMessageBox')
+exec('from '+QTLIB+'.QtWidgets import QApplication,QCalendarWidget,QComboBox,QMenu, QSizePolicy,QStyle,QMessageBox')
 exec('from '+QTLIB+'.QtCore import Qt,QObject,QEvent')
-exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QGuiApplication, QIntValidator')
+exec('from '+QTLIB+'.QtGui import QIcon, QPixmap, QAction, QActionGroup, QGuiApplication, QIntValidator')
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 
-#if sys.version_info[0]==3:
 import urllib.request, urllib.error, urllib.parse
-#else:
-#    import urllib2
-
 import rig_io.socket_io as socket_io
 import pytz
-
-import os
 import time
 from datetime import timedelta,datetime, timezone
 from collections import OrderedDict
@@ -199,6 +193,7 @@ class SAT_GUI(QMainWindow):
         self.event_type = None
         self.info=None
         self.refresh = threading.Event()
+        self.rigLock = threading.Lock()
 
         # Put up splash screen until we're ready
         self.splash=SPLASH_SCREEN(P.app,'splash.png')              # In util.py
@@ -401,27 +396,17 @@ class SAT_GUI(QMainWindow):
         self.grid.addWidget(self.btn4,row,col,1,2)
         self.rotor_engaged=False
 
-        # Add Mode selector - this is in the menubar now
-        if False:
-            row+=1
-            self.mode_cb = QComboBox()
-            self.mode_cb.addItems(self.MODES)
-            self.mode_cb.currentIndexChanged.connect(self.ModeSelect)
-            self.grid.addWidget(self.mode_cb,row,col,1,2)
-        else:
-            self.mode_cb = None
-
         # Buttons to quickly select CW & Phone
         row+=1
         self.CWbtn = QPushButton('CW')
         self.CWbtn.setToolTip('Click to select CW')
-        self.CWbtn.clicked.connect( functools.partial( self.ModeSelect,mode='CW' ))
+        self.CWbtn.clicked.connect( functools.partial( self.ModeSelect,mode='CW',bw=500 ))
         self.grid.addWidget(self.CWbtn,row,col,1,1)
         self.CWbtn.setCheckable(True)
             
         self.PHbtn = QPushButton('Phone')
         self.PHbtn.setToolTip('Click to select Phone')
-        self.PHbtn.clicked.connect( functools.partial( self.ModeSelect,mode='Phone' ))
+        self.PHbtn.clicked.connect( functools.partial( self.ModeSelect,mode='Phone',bw=2400 ))
         self.grid.addWidget(self.PHbtn,row,col+1,1,1)
         self.PHbtn.setCheckable(True)
             
@@ -749,28 +734,87 @@ class SAT_GUI(QMainWindow):
             QApplication.quit()
         
 
+    # Function to set rig IF filter bandwdith
+    def FilterSelectCB(self,action):
+        if self.P.USE_LOCK:
+            acq=self.rigLock.acquire(timeout=0.5)
+            if not acq:
+                error_trap('FILTER SELECTCB: Unable to acquire lock - giving up :-(')
+                return None                
+            
+        txt=action.text()
+        mode=self.P.transp['mode']
+        mode2,bw2=self.P.sock.get_mode(VERBOSITY=1)
+        bw=int( txt.replace('&','').replace('Hz','') )
+        idx=self.FilterBWs.index(bw)
+        print('FILTER SELECTCB: txt=',txt,'\ttransponder mode=',mode,
+              'rig mode=',mode2,
+              '\tbw=',bw,bw2,'\tidx=',idx)
+        self.P.sock.set_mode(mode2,VFO=self.P.ctrl.vfos[0],Filter=bw,VERBOSITY=1)
+        mode3,bw3=self.P.sock.get_mode(VERBOSITY=1)
+        print('\tAfter Setting: mode=',mode3,mode3==mode2,
+              '\bw=',bw3,bw3==bw)
+        
+        if self.P.USE_LOCK:
+            self.rigLock.release()
+            
+    # Function to set rig spectrum display span
+    def SpanSelectCB(self,action):
+        if self.P.USE_LOCK:
+            acq=self.rigLock.acquire(timeout=0.5)
+            if not acq:
+                error_trap('SPAN SELECTCB: Unable to acquire lock - giving up :-(')
+                return None                
+            
+        txt=action.text()
+        bw=int( txt.replace('&','').replace('KHz','') )
+        idx=self.spans.index(bw)
+        print('SPAN SELECTCB: txt=',txt,'\tbw=',bw,'\tidx=',idx)
+        self.P.sock.spectrum(1,bw,VERBOSITY=1)
+        
+        if self.P.USE_LOCK:
+            self.rigLock.release()
+            
     # Function to set rig mode
-    def ModeSelect(self,mode=None):
-        #print('MODE SELECT:',mode)
-        #if self.mode_cb and (not mode or type(mode)==int):
-        #    mode = self.mode_cb.currentText()
+    def ModeSelect(self,mode=None,bw=None,USE_LOCK=True):
+        USE_LOCK=False
+        print('MODE SELECT: mode=',mode,'\tbw=',bw)
+        if USE_LOCK:
+            acq=self.rigLock.acquire(timeout=0.5)
+            if not acq:
+                error_trap('FILTER SELECTCB: Unable to acquire lock - giving up :-(')
+                return None                
+            
         if not mode or mode=='Phone':
             mode=self.P.transp['mode']
-        print('MODE SELECT: mode=',mode)
-        self.P.ctrl.set_rig_mode( mode )
+            if not bw:
+                if mode in ['USB','LSB']:
+                    bw=2400
+                elif mode in ['FM']:
+                    bw=3000
+                elif mode in ['CW']:
+                    bw=500
+        print('MODE SELECT: mode=',mode,'\tbw=',bw)
+        self.P.ctrl.set_rig_mode(mode,bw=bw)
 
+        mode2,bw2=self.P.sock.get_mode(VERBOSITY=0)
+        if bw2:
+            idx=self.FilterBWs.index(int(bw2))
+            print('MODE SELECT: mode=',mode,'\tbw2=',bw2,'\tidx=',idx)
+            self.filterGroup.actions()[idx].setChecked(True)
+        
         self.txt15.setText(mode)
         self.status_bar.setText('Set rig mode to '+mode)
-        if self.mode_cb:
-            idx = self.MODES.index( mode )
-            self.mode_cb.setCurrentIndex(idx)
-
+        
         if mode=='CW':
             self.CWbtn.setChecked(True)
             self.PHbtn.setChecked(False)
         else:
             self.CWbtn.setChecked(False)
             self.PHbtn.setChecked(True)
+            
+        if USE_LOCK:
+            self.rigLock.release()
             
         return mode
         
@@ -801,9 +845,6 @@ class SAT_GUI(QMainWindow):
                   '\tmde=',mode)
             print('transp=',P.transp)
 
-            idx = gui.MODES.index( mode )
-            gui.mode_cb.setCurrentIndex(idx)
-            
         except: 
             error_trap('GUI->RECENTER - Failure :-(')
 
@@ -1047,6 +1088,7 @@ class SAT_GUI(QMainWindow):
                 SAT_LIST.append(isat)
         for isat in range(1,len(SAT_LIST) ):
             name=SAT_LIST[isat]
+            self.P.gui.status_bar.setText('Loading data for '+name+' ...')
             self.Satellites[name]=SATELLITE(isat,name,self.P.my_qth,
                                             date1,date2,self.P.TLE,self.P.SHOWERS)
             if self.P.GRID2:
@@ -1574,15 +1616,15 @@ class SAT_GUI(QMainWindow):
               self.P.connection,flush=True)
         if self.P.SAT_MODE:
             if self.P.connection in ['HAMLIB','DIRECT']:
-                self.P.sock.sat_mode(1,VERBOSITY=1)
+                self.P.sock.sat_mode(1,VERBOSITY=0)
             else:
-                self.P.sock.split_mode(1,VERBOSITY=1)
+                self.P.sock.split_mode(1,VERBOSITY=0)
         else:
             if self.P.connection in ['HAMLIB','DIRECT']:
-                self.P.sock.sat_mode(0,VERBOSITY=1)
+                self.P.sock.sat_mode(0,VERBOSITY=0)
                 #pass
             else:
-                self.P.sock.split_mode(0,VERBOSITY=1)
+                self.P.sock.split_mode(0,VERBOSITY=0)
     
     # Callback to toggle Showing Map
     def ShowMapCB(self,state):
@@ -1681,6 +1723,37 @@ class SAT_GUI(QMainWindow):
             Act.setStatusTip('Set uplink mode to '+m)
             Act.triggered.connect( functools.partial( self.ModeSelect,mode=m ))
             modeMenu.addAction(Act)
+
+        # The Filter Menu - works like a set of radiobuttons
+        self.FilterBWs=[200,500,800,1000,1800,2400,3000,10000,15000]
+        filterBWmenu = QMenu('Filter',self)
+        menubar.addMenu(filterBWmenu)
+        self.filterGroup = QActionGroup(filterBWmenu)
+        self.filterGroup.setExclusive(True)
+
+        for b in self.FilterBWs:
+            Act = QAction('&'+str(b)+' Hz', filterBWmenu,checkable=True, checked=b==self.FilterBWs[0])
+            Act.setStatusTip('Set IF Filter BW to '+str(b)+' Hz')
+            #Act.triggered.connect( functools.partial( self.FilterSelect,bw=b ))
+            filterBWmenu.addAction(Act)
+            self.filterGroup.addAction(Act)
+        self.filterGroup.triggered.connect( self.FilterSelectCB )
+
+        # The Spectrum Span Menu - also works like a set of radiobuttons
+        self.spans=[5,10,20, 50,100,200, 500,1000]    # KHz
+        spanMenu = QMenu('Span',self)
+        menubar.addMenu(spanMenu)
+        self.spanGroup = QActionGroup(spanMenu)
+        self.spanGroup.setExclusive(True)
+
+        default=self.spans[3]
+        for s in self.spans:
+            Act = QAction('&'+str(s)+' KHz', spanMenu,checkable=True, checked=s==default)
+            Act.setStatusTip('Set Spectrum Span to '+str(b)+' KHz')
+            spanMenu.addAction(Act)
+            self.spanGroup.addAction(Act)
+        self.spanGroup.triggered.connect( self.SpanSelectCB )
+        self.P.sock.spectrum(1,default,VERBOSITY=1)
 
         # Rotor Menu
         rotorMenu = menubar.addMenu('&Rotor')

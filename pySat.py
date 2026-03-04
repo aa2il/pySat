@@ -68,13 +68,15 @@
 URL1 = "http://www.amsat.org/amsat/ftp/keps/current/nasa.all"    # AMSAT latest & greatest
 URL2 = "~/Python/pySat/nasa.txt"                                 # Local copy
 
+USE_LOCK=False
+
 ################################################################################
 
 import sys,os,re
 from pyhamtools.locator import locator_to_latlong
 
 from widgets_qt import QTLIB
-exec('from '+QTLIB+'.QtWidgets import QApplication')
+exec('from '+QTLIB+'.QtWidgets import QApplication,QMessageBox')
 exec('from '+QTLIB+' import QtCore')
 
 import urllib.request, urllib.error, urllib.parse
@@ -105,9 +107,25 @@ VERSION='1.1'
 
 ################################################################################
 
+def check_rotor(P):
+
+    print('Testing rotor ...')
+    pos=P.sock2.get_position()
+    print('pos=',pos)
+    if pos[0]==179. and pos[1]==0:
+        pos2=[0,5]
+        P.sock2.set_position(pos2)
+        time.sleep(1)
+        pos=P.sock2.get_position()
+        print('pos=',pos)
+    return not (pos[0]==179. and pos[1]==0)
+    
+################################################################################
+
 print('\n****************************************************************************')
 print('\n   Satellite Pass Predicter and Rig Control v',VERSION,'beginning ...\n')
 P=PARAMS()
+P.USE_LOCK=USE_LOCK
 print("P=")
 pprint(vars(P))
 print('\n\tPython version=',sys.version_info[0],'.',
@@ -200,8 +218,11 @@ print('RIG:',P.sock.rig_type,P.sock.rig_type1,P.sock.rig_type2)
 # Make sure rig is properly setup
 if P.sock.rig_type2=='IC9700':
 
-    # Pre-amp on, attenuator off
+    # Pre-amp on, attenuator off, mic gain=70%, RIT=0
     P.sock.frontend(1,1,0)
+    P.sock.mic_setting('SSB',1,lvl=70)
+    for vfo in ['A','B']:
+        P.sock.rit(0,0,VFO=vfo)
 
     # Check computer time
     now = datetime.utcnow()
@@ -268,17 +289,24 @@ else:
 
         # Test if rotor controller is turned on
         if P.sock2.connection=='DIRECT' or True:
-            print('Testing rotor ...')
-            pos=P.sock2.get_position()
-            print('pos=',pos)
-            if pos[0]==179. and pos[1]==0:
-                pos2=[175,5]
-                P.sock2.set_position(pos2)
-                time.sleep(1)
-                pos=P.sock2.get_position()
-                print('pos=',pos)
-                if pos[0]==179. and pos[1]==0:
-                    print('\n*** Rotor not responding - make sure its plugged in and controller is turned on ***\n')
+            done = check_rotor(P)
+            while not done:
+                print('\n*** Rotor not responding - make sure its plugged in and controller is turned on ***\n')
+
+                app  = QApplication(sys.argv)
+                msgBox = QMessageBox()
+                msgBox.setIcon(QMessageBox.Icon.Information)
+                msgBox.setText("Rotor Not Responding!!!\n\nMake sure it is turned ON and click OK to try again ...")
+                msgBox.setWindowTitle("Rotor Not Responding")
+                msgBox.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+
+                returnValue = msgBox.exec()
+                if returnValue == QMessageBox.StandardButton.Ok:
+                    print('OK clicked ...')
+                    done = check_rotor(P)
+                    print('Try again:',done)
+                elif returnValue == QMessageBox.StandardButton.Cancel:
+                    print('Cancel clicked')
                     sys.exit(0)
 
 # Open connection to SDR
@@ -378,6 +406,7 @@ def get_satnogs_info():
     
     # This is the transponder data, i.e. transmitters.json
     for item in root.keys():
+        P.gui.status_bar.setText('Fetching '+item+' from SatNogs ...')
         URL4=URL3+item+'/'
         print('URL=',URL4)
         get_satnogs_json(URL4,item+'.json')
@@ -478,7 +507,7 @@ if True:
 if P.UPDATE_TLE and P.INTERNET:
     if not P.SKIP_SATNOGS:
         print('... Updating SatNogs data from Internet ...')
-        P.gui.status_bar.setText('Retrieving SatNogs Data ...')
+        P.gui.status_bar.setText('Fetching SatNogs Data ...')
         get_satnogs_info()
     
     print('... Updating Transponder data  ...')

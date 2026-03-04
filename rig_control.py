@@ -21,16 +21,8 @@
 
 import sys
 import numpy as np
-if True:
-    # Dynamic importing - this works!
-    from widgets_qt import QTLIB
-    exec('from '+QTLIB+' import QtCore')
-elif False:
-    from PyQt6 import QtCore
-elif False:
-    from PySide6 import QtCore
-else:
-    from PyQt5 import QtCore
+from widgets_qt import QTLIB
+exec('from '+QTLIB+' import QtCore')
 import time
 from datetime import timedelta,datetime
 from rig_io.ft_tables import SATELLITE_LIST
@@ -80,14 +72,20 @@ class RigControl:
         gui=P.gui
         #print('\nUPDATER ...')
 
+        if P.USE_LOCK:
+            acq=gui.rigLock.acquire(timeout=0.5)
+            if not acq:
+                error_trap('RIG CONTROL UPDATER: Unable to acquire lock - giving up :-(')
+                return None                
+            
         need_update=gui.refresh.isSet()
         if need_update:
             print('UPDATER - Needs and update!',gui.Selected)
             gui.refresh.clear()
-        
+
         engaged = gui.rig_engaged or gui.rotor_engaged                 
         if (need_update or engaged or self.fdown==None) and gui.Selected:
-        
+
             # Tune to middle of transponder BW if we've selected a new sat
             if gui.New_Sat_Selection:
                 print('\nNew Sat Selected:',gui.Selected)
@@ -130,17 +128,9 @@ class RigControl:
                     sys.exit(0)
 
                 # Set proper mode on both VFOs
-                if False:
-                    mode=P.transp['mode']
-                    self.set_rig_mode( mode )
-                    gui.txt15.setText(mode)
-                    if gui.mode_cb:
-                        idx = gui.MODES.index( mode )
-                        gui.mode_cb.setCurrentIndex(idx)
-                else:
-                    gui.ModeSelect()
+                gui.ModeSelect(USE_LOCK=False)
                         
-                # Set down link freq to center of transp passband - uplink will follow
+                # Set downlink freq to center of transp passband - uplink will follow
                 self.fdown = 0.5*(P.transp['fdn1']+P.transp['fdn2'])
                 self.track_freqs(tag='Selection')
                 
@@ -194,6 +184,8 @@ class RigControl:
         self.update_aos_los()
         self.P.SatModeAct.setChecked(self.P.SAT_MODE)
         
+        if P.USE_LOCK:
+            gui.rigLock.release()
 
     # Routine to check VFO bands - the IC9700 is quirky if the bands are reversed
     def check_ic9700_bands(self,P):
@@ -212,15 +204,16 @@ class RigControl:
                         
         
     # Routine to set rig mode on both VFOs
-    def set_rig_mode(self,mode):
+    def set_rig_mode(self,mode,bw=None):
         P=self.P
-        print('================== RIG_SET_MODE:',mode,self.vfos,P.transp['Inverting'],'================')
-        
-        if mode[0:2]=='CW':
+        print('=== RIG_SET_MODE: mode=',mode,'\tbw=',bw,'\tvfos=',self.vfos,
+              '\tinverting=',P.transp['Inverting'],'===')
+
+        if bw==None:
             filter='Wide'
         else:
-            filter=None
-        P.sock.set_mode(mode,VFO=self.vfos[0],Filter=filter)
+            filter=bw
+        P.sock.set_mode(mode,VFO=self.vfos[0],Filter=filter,VERBOSITY=1)
         if len(self.vfos)>1:
             if P.transp['Inverting']:
                 if mode=='FM':
@@ -236,6 +229,7 @@ class RigControl:
             else:
                 P.sock.set_mode(mode,VFO=self.vfos[1],Filter=filter)
 
+        print('================== RIG_SET_MODE Done ================================')
                 
     # Function to set up & downlink freqs on rig
     def track_freqs(self,Force=False,tag='Track'):
