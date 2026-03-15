@@ -400,7 +400,7 @@ class SAT_GUI(QMainWindow):
         row+=1
         self.CWbtn = QPushButton('CW')
         self.CWbtn.setToolTip('Click to select CW')
-        self.CWbtn.clicked.connect( functools.partial( self.ModeSelect,mode='CW',bw=500 ))
+        self.CWbtn.clicked.connect( functools.partial( self.ModeSelect,mode='CW',bw=800 ))
         self.grid.addWidget(self.CWbtn,row,col,1,1)
         self.CWbtn.setCheckable(True)
             
@@ -798,10 +798,11 @@ class SAT_GUI(QMainWindow):
         self.P.ctrl.set_rig_mode(mode,bw=bw)
 
         mode2,bw2=self.P.sock.get_mode(VERBOSITY=0)
-        if bw2:
-            idx=self.FilterBWs.index(int(bw2))
-            print('MODE SELECT: mode=',mode,'\tbw2=',bw2,'\tidx=',idx)
-            self.filterGroup.actions()[idx].setChecked(True)
+        if not bw2 and bw:
+            bw2=bw
+        idx=self.FilterBWs.index(int(bw2))
+        print('MODE SELECT: mode=',mode,'\tbw2=',bw2,'\tidx=',idx)
+        self.filterGroup.actions()[idx].setChecked(True)
         
         self.txt15.setText(mode)
         self.status_bar.setText('Set rig mode to '+mode)

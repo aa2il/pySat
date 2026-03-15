@@ -375,7 +375,7 @@ def get_satnogs_json(url,outfile):
         response = urllib.request.urlopen(url)
         #response = urllib.request.urlopen(url,timeout=30)
     except:
-        error_trap('GET SATNOGS JSON: Unable to fetch satnogs data ---')
+        error_trap('GET SATNOGS JSON: Unable to fetch SATNOGS data ---')
         return None
     txt = response.read().decode("utf-8")
     #print('txt=',txt)
@@ -406,7 +406,7 @@ def get_satnogs_info():
     
     # This is the transponder data, i.e. transmitters.json
     for item in root.keys():
-        P.gui.status_bar.setText('Fetching '+item+' from SatNogs ...')
+        P.gui.status_bar.setText('Fetching SATNOGS '+item+' ...')
         URL4=URL3+item+'/'
         print('URL=',URL4)
         get_satnogs_json(URL4,item+'.json')
@@ -507,7 +507,7 @@ if True:
 if P.UPDATE_TLE and P.INTERNET:
     if not P.SKIP_SATNOGS:
         print('... Updating SatNogs data from Internet ...')
-        P.gui.status_bar.setText('Fetching SatNogs Data ...')
+        P.gui.status_bar.setText('Fetching SATNOGS Data ...')
         get_satnogs_info()
     
     print('... Updating Transponder data  ...')
