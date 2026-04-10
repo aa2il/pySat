@@ -188,7 +188,7 @@ class SAT_GUI(QMainWindow):
         self.Ready=False
         self.SettingsWin=SETTINGS_GUI_QT(P)
         self.LoggingWin=LOGGING(P)
-        self.MODES=['USB','CW','FM','LSB']
+        self.MODES=['USB','CW','FM','LSB','Satellite','---','Simplex']
         self.ax=None
         self.event_type = None
         self.info=None
@@ -775,6 +775,24 @@ class SAT_GUI(QMainWindow):
         if self.P.USE_LOCK:
             self.rigLock.release()
             
+    # Function to set rig spectrum display span
+    def PLtoneSelectCB(self,action):
+        if self.P.USE_LOCK:
+            acq=self.rigLock.acquire(timeout=0.5)
+            if not acq:
+                error_trap('PLtone SELECTCB: Unable to acquire lock - giving up :-(')
+                return None                
+            
+        txt=action.text()
+        t=float( txt.replace('&','').replace('Hz','') )
+        idx=self.PLtones.index(t)
+        print('PL TONE SELECTCB: txt=',txt,'\tt=',t,'\tidx=',idx)
+        self.P.sock.set_PLtone(t,VERBOSITY=1)
+        self.P.gui.status_bar.setText('PL Tone = '+str(tone)+' Hz')
+        
+        if self.P.USE_LOCK:
+            self.rigLock.release()
+            
     # Function to set rig mode
     def ModeSelect(self,mode=None,bw=None,USE_LOCK=True):
         USE_LOCK=False
@@ -784,8 +802,16 @@ class SAT_GUI(QMainWindow):
             if not acq:
                 error_trap('FILTER SELECTCB: Unable to acquire lock - giving up :-(')
                 return None                
-            
-        if not mode or mode=='Phone':
+
+        if mode=='Satellite':
+            P.sock.sat_mode(1,VERBOSITY=1)
+            P.SAT_MODE = True
+            return
+        elif mode=='Simplex':
+            P.sock.sat_mode(0,VERBOSITY=1)
+            P.SAT_MODE = False
+            return
+        elif not mode or mode=='Phone':
             mode=self.P.transp['mode']
             if not bw:
                 if mode in ['USB','LSB']:
@@ -1720,10 +1746,13 @@ class SAT_GUI(QMainWindow):
         # The Mode Menu
         modeMenu = menubar.addMenu('&Mode')
         for m in self.MODES:
-            Act = QAction('&'+m, self)
-            Act.setStatusTip('Set uplink mode to '+m)
-            Act.triggered.connect( functools.partial( self.ModeSelect,mode=m ))
-            modeMenu.addAction(Act)
+            if m=='---':
+                modeMenu.addSeparator()
+            else:
+                Act = QAction('&'+m, self)
+                Act.setStatusTip('Set uplink mode to '+m)
+                Act.triggered.connect( functools.partial( self.ModeSelect,mode=m ))
+                modeMenu.addAction(Act)
 
         # The Filter Menu - works like a set of radiobuttons
         self.FilterBWs=[200,500,800,1000,1800,2400,3000,10000,15000]
@@ -1750,11 +1779,27 @@ class SAT_GUI(QMainWindow):
         default=self.spans[3]
         for s in self.spans:
             Act = QAction('&'+str(s)+' KHz', spanMenu,checkable=True, checked=s==default)
-            Act.setStatusTip('Set Spectrum Span to '+str(b)+' KHz')
+            Act.setStatusTip('Set Spectrum Span to '+str(s)+' KHz')
             spanMenu.addAction(Act)
             self.spanGroup.addAction(Act)
         self.spanGroup.triggered.connect( self.SpanSelectCB )
         self.P.sock.spectrum(1,default,VERBOSITY=1)
+
+        # The PL Tone Menu - also works like a set of radiobuttons
+        self.PLtones=[67.0,74.4,141.3]    # Hz
+        PLtoneMenu = QMenu('PL Tone',self)
+        menubar.addMenu(PLtoneMenu)
+        self.PLtoneGroup = QActionGroup(PLtoneMenu)
+        self.PLtoneGroup.setExclusive(True)
+
+        default=self.PLtones[0]
+        for t in self.PLtones:
+            Act = QAction('&'+str(t)+' Hz', PLtoneMenu,checkable=True, checked=t==default)
+            Act.setStatusTip('Set PL Tone to '+str(t)+' Hz')
+            PLtoneMenu.addAction(Act)
+            self.PLtoneGroup.addAction(Act)
+        self.PLtoneGroup.triggered.connect( self.PLtoneSelectCB )
+        self.P.sock.set_PLtone(default,VERBOSITY=1)
 
         # Rotor Menu
         rotorMenu = menubar.addMenu('&Rotor')

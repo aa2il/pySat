@@ -25,7 +25,7 @@ from widgets_qt import QTLIB
 exec('from '+QTLIB+' import QtCore')
 import time
 from datetime import timedelta,datetime
-from rig_io.ft_tables import SATELLITE_LIST
+from rig_io.ft_tables import SATELLITE_LIST,SAT_PL_TONES
 from rotor import *
 from utilities import freq2band, error_trap
 
@@ -70,17 +70,19 @@ class RigControl:
     def Updater(self):
         P=self.P
         gui=P.gui
-        #print('\nUPDATER ...')
+        VERBOSITY=0
+        if VERBOSITY>0:
+            print('\nRIG CONTROL UPDATER ...')
 
         if P.USE_LOCK:
             acq=gui.rigLock.acquire(timeout=0.5)
             if not acq:
-                error_trap('RIG CONTROL UPDATER: Unable to acquire lock - giving up :-(')
+                error_trap('UPDATER: Unable to acquire lock - giving up :-(')
                 return None                
             
         need_update=gui.refresh.isSet()
         if need_update:
-            print('UPDATER - Needs and update!',gui.Selected)
+            print('UPDATER: Needs and update!',gui.Selected)
             gui.refresh.clear()
 
         engaged = gui.rig_engaged or gui.rotor_engaged                 
@@ -128,19 +130,33 @@ class RigControl:
                     sys.exit(0)
 
                 # Set proper mode on both VFOs
-                gui.ModeSelect(USE_LOCK=False)
+                mode = gui.ModeSelect(USE_LOCK=False)
+                
+                # Set PL Tone for FM sats
+                if mode=='FM':
+                    name = P.satellite.name
+                    print('UPDATER: FM Sat ',name,'\tmode=',mode,
+                          '\ttones=',SAT_PL_TONES)
+                    if name in SAT_PL_TONES:
+                        tone = SAT_PL_TONES[name]
+                        print('UPDATER: FM Sat ',name,' - Setting PL Tone to ',tone,' Hz')
+                        P.sock.set_PLtone(tone,VERBOSITY=1)
+
+                        tone2=P.sock.get_PLtone(VERBOSITY=1)
+                        print('\tread back=',tone2,' Hz')
+                        gui.status_bar.setText('PL Tone = '+str(tone2)+' Hz',APPEND=True)
                         
                 # Set downlink freq to center of transp passband - uplink will follow
                 self.fdown = 0.5*(P.transp['fdn1']+P.transp['fdn2'])
                 self.track_freqs(tag='Selection')
-                
+
                 gui.New_Sat_Selection=False
 
                 # Tell keyer name of new sat
                 if self.P.UDP_CLIENT:
                     self.P.udp_client.Send('Sat:'+gui.Selected)
 
-                # Set XIT for this sat
+                # Set RIT & XIT for this sat
                 try:
                     OFFSETS=self.P.SETTINGS['OFFSETS']
                     #print('\toffsets=',OFFSETS,'\tSelected=',gui.Selected)
@@ -166,7 +182,7 @@ class RigControl:
                     #print('========================================================================')
 
                     # Compute new downlink freq at the sat
-                    self.fdown = frq -gui.rit - self.fdop1
+                    self.fdown = frq - gui.rit - self.fdop1
 
                     # Don't do anything until op stops spinning the dial
                     self.frqA = frq
@@ -260,13 +276,13 @@ class RigControl:
         if len(self.vfos)>1:
             self.frqB = int(self.fup+self.fdop2 + gui.xit)
             if gui.rig_engaged or Force:
-                P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1],VERBOSITY=1)
+                P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1],VERBOSITY=0)
 
         # Compute downlink freq at rig = frq at sat + Doppler
         self.frqA = int(self.fdown+self.fdop1 + gui.rit)
         if gui.rig_engaged or Force:
             print('\nTRACK FREQS: VFO A=',self.frqA,'\tVFO B=',self.frqB)
-            P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0],VERBOSITY=1)
+            P.sock.set_freq(1e-3*self.frqA,VFO=self.vfos[0],VERBOSITY=0)
             if P.USE_SDR:
                 #print('Setting SDR freq to:',1e-3*self.frqA)
                 P.sock3.set_freq(1e-3*self.frqA)

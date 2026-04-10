@@ -441,31 +441,37 @@ def parse_trsp_data():
         os.makedirs(path)
 
     ids=[]
+    sec_list=[]
+    nsec=0
     for obj in objs:
         id=obj['norad_cat_id']
-        if id in [25544,7530] or True:
-            if id not in ids:
-                attr='w'
-                ids.append(id)
-            else:
-                attr='a'
-            fp=open(path+'/'+str(id)+'.trsp',attr)
-            #print(obj)
-            #print('\n['+obj['description']+']')
-            fp.write('\n['+obj['description']+']\n')
-            for item in ['uplink_low','uplink_high','downlink_low','downlink_high','mode','invert','baud']:
-                val=obj[item]
-                if type(val)==float:
-                    val=int(val)
-                if val:
-                    tag=item.upper().replace('LINK','')
-                    #print(tag+'='+str(val),type(val)==float)
-                    fp.write(tag+'='+str(val)+'\n')
-            fp.close()
+        if id not in ids:
+            attr='w'
+            ids.append(id)
+        else:
+            attr='a'
+            
+        fp=open(path+'/'+str(id)+'.trsp',attr)
 
-    #print('PARSE TRSP DATA')
-    #sys.exit(0)
-    
+        # Make sure there are no duplicate section names - these cause problems when we try to read back
+        sec=obj['description']
+        print(sec,sec in sec_list)
+        if sec in sec_list:
+            nsec+=1
+            sec+=str(nsec)
+        sec_list.append(sec)
+        fp.write('\n['+sec+']\n')
+        
+        for item in ['uplink_low','uplink_high','downlink_low','downlink_high','mode','invert','baud']:
+            val=obj[item]
+            if type(val)==float:
+                val=int(val)
+            if val:
+                tag=item.upper().replace('LINK','')
+                #print(tag+'='+str(val),type(val)==float)
+                fp.write(tag+'='+str(val)+'\n')
+        fp.close()
+
     
 # Get TLE data
 P.MEM.take_snapshot('Before TLE ...')

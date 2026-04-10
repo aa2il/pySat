@@ -1,4 +1,6 @@
-#! /usr/bin/python3 -u
+#!/usr/bin/env -S uv run --script
+#
+#OLD: ! /usr/bin/python3 -u
 ################################################################################
 
 import predict
@@ -22,6 +24,149 @@ import math
 import ephem
 
 ################################################################################
+
+import os,json
+def parse_trsp_data():
+    item='transmitters'
+    with open(item+'.json') as fp:
+        objs = json.load(fp)
+    print('PARSE TRSP DATA:',type(objs),len(objs))
+    #print('objs=',objs)
+
+    path='trsp'
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    ids=[]
+    sec_list=[]
+    nsec=0
+    for obj in objs:
+        id=obj['norad_cat_id']
+        if id in [68261]:
+            if id not in ids:
+                attr='w'
+                ids.append(id)
+            else:
+                attr='a'
+            fp=open(path+'/'+str(id)+'.trsp',attr)
+            #print(obj)
+            #print('\n['+obj['description']+']')
+            sec=obj['description']
+            print(sec,sec in sec_list)
+            if sec in sec_list:
+                nsec+=1
+                sec+=str(nsec)
+                print('HEY',nsec,sec)
+            sec_list.append(sec)
+            fp.write('\n['+sec+']\n')
+            for item in ['uplink_low','uplink_high','downlink_low','downlink_high','mode','invert','baud']:
+                val=obj[item]
+                if type(val)==float:
+                    val=int(val)
+                if val:
+                    tag=item.upper().replace('LINK','')
+                    #print(tag+'='+str(val),type(val)==float)
+                    fp.write(tag+'='+str(val)+'\n')
+            fp.close()
+
+    #print('PARSE TRSP DATA')
+    #sys.exit(0)
+
+parse_trsp_data()
+sys.exit(0)
+
+
+
+
+if 0:
+    from configparser import ConfigParser,SectionProxy
+    from collections import OrderedDict
+
+    class MultiDict0(OrderedDict):
+        _unique = 0  
+
+        def __setitem__(self, key, value):
+            if isinstance(value, dict):
+                self._unique += 1
+                key += str(self._unique)
+            OrderedDict.__setitem__(self, key, value)
+
+    class MultiDict1(OrderedDict):
+        _unique = 0  
+
+        def __setitem__(self, key, value):
+            print('KEY=',key,'\tvalue=',value,'\t',
+                  isinstance(value,dict),
+                  isinstance(value,SectionProxy))
+            #'\n\tKEYS=',self.keys())
+            if isinstance(value,SectionProxy):
+                print('HEY 2!')
+                self._unique += 1
+                key += str(self._unique)
+            OrderedDict.__setitem__(self, key, value)
+            print('\tkeys2=',self.keys())
+
+            
+    class MultiDict3(OrderedDict):
+        def __setitem__(self, key, value):
+            if key in self:
+                items = self[key]
+                new = value[0]
+                if new not in items:
+                    items.append(new)
+            else:
+                super(MultiDict3, self).__setitem__(key, value)
+                
+    class MultiDict11(OrderedDict):
+        def __setitem__(self, key, value):
+            if isinstance(value, list) and key in self:
+                print('HEY!')
+                self[key].extend(value)
+            else:
+                #super(OrderedDict, self).__setitem__(key, value)
+                OrderedDict.__setitem__(self,key, value)
+
+    
+    class MultiDict2(OrderedDict):
+        _unique = 0   # class variable
+
+        def __setitem__(self, key, value):
+            print('KEY=',key,'\tvalue=',value,'\t',
+                  isinstance(value,dict),
+                  '\n\tKEYS=',self.keys())
+            if isinstance(value, dict):
+            #if isinstance(value, dict) and key in value.keys():
+                print('\nHEY 1!   key=',key)
+                keys=self.keys()
+                print('\tkeys1=',keys)
+                if key in keys:
+                    print('\nHEY 2!  key=',key)
+                    self._unique += 1
+                    key += str(self._unique)
+                #print('key=',key)
+            #print(key,value)
+            OrderedDict.__setitem__(self, key, value)
+            print('\tkeys2=',self.keys())
+                
+    fname='/home/joea/Python/pySat/trsp/68261.trsp'
+    print(fname)
+    #config = ConfigParser()                     # Bombs
+    #config = ConfigParser(strict=False)         # Keep only last
+    #config = ConfigParser.RawConfigParser(dict_type=MultiOrderedDict)
+    #config = ConfigParser(defaults=None,
+    #                      dict_type=MultiDict3,
+    #                      strict=False)
+    config = ConfigParser(dict_type=MultiDict1,
+                          strict=False)
+                
+    print('\nconfig.read=',config.read(fname))
+    print('\nSections=',config.sections())
+
+    #for sec in config.sections():
+    #    print('sec=',sec)
+    #    print('\t',config.items(sec))
+    sys.exit(0)
+
 
 grid='DM12ox'
 lat,lon=maidenhead2latlon(grid)

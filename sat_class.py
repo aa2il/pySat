@@ -301,11 +301,12 @@ class SATELLITE:
 
         # We use the transponder data that has already been parsed
         # For this, we need the sat number
-        #NO_TRANSP=['Moon','Orbicraft-Zorkiy','IO-117']
         NO_TRANSP=['Moon','Orbicraft-Zorkiy']
         if self.name in NO_TRANSP:
             # There are no transponders but we fake till we make it
             self.number=self.name
+            print('SAT CLASS: No transponder for sat=',self.name)
+            #sys.exit(0)
         else:
             print('GET_TRANSPONDERS: tle =',self.tle)
             tle2=self.tle.split()
