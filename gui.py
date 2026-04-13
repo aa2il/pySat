@@ -744,14 +744,14 @@ class SAT_GUI(QMainWindow):
             
         txt=action.text()
         mode=self.P.transp['mode']
-        mode2,bw2=self.P.sock.get_mode(VERBOSITY=1)
+        mode2,bw2=self.P.sock.get_mode(VERBOSITY=0)
         bw=int( txt.replace('&','').replace('Hz','') )
         idx=self.FilterBWs.index(bw)
         print('FILTER SELECTCB: txt=',txt,'\ttransponder mode=',mode,
               'rig mode=',mode2,
               '\tbw=',bw,bw2,'\tidx=',idx)
         self.P.sock.set_mode(mode2,VFO=self.P.ctrl.vfos[0],Filter=bw,VERBOSITY=1)
-        mode3,bw3=self.P.sock.get_mode(VERBOSITY=1)
+        mode3,bw3=self.P.sock.get_mode(VERBOSITY=0)
         print('\tAfter Setting: mode=',mode3,mode3==mode2,
               '\bw=',bw3,bw3==bw)
         
@@ -795,6 +795,7 @@ class SAT_GUI(QMainWindow):
             
     # Function to set rig mode
     def ModeSelect(self,mode=None,bw=None,USE_LOCK=True):
+        P=self.P
         USE_LOCK=False
         print('MODE SELECT: mode=',mode,'\tbw=',bw)
         if USE_LOCK:
@@ -816,8 +817,8 @@ class SAT_GUI(QMainWindow):
             if not bw:
                 if mode in ['USB','LSB']:
                     bw=2400
-                elif mode in ['FM']:
-                    bw=3000
+                elif mode in ['FM','SSTV']:
+                    bw=15000
                 elif mode in ['CW']:
                     bw=500
         print('MODE SELECT: mode=',mode,'\tbw=',bw)
@@ -949,10 +950,17 @@ class SAT_GUI(QMainWindow):
             # JBA - not sure why its like this????
             print('RIG=',self.P.rig,'\tconnection=',self.P.connection)
             if self.P.connection in ['HAMLIB','DIRECT']:
-                self.P.sock.sat_mode(1,VERBOSITY=1)
+                if self.P.SIMPLEX:
+                    self.P.sock.sat_mode(0,VERBOSITY=1)
+                else:
+                    self.P.sock.sat_mode(1,VERBOSITY=1)
             else:
-                self.P.sock.split_mode(1,VERBOSITY=1)
-            self.P.SAT_MODE=True
+                if self.P.SIMPLEX:
+                    self.P.sock.split_mode(0,VERBOSITY=1)
+                    self.P.SAT_MODE=False
+                else:
+                    self.P.sock.split_mode(1,VERBOSITY=1)
+                    self.P.SAT_MODE=True
 
             # Check rotor and see if we need to re-calculate
             rotor_flipped(self)
@@ -1755,7 +1763,7 @@ class SAT_GUI(QMainWindow):
                 modeMenu.addAction(Act)
 
         # The Filter Menu - works like a set of radiobuttons
-        self.FilterBWs=[200,500,800,1000,1800,2400,3000,10000,15000]
+        self.FilterBWs=[200,500,800,1000,1800,2400,3000,7000,10000,15000]
         filterBWmenu = QMenu('Filter',self)
         menubar.addMenu(filterBWmenu)
         self.filterGroup = QActionGroup(filterBWmenu)

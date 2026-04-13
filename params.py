@@ -61,6 +61,8 @@ class PARAMS:
                               type=int,default=0)
         arg_proc.add_argument("-tend", help="End Time",
                               type=int,default=24)
+        arg_proc.add_argument('-sstv', action='store_true',
+                              help='ISS SSTV Event')
         arg_proc.add_argument('-udp', action='store_true',
                               help='Start UDP client')
         arg_proc.add_argument('-gps', action='store_true',
@@ -86,6 +88,8 @@ class PARAMS:
             self.rig       = None
         self.PORT          = args.port
         self.UDP_CLIENT    = args.udp
+        self.SSTV          = args.sstv
+        self.SIMPLEX       = False
         self.GPS           = args.gps
         self.TEST_MODE     = args.test
         self.SHOW_MAP      = args.map

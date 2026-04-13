@@ -8,4 +8,18 @@ To Do List for pySat:
 - Put rotor control in a separate thread since it seems to block until rotor is stabel
 
 - Make a "keyer select" script so have common code among all platforms - DONE
-  - Need to move to main shack
+  -- Need to move to main shack - DONE
+
+- MAKE CHECK LIST FOR IC9700 to avoid common mistakes
+  -- RFGain and squelch are common - SHOULD NEVER SEE YELLOW RFG on display
+     --- CIV command 0x14 0x02 can be used to adjust RF gain! DOIT!!!
+
+- Add SSTV to Mode Menu
+
+- Grab USB-C cable to charge keyboard
+
+- Investigate recording via pyKeyer and oscope - are Main and Sub receivers combined or is this an artifact of QSSTV?
+
+- For next SSTV event, have autonomous mode where is will follow ISS passes unattended
+
+- Check that radio goes back into SAT mode if we manually get out

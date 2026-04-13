@@ -362,9 +362,13 @@ class SATELLITE:
                 else:
                     flagged=''
             elif self.name=='ISS':
+                # norad id 25544
                 if 'VOICE REPEATER' in transp2:
                     self.main=transp
                     flagged='*****'
+                elif 'ROBOT-36' in transp2:
+                    self.sstv=transp
+                    flagged=''
                 else:
                     flagged=''
             elif self.name=='IO-117':

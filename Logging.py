@@ -51,15 +51,7 @@ class LOGGING(QMainWindow):
         self.fp = open(self.LOG_FILE,"a+")
 
         # Create generic qso
-        qso = OrderedDict()
-        keys=['CALL','NAME','QTH','BAND','BAND_RX','FREQ','FREQ_RX','MODE', \
-              'MY_GRIDSQUARE','QSO_DATE_OFF','TIME_OFF','RST_RCVD','RST_SENT',\
-              'SAT_NAME','PROP_MODE']
-        for key in keys:
-            qso[key]=''
-        qso['PROP_MODE']='SAT'
-        qso['MY_GRIDSQUARE']=P.MY_GRID[0:6]
-        self.qso=qso
+        self.qso = self.init_qso(None)
 
         # Put up boxes for generic QSO fields
         row=0
@@ -67,7 +59,7 @@ class LOGGING(QMainWindow):
         self.labs=[]
         self.eboxes=[]
         row0=row+1
-        for key in keys:
+        for key in self.qso.keys():
             #print('\tkey=',key)
             
             lab = QLabel(key)
@@ -76,7 +68,7 @@ class LOGGING(QMainWindow):
                 
             ebox = QLineEdit(self)
             self.eboxes.append(ebox)
-            ebox.setText(qso[key])
+            ebox.setText(self.qso[key])
             ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
             self.grid.addWidget(ebox,row,col+1,1,1)
             
@@ -102,15 +94,13 @@ class LOGGING(QMainWindow):
 
         
     def log_qso(self):
-        print('Log_qso ...')
+        print('LOGGING LOG QSO: Log_qso ...')
         self.show()
         P=self.P
         gui=P.gui
         
         # Init QSO fields
-        qso=self.qso
-        qso['CALL']=''
-        qso['NAME']=''
+        qso=self.init_qso(self.qso)
 
         # Get transponder for the currently selected sat
         sat = gui.Satellites[gui.Selected]
@@ -119,14 +109,13 @@ class LOGGING(QMainWindow):
             print('main=',sat.main)
             print('transp=',transp)
         else:
-            print('Hmmmm - no transponder for this sat')
+            print('LOGGING LOG QSO: Hmmmm - no transponder for this sat')
             sys.exit(0)        
 
         # Set fields that are determined by the sat
         qso['SAT_NAME']=gui.Selected
 
-        mode=transp['mode']
-        qso['MODE']=mode
+        qso['MODE']=P.sock.get_mode()
         
         fdown = 0.5*(transp['fdn1']+transp['fdn2'])*1e-6
         qso['FREQ_RX']=round(fdown,3)
@@ -155,17 +144,37 @@ class LOGGING(QMainWindow):
 
         # Read any changes user made
         for key,ebox in zip(self.qso.keys(),self.eboxes):
-            self.qso[key]=ebox.text()
+            self.qso[key]=ebox.text().upper()
 
         # Write out adif record
         write_adif_record(self.fp,self.qso,self.P,long=True)
         self.fp.flush()
 
+        # Clear QSO fields
+        self.qso=self.init_qso(self.qso)
+
         # Hide the sub-window
-        self.hide()
+        # self.hide()
 
     # Abandon the update, just close the sub-window
     def Cancel(self):
         print('Cancel ...')
         self.hide()
-        
+
+    # Function to initialize qso data
+    def init_qso(self,qso=None):
+
+        if qso==None:
+            qso = OrderedDict()
+            keys=['CALL','NAME','QTH','BAND','BAND_RX','FREQ','FREQ_RX','MODE', \
+                  'MY_GRIDSQUARE','QSO_DATE_OFF','TIME_OFF','RST_RCVD','RST_SENT',\
+                  'SAT_NAME','PROP_MODE']
+        else:
+            keys=qso.keys()
+            
+        for key in keys:
+            qso[key]=''
+        qso['PROP_MODE']='SAT'
+        qso['MY_GRIDSQUARE']=self.P.MY_GRID[0:6]
+
+        return qso

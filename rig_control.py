@@ -93,10 +93,16 @@ class RigControl:
                 print('\nNew Sat Selected:',gui.Selected)
                 gui.setFocus()
                 P.satellite = gui.Satellites[gui.Selected]
-                if P.satellite.main:
-                    P.transp    = P.satellite.transponders[P.satellite.main]
-                    print('main=',P.satellite.main)
-                    print('transp=',P.transp)
+                P.SIMPLEX=False
+                if P.SSTV and hasattr(P.satellite,'sstv'):
+                    P.transp       = P.satellite.transponders[P.satellite.sstv]
+                    P.SIMPLEX = True
+                    print('UPDATER: sstv  =',P.satellite.sstv)
+                    print('UPDATER: transp=',P.transp)
+                elif P.satellite.main:
+                    P.transp       = P.satellite.transponders[P.satellite.main]
+                    print('UPDATER: main=',P.satellite.main)
+                    print('UPDATER: transp=',P.transp)
                 else:
                     print('RIG_CONTROL->UPDATER: Hmmmm - no transponder for this sat')
                     gui.New_Sat_Selection=False
@@ -109,7 +115,7 @@ class RigControl:
                     P.SAT_MODE = True
                     self.vfos=['A','B']
                 elif P.sock.rig_type2=='IC9700':
-                    if P.satellite.name in ['Moon','IO-117']:
+                    if P.satellite.name in ['Moon','IO-117'] or P.SIMPLEX:
                         print('Putting IC9700 into Regular (non-SAT) mode ...')
                         P.sock.sat_mode(0,VERBOSITY=1)
                         P.SAT_MODE = False
@@ -225,10 +231,13 @@ class RigControl:
         print('=== RIG_SET_MODE: mode=',mode,'\tbw=',bw,'\tvfos=',self.vfos,
               '\tinverting=',P.transp['Inverting'],'===')
 
+        if mode=='SSTV':
+            mode='FM'
         if bw==None:
             filter='Wide'
         else:
             filter=bw
+            
         P.sock.set_mode(mode,VFO=self.vfos[0],Filter=filter,VERBOSITY=1)
         if len(self.vfos)>1:
             if P.transp['Inverting']:
@@ -256,7 +265,9 @@ class RigControl:
         # Compute uplink freq corresponding to downlink
         try:
             df = self.fdown - P.transp['fdn1']
-            if P.transp['Inverting']:
+            if P.transp['fup1']==0:
+                self.fup = 0
+            elif P.transp['Inverting']:
                 self.fup = P.transp['fup2'] - df
                 #print('Inv:',P.transp['fup2'],df,self.fup)
             else:
@@ -273,7 +284,7 @@ class RigControl:
             P.satellite.Doppler_Shifts(self.fdown,self.fup,P.my_qth)
 
         # Set up link freq
-        if len(self.vfos)>1:
+        if len(self.vfos)>1 and self.fup>0:
             self.frqB = int(self.fup+self.fdop2 + gui.xit)
             if gui.rig_engaged or Force:
                 P.sock.set_freq(1e-3*self.frqB,VFO=self.vfos[1],VERBOSITY=0)

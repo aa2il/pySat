@@ -1,0 +1,48 @@
+To get MMSSTV up an running on Laptop:
+
+sudo apt install wine
+sudo apt install pavucontrol
+
+wine ~/AA2IL/Software/_mmsstvV113A.exe
+
+Make sure to create a desktop icon so we know how to run it later
+This worked on Calvin but not on Luther?!
+
+wine .wine/Ham/MMSSTV/MMSSTV.EXE 
+
+Sound card config:
+Option -> Setup MMSSTV ...  (bottom) -> Pulse Audio
+Use pavucontrol to route radio audio
+
+
+
+sudo apt install qsstv
+rehash
+
+qsstv
+
+Need to click "PLAY Triangle" (above image window) to start seeing thing.
+
+On RPi:
+
+Easy way - Use s/w manager to install qsstv - it came right up out of the box!
+
+Hardway:
+sudo apt-get install g++ libfftw3-dev qt5-default libpulse-dev
+sudo apt-get install libhamlib-dev libasound2-dev libv4l-dev
+sudo apt-get install libopenjp2-7 libopenjp2-7-dev
+
+Unpack qsstv tar ball:
+tar -xvzf qsstv_9.4.4.tar.gz
+cd to source dir
+qmake
+sudo make install
+
+Some useful info:   https://cqsstv.com/
+
+14,230 USB is where 20m activity is
+437.55 is where ISS is suppose to be
+
+IC9700 seems to have a usb audio channel, much like the Yaesu rigs
+
+Can run both MMSSTV and QSSTV at same time
