@@ -3,23 +3,36 @@ To Do List for pySat:
 - Test Foot Switch
 - Make hand PTT switch
 
-- Set PL Tone on FM Sats - in progress, need to test - DONE
-
 - Put rotor control in a separate thread since it seems to block until rotor is stabel
-
-- Make a "keyer select" script so have common code among all platforms - DONE
-  -- Need to move to main shack - DONE
 
 - MAKE CHECK LIST FOR IC9700 to avoid common mistakes
   -- RFGain and squelch are common - SHOULD NEVER SEE YELLOW RFG on display
      --- CIV command 0x14 0x02 can be used to adjust RF gain! DOIT!!!
 
-- Add SSTV to Mode Menu
+- Add SSTV to Mode Menu - Done, need to test
 
-- Grab USB-C cable to charge keyboard
+- Investigate recording via pyKeyer and oscope/audactiy - DONE, seems ok!
+  -- Are Main and Sub receivers combined or is this an artifact of QSSTV?
+     --- Audactiy shows separate channels - Appears to be artifact of QSSTV
+     --- Oscope is only single channel - update it! DONE
 
-- Investigate recording via pyKeyer and oscope - are Main and Sub receivers combined or is this an artifact of QSSTV?
+- Check that radio goes back into SAT mode if we manually get out - SEEMS OK?
 
-- For next SSTV event, have autonomous mode where is will follow ISS passes unattended
+- LED light Bulb
+- Get & test Goal Zero App on phone - provides way of turning power on and off?
 
-- Check that radio goes back into SAT mode if we manually get out
+
+
+
+- DONE Set PL Tone on FM Sats - in progress, need to test
+
+- Make a "keyer select" script so have common code among all platforms - DONE
+  -- Need to move to main shack - DONE
+
+- Grab USB-C cable to charge keyboard - DONE
+
+- For next SSTV event, have autonomous mode where is will follow ISS passes unattended - DONE
+
+- There is an issue with rig and rotor enngage buttons - DONE
+  -- Check logic in gui->plot sky track - should have to go through ToggleRig routine???
+

@@ -524,6 +524,9 @@ class SATELLITE:
         setting = info[4]
         max_alt = info[3]
         t =rise
+        if rise==None or setting==None:
+            print('NEXT TRANSIT: Unexpected error - skipping transit - info=',info)
+            return None
         dt=(setting-rise)/20.
         if max_alt<=0:
             print('NEXT TRANSIT: Skipping pseudo-pass with max alt=',max_alt,' below the horizon')

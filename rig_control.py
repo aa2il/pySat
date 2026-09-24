@@ -82,7 +82,8 @@ class RigControl:
             
         need_update=gui.refresh.isSet()
         if need_update:
-            print('UPDATER: Needs and update!',gui.Selected)
+            print('UPDATER: Needs and update!   Selected=',gui.Selected,
+                  '\tNew Selection=',gui.New_Sat_Selection)
             gui.refresh.clear()
 
         engaged = gui.rig_engaged or gui.rotor_engaged                 
@@ -340,8 +341,8 @@ class RigControl:
         gui.txt2.setText("{:,}".format(int(self.fup)))
         gui.txt3.setText("{:,}".format(int(self.frqA)))
         gui.txt4.setText("{:,}".format(int(self.frqB)))
-
-        #print('=== new_pos=',new_pos)
+        self.update_rotor_angles(new_pos)
+        """
         if not np.isnan(new_pos[0]):
             gui.txt5.setText("Az: {: 3d}".format(int(new_pos[0])))
         else:
@@ -355,6 +356,7 @@ class RigControl:
         else:
             gui.txt7.setText('Not flipped')
         #self.update_aos_los()
+        """
 
         gui.SRng.setText( '%d miles' % rng )
         
@@ -397,7 +399,8 @@ class RigControl:
 
     # Function to update portion of gui related to AOS/LOS
     def update_aos_los(self):
-        gui=self.P.gui
+        P=self.P
+        gui=P.gui
         
         now = time.mktime( datetime.now().timetuple() )
         #print('UPDATE AOS-LOS: Now=',now,type(now),
@@ -422,6 +425,17 @@ class RigControl:
             gui.txt9.setText("Past Event")
             gui.event_type = -1
 
+            if P.FOLLOW:
+                print('UPDATE AOS-LOS: End of current pass, setting up for next pass for',P.sat_name,'...')
+                sat,ttt=P.gui.find_next_transit([P.sat_name])
+                print('\tsat=',sat)
+                if sat:
+                    P.gui.plot_sky_track(sat,ttt)
+                    gui.refresh.set()
+            else:
+                gui.ToggleRigControl(junk=None,ENGAGED=False)
+            
+
         if False:
             screen = QDesktopWidget().screenGeometry()
             print('^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ screen=',screen)
@@ -430,3 +444,33 @@ class RigControl:
             print('hint=',gui.win.sizeHint())
 
         
+    # Function to convert rotor position to actual pointing position in the sky (rel. to North)
+    def update_rotor_angles(self,pos):
+
+        gui=self.P.gui
+
+        # Start out assuming not flipped and all is ok
+        paz=pos[0]
+        pel=pos[1]
+        
+        if pel==None or paz==None or np.isnan(paz) or np.isnan(pel):
+            print('*** WARNING *** UPDATE ROTOR ANGLES - Unepected az/el value(s)',paz,pel)
+            paz=0
+            pel=0
+        elif pel>90:
+            # Ant is flipped - unwind actual pointing angles
+            pel=180-pel
+            paz=(paz+180) % 360
+            if paz>180:
+                paz-=360
+
+        gui.txt5.setText("Az: {: 3d}".format(int(paz)))
+        gui.txt6.setText("El: {: 3d}".format(int(pel)))
+        print('\nUPDATE ROTOR ANGLES: pos=',pos,
+              '\n\tresolved=',paz,pel,'\n')
+
+        if gui.flipper:
+            gui.txt7.setText('Flip-a-roo-ski!')
+        else:
+            gui.txt7.setText('Not flipped')
+        #self.update_aos_los()

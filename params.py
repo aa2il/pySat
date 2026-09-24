@@ -61,6 +61,8 @@ class PARAMS:
                               type=int,default=0)
         arg_proc.add_argument("-tend", help="End Time",
                               type=int,default=24)
+        arg_proc.add_argument("-follow",  action='store_true',
+                              help="Follow all passes")
         arg_proc.add_argument('-sstv', action='store_true',
                               help='ISS SSTV Event')
         arg_proc.add_argument('-udp', action='store_true',
@@ -76,10 +78,14 @@ class PARAMS:
         self.NDAYS2     = args.n
         self.UPDATE_TLE = args.update
         self.SKIP_SATNOGS = args.skip_satnogs
+        self.FOLLOW        = args.follow
         if args.sat:
             self.sat_name  = args.sat.upper()
         else:
-            self.sat_name  = None
+            if self.FOLLOW:
+                self.sat_name  = 'ISS'
+            else:
+                self.sat_name  = None
 
         self.connection    = args.rig[0]
         if len(args.rig)>=2:

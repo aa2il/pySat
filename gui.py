@@ -188,7 +188,7 @@ class SAT_GUI(QMainWindow):
         self.Ready=False
         self.SettingsWin=SETTINGS_GUI_QT(P)
         self.LoggingWin=LOGGING(P)
-        self.MODES=['USB','CW','FM','LSB','Satellite','---','Simplex']
+        self.MODES=['USB','CW','FM','LSB','---','Satellite','Simplex','SSTV']
         self.ax=None
         self.event_type = None
         self.info=None
@@ -703,6 +703,7 @@ class SAT_GUI(QMainWindow):
 ################################################################################
 
     # Capture 'x' in upper right corner so that we can shut down gracefully
+    # This is magically connected to this event
     def closeEvent(self, event):
         print("()(()()()()()( User has clicked the red x on the main window ()()()()()))")
 
@@ -784,10 +785,10 @@ class SAT_GUI(QMainWindow):
                 return None                
             
         txt=action.text()
-        t=float( txt.replace('&','').replace('Hz','') )
-        idx=self.PLtones.index(t)
-        print('PL TONE SELECTCB: txt=',txt,'\tt=',t,'\tidx=',idx)
-        self.P.sock.set_PLtone(t,VERBOSITY=1)
+        tone=float( txt.replace('&','').replace('Hz','') )
+        idx=self.PLtones.index(tone)
+        print('PL TONE SELECTCB: txt=',txt,'\ttone=',tone,'\tidx=',idx)
+        self.P.sock.set_PLtone(tone,VERBOSITY=1)
         self.P.gui.status_bar.setText('PL Tone = '+str(tone)+' Hz')
         
         if self.P.USE_LOCK:
@@ -877,10 +878,13 @@ class SAT_GUI(QMainWindow):
             error_trap('GUI->RECENTER - Failure :-(')
 
     # Function to engage/disengange rig control
-    def ToggleRotorControl(self):
-        if self.Selected:
-            self.rotor_engaged = not self.rotor_engaged
-        print('Rotor Control is',self.rotor_engaged)
+    def ToggleRotorControl(self,ENGAGED=None):
+        if ENGAGED==None:
+            if self.Selected:
+                self.rotor_engaged = not self.rotor_engaged
+        else:
+            self.rotor_engaged = ENGAGED
+        print('TOGGLE ROTOR CONTROL: Rotor Control is',self.rotor_engaged,ENGAGED)
 
         if self.rotor_engaged:
             self.btn4.setStyleSheet('QPushButton { \
@@ -906,12 +910,17 @@ class SAT_GUI(QMainWindow):
             
             
     # Function to engage/disengange rig control
-    def ToggleRigControl(self):
+    def ToggleRigControl(self,junk=None,ENGAGED=None):
 
         flipped=self.flipper
-        if self.Selected:
-            self.rig_engaged = not self.rig_engaged
-        print('Rig Control is',self.rig_engaged)
+        if ENGAGED==None:
+            if self.Selected:
+                self.rig_engaged = not self.rig_engaged
+        else:
+            self.rig_engaged = ENGAGED
+                
+        print('TOGGLE RIG CONTROL: Flipped=',flipped,'\tSelected=',self.Selected,
+              'Engaged=',self.rig_engaged,ENGAGED)
         
         if not self.rig_engaged:
 
@@ -926,7 +935,7 @@ class SAT_GUI(QMainWindow):
             }')
             self.btn2.setText('Engage')
 
-            print('RIG=',self.P.rig,'\tconnection=',self.P.connection)
+            print('\tRIG=',self.P.rig,'\tconnection=',self.P.connection)
             if self.P.connection in ['HAMLIB','DIRECT']:
                 #self.P.sock.sat_mode(0,VERBOSITY=1)
                 pass
@@ -948,7 +957,7 @@ class SAT_GUI(QMainWindow):
             self.btn2.setText('Dis-Engage')
 
             # JBA - not sure why its like this????
-            print('RIG=',self.P.rig,'\tconnection=',self.P.connection)
+            print('\tRIG=',self.P.rig,'\tconnection=',self.P.connection)
             if self.P.connection in ['HAMLIB','DIRECT']:
                 if self.P.SIMPLEX:
                     self.P.sock.sat_mode(0,VERBOSITY=1)
@@ -966,8 +975,6 @@ class SAT_GUI(QMainWindow):
             rotor_flipped(self)
             print('TOGGLE RIG CONTROL: flipped=',flipped,self.flipper,'\tAOS=',self.aos)
             if flipped != self.flipper:
-                #ttt=self.Satellites[self.Selected].pass_times
-                #self.plot_sky_track(self.Selected,ttt)      # JBA - Try this - nope ttt is a long list
                 self.plot_sky_track(self.Selected,self.aos)
             
             # Retune the rig
@@ -1350,12 +1357,9 @@ class SAT_GUI(QMainWindow):
         # print('### Plot Sky Track: flipper=',self.flipper)
 
         # Turn off rig tracking when we select a new sat
-        self.rig_engaged = False
-        self.rotor_engaged = False
-        if self.btn2.isChecked():
-            self.btn2.toggle()
-        if self.btn4.isChecked():
-            self.btn4.toggle()
+        if not self.P.FOLLOW:
+            self.ToggleRigControl(ENGAGED=False)
+            self.ToggleRotorControl(ENGAGED=False)
         self.P.satellite = Sat
 
         # Plot sat track for current orbit on sat map
@@ -1530,7 +1534,7 @@ class SAT_GUI(QMainWindow):
     # Function to convert rotor position to actual pointing position in the sky
     def resolve_pointing(self,paz,pel):
 
-        if pel==None or paz==None:
+        if pel==None or paz==None or np.isnan(paz) or np.isnan(pel):
             print('*** WARNING *** RESOLVE POINTING - Unepected az/el value(s)',paz,pel)
             az90=0
             el90=0

@@ -1,0 +1,167 @@
+#! /bin/tcsh
+############################################################################
+#
+# Rotor - Rev 1.0
+# Copyright (C) 2021-2026 by Joseph B. Attili, joe DOT aa2il AT gmail.com
+#
+# Script to start rotor and contol.
+#
+# See below for manual calibration sequence also.
+#
+############################################################################
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+############################################################################
+#
+# Important rotctl(d) commands:
+#   p & P          - Get & set position
+#   M [2 4 8 16] 1 - Move Up Down Left or Right
+#   S              - Stop
+#   w cmd          - send direct command - see below
+
+# Summary of GS-232 Commands - w cmd - there are others, not sure if they implemented
+#   O & O2 (oh) - Az and el offset cal
+#   F & F2      - Az and el full-scale cal
+#   R U L & D   - Right Up left and Down
+#   A E         - Stop az and el rotation
+#   S           - Stop current command
+#   C B & C2    - Return az, el & az/el position
+#   P36         - 360-deg mode - az runs from 180-270-0-90-179
+#   P45         - 450-deg mode - az runs from 180-270-0-90-269
+
+###############################################################################
+
+# Cal sequence from command line
+# -- Set TEST_MODE=1 below and run this code to bring up hamlib console
+# -- Ignore any read timeouts - this is a bug in hamlib & I need to fix
+# -- If the 6m beam is on top it may not be possble to this adequately
+# w P36            - 360-deg mode
+# P 180 0          - Move rotor to Left and Down - wait for rotor to stop
+# w O              - Az offset "Oh" - Press LEFT to get rotor full CCW
+# w Y              - Write OFFSET to EPROM
+# w O2             - El offset "oh 2" - Press DOWN to get rotor horizontal
+# w Y              - write OFFSET to EPROM
+
+# P 175 180          - Move rotor to Right and Up  - wait for rotor to stop
+# w F                - Az fullscale - Press RIGHT to get rotor full CCW
+# w Y                - Write OFFSET to EPROM
+# w F2               - El Fullscale - Press UP to get rotor full inverted
+# w Y
+
+# P 0 90            - Check by putting it in center - if not correct, probably a P36 vs P45 problem
+# P 0 0             - Finish up by sending it home (optional)
+
+###############################################################################
+
+# Notes on Arduino interface:
+#    - Analog inputs on Arduino are 10-bit, max voltage = 5V
+#      Rotor must be providing a little over 5V at far ends.
+#      Added voltage divider to bring range down & seems to work just fine now.
+#    - There is some confusion/problem between P36 and P45 - need to work on this - change so comes up in P360
+#      P450 still only rotates 360-deg - Is this a limitation of this particular rotor?  Read docs!
+
+###############################################################################
+
+# Notes on gpredict:
+#    - The following settings for the rotor interface seem to work
+#      Edit->Preferences->Interfaces->Rotators
+#         Port:         4533                Default - need to make sure no conflict with SDR if we go that route
+#         Az Type:      0-180-360           The other option doesn't seem to work
+#         Min & Max Az: 0 & 360             Default
+#         Min & Max El: 0 & 180             
+#         Az End Stop:  180                 ****** This seems to be critical !!! ******
+
+###############################################################################
+
+# User params
+set BAUD      = 9600                       # Can go up to 38400 with arduino, must match what is programmed in
+set MODEL     = 603                        # Yaesu GS-232B
+set PORT      = 4533
+set TEST_MODE = 0                          # 0=None, 1=rotctl, 2=miniterm
+set TEST_MODE = 1                          # For calibration
+
+set HAMLIB_DIR   = "~/hamlib-4.6.5/tests"    # Most recent stable version
+
+###############################################################################
+
+pkill rotctl
+pkill rotctld
+
+#set CMD="rotctl"
+set CMD="rotctld"
+
+# Locate arduino device
+echo " "
+#set DEVICE=`ls /dev/ttyACM*`
+set a=`ls -al /dev/serial/by-id/*arduino*`
+echo a=-$a-
+set b=`echo $a | cut -f 2 -d '>'`
+echo b=-$b-
+set c=`echo $b | cut -f 3 -d '/'`
+echo c=-$c-
+
+if( "$#c" == "0" )then
+    echo "\n----------- No Rotor Interfce (Arduino Device) found -------------"
+    #exit
+    
+    echo "Using Dummy Device instead (useful for development)"
+    set MODEL=1
+    set DEVICE="/dev/null"
+else
+    set DEVICE="/dev/${c}"
+    echo DEVICE="-$DEVICE-     $#DEVICE      $#c"
+endif
+#exit
+
+#set OPTS="-m $MODEL -r ${DEVICE}:${PORT} -s $BAUD"
+set OPTS="-m $MODEL -r ${DEVICE} -s $BAUD"
+
+# The dummy backend seems to be quiet useful for testing
+if( "$DEVICE" == "" )then
+    set OPTS=""
+endif
+
+set OPTS="-vvv $OPTS"
+#set OPTS="-vvvvv $OPTS"
+
+# Test it manually
+if( $TEST_MODE == 1 )then
+    echo $HAMLIB_DIR/rotctl $OPTS
+    $HAMLIB_DIR/rotctl $OPTS
+    exit
+endif
+if( $TEST_MODE == 2 )then
+    set CMD2="miniterm $DEVICE $BAUD"
+    echo CMD2=$CMD2
+    $CMD2
+    exit
+endif
+
+# Execute the command
+echo $CMD $OPTS
+pkill $CMD
+$HAMLIB_DIR/$CMD $OPTS &
+
+# To test it:   Note - rotctl doesn't go through rotctld!!!!!
+# echo "p" | nc -w 1 localhost 4533
+#exit    
+
+# Start rig/rotor control gui
+cd ~/Python/pyRig
+set CMD="pyRig.py -azel -rotor HAMLIB -port2 4533 $1 $2 $3 $4"
+echo " "
+echo CMD=$CMD
+echo " "
+$CMD
+
+
+

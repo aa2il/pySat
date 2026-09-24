@@ -11,13 +11,11 @@
 # follow a user selected satellite trajectory.
 #
 # ToDo:
-# - Set span of 9700 bandscope to width of transponder
+# - Set span of IC9700 bandscope to width of transponder
 # - Have pykeyer send message for arrow key and mouse wheel for XIT
 #    or just plug in keyer so we can use the paddles for this - hi hi
-# - Block for paddles
 # - Why doesnt XIT scheme work for AO-73 - still about 1400 Hz shift
 #   over entire pass  (e.g. 4000 -> 2600)
-# - Add ability to adjust filter size
 #
 # Notes:
 # - To get a list of operational OSCARs, can check at
@@ -305,8 +303,10 @@ else:
                     print('OK clicked ...')
                     done = check_rotor(P)
                     print('Try again:',done)
+                    if done:
+                        P.sock2.stop_rotor()
                 elif returnValue == QMessageBox.StandardButton.Cancel:
-                    print('Cancel clicked')
+                    print('Cancel clicked - quitting app')
                     sys.exit(0)
 
 # Open connection to SDR
@@ -582,6 +582,7 @@ P.ctrl = RigControl(P,1)
 
 # Determine best sat to track right now
 date = P.gui.date_changed()
+print('Searching for next transit - sat name=',P.sat_name,' ...')
 sat,ttt=P.gui.find_next_transit([P.sat_name])
 print('Here we go...')
 if sat:

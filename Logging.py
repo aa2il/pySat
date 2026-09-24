@@ -61,18 +61,33 @@ class LOGGING(QMainWindow):
         row0=row+1
         for key in self.qso.keys():
             #print('\tkey=',key)
+            if key in ['CALL','QTH']:
+                nrows=2
+            else:
+                nrows=1
             
             lab = QLabel(key)
-            self.grid.addWidget(lab,row,col,1,1)
+            self.grid.addWidget(lab,row,col,nrows,1)
             self.labs.append(lab)
                 
             ebox = QLineEdit(self)
             self.eboxes.append(ebox)
             ebox.setText(self.qso[key])
             ebox.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter | QtCore.Qt.AlignmentFlag.AlignVCenter)
-            self.grid.addWidget(ebox,row,col+1,1,1)
+            self.grid.addWidget(ebox,row,col+1,nrows,1)
+
+            if nrows==2:
+                lab.setStyleSheet("""
+                font-size: 36px;
+                font-weight: bold;
+                """)
+                ebox.setStyleSheet("""
+                background-color: lightyellow; \
+                font-size: 36px;
+                font-weight: bold;
+                """)
             
-            row+=1
+            row+=nrows
             if row>row0+16:
                 row=row0
                 col+=3
@@ -115,7 +130,7 @@ class LOGGING(QMainWindow):
         # Set fields that are determined by the sat
         qso['SAT_NAME']=gui.Selected
 
-        qso['MODE']=P.sock.get_mode()
+        qso['MODE'],bw=P.sock.get_mode()
         
         fdown = 0.5*(transp['fdn1']+transp['fdn2'])*1e-6
         qso['FREQ_RX']=round(fdown,3)
@@ -166,7 +181,7 @@ class LOGGING(QMainWindow):
 
         if qso==None:
             qso = OrderedDict()
-            keys=['CALL','NAME','QTH','BAND','BAND_RX','FREQ','FREQ_RX','MODE', \
+            keys=['CALL','QTH','NAME','BAND','BAND_RX','FREQ','FREQ_RX','MODE', \
                   'MY_GRIDSQUARE','QSO_DATE_OFF','TIME_OFF','RST_RCVD','RST_SENT',\
                   'SAT_NAME','PROP_MODE']
         else:
