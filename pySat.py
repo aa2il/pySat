@@ -218,7 +218,8 @@ if P.sock.rig_type2=='IC9700':
 
     # Pre-amp on, attenuator off, mic gain=70%, RIT=0
     P.sock.frontend(1,1,0)
-    P.sock.mic_setting('SSB',1,lvl=70)
+    #P.sock.mic_setting('SSB',1,lvl=70)     ### PROBLEM FOR HAMLIB - NEED CODE !!!!
+    P.sock.mic_settings(gain=70,mode='SSB',VERBOSITY=1)
     for vfo in ['A','B']:
         P.sock.rit(0,0,VFO=vfo)
 

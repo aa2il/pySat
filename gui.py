@@ -196,7 +196,8 @@ class SAT_GUI(QMainWindow):
         self.rigLock = threading.Lock()
 
         # Put up splash screen until we're ready
-        self.splash=SPLASH_SCREEN(P.app,'splash.png')              # In util.py
+        self.splash=SPLASH_SCREEN(P.app,'splash.png',
+                                  TITLE='pySat Splash Screen')
         self.status_bar = self.splash.status_bar
 
 
