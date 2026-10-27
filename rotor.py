@@ -30,6 +30,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import time
 from datetime import datetime
+import rig_io.socket_io as socket_io
 
 ###############################################################################
 
@@ -38,12 +39,68 @@ ROTOR_THRESH = 10       # Was 2 but rotor updates too quickly
 
 ###############################################################################
 
+def check_rotor(P):
+
+    print('Testing rotor ...')
+    pos=P.sock2.get_position()
+    print('CHECK ROTOR: pos=',pos)
+    if pos[0]==179. and pos[1]==0:
+        pos2=[0,5]
+        P.sock2.set_position(pos2)
+        time.sleep(1)
+        pos=P.sock2.get_position()
+        print('pos=',pos)
+    return not (pos[0]>=179. and pos[1]==0)
+
+# Function to open connection to rotor
+def connect_to_rotor(P):
+    print(P.ROTOR_CONNECTION)
+    
+    P.gui.status_bar.setText('Opening connection to rotor ...')
+    P.sock2 = socket_io.open_rig_connection(P.ROTOR_CONNECTION,0,P.PORT2,0,'ROTOR')
+    #sys.exit(0)
+    if not P.sock2.active and P.sock2.connection!='NONE':
+        print('*** No connection available to rotor ***')
+        sys.exit(0)
+    else:
+        print('rotor active=',P.sock2.active)
+        print('rotor connection=',P.sock2.connection)
+        if P.sock2.active:
+            print('Rotor found!!\t',
+                  P.sock2.rig_type1,P.sock2.rig_type2,P.sock2.connection)
+
+            # Test if rotor controller is turned on
+            if P.sock2.connection=='DIRECT':
+                done = check_rotor(P)
+                while not done:
+                    print('\n*** Rotor not responding - make sure its plugged in and controller is turned on ***\n')
+
+                    msgBox = QMessageBox()
+                    msgBox.setIcon(QMessageBox.Icon.Information)
+                    msgBox.setText("Rotor Not Responding!!!\n\nMake sure it is turned ON and click OK to try again ...")
+                    msgBox.setWindowTitle("Rotor Not Responding")
+                    msgBox.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+
+                    returnValue = msgBox.exec()
+                    if returnValue == QMessageBox.StandardButton.Ok:
+                        print('OK clicked ...')
+                        done = check_rotor(P)
+                        print('Try again:',done)
+                        if done:
+                            P.sock2.stop_rotor()
+                    elif returnValue == QMessageBox.StandardButton.Cancel:
+                        print('Cancel clicked - quitting app')
+                        sys.exit(0)
+
+################################################################################
+        
 # Function to determine if rotor is flipped
 def rotor_flipped(self):
 
     # Read rotor position if necesary
-    print('ROTOR FLIPPED: pos=',self.pos,'\tflipper=',self.flipper,
-          '\n\tsock2=',self.P.sock2,self.P.sock2.connection,self.P.sock2.active)
+    print('ROTOR FLIPPED in: pos=',self.pos,'\tflipper=',self.flipper,
+          '\n\tsock2=',self.P.sock2,'\tconnection=',self.P.sock2.connection,
+          '\tactive=',self.P.sock2.active)
     if self.P.sock2.connection=='NONE':
         print('ROTOR FLIPPED: No Rotor!!!!!')
         self.flipper=False
@@ -53,7 +110,7 @@ def rotor_flipped(self):
         if any(np.isnan(self.pos)):
             self.pos=self.P.sock2.get_position()
         self.flipper=self.pos[1]>90.
-    #print('ROTOR FLIPPED: pos2=',self.pos,self.flipper)
+    print('ROTOR FLIPPED out: pos2=',self.pos,'\tflipper=',self.flipper)
 
 
 # Function to determine if we need the old flip-a-roo-ski
@@ -93,34 +150,63 @@ def flip_a_roo(self):
             #print('FLIP_A_ROO: az=',az,'\nel=',el)
             az[0]+=dAZ
             el[0]+=dEL
-            print('FLIP_A_ROO: az=',az,'\nel=',el)
+            #print('FLIP_A_ROO: az=',az,'\nel=',el)
 
     # Query current rotor position & use it to determine if array is flipped
     rotor_flipped(self)
 
     # Compute quadrant each point is in
-    quad1 = np.logical_and(az>0  , az<=90)
+    #     4 | 1
+    #    ---+---
+    #     3 | 2
+    quad1 = np.logical_and(az>=0  , az<=90)
     quad2 = np.logical_and(az>90  , az<=180)
     quad3 = np.logical_and(az>180 , az<=270)
-    quad4 = np.logical_and(az>270 , az<=360)
+    quad4 = np.logical_and(az>270 , az<360)
+    #quadrant = 1*quad1 + 2*quad2 + 3*quad3 + 4*quad4
 
     n1 = np.sum(quad1)
     n2 = np.sum(quad2)
     n3 = np.sum(quad3)
     n4 = np.sum(quad4)
     #print('FLIP-A-ROO: Quad counts:',n1,n2,n3,n4)
+    #print('FLIP-A-ROO: az=',az)
+    #print('FLIP-A-ROO: quad1=',quad1)
+    #print('FLIP-A-ROO: quad2=',quad2)
+    #print('FLIP-A-ROO: quad3=',quad3)
+    #print('FLIP-A-ROO: quad4=',quad4)
     
     # First, check if the track transists into both the 2nd and 3rd quadrants
     # or into 1st and 4th quadrants
-    self.cross0   = any(quad1) and any(quad4)
-    self.cross180 = any(quad2) and any(quad3)
+    if False:
+        # Old way - works for sats but not celestrial bodies
+        self.cross0   = any(quad1) and any(quad4)
+        self.cross180 = any(quad2) and any(quad3)
+    else:
+        # New way - check crossings from both right-to-left and left-to-right
+        dq1 = np.logical_and( quad1 , np.roll(quad4,-1) )
+        dq2 = np.logical_and( quad1 , np.roll(quad4,+1) )
+        dq = np.logical_or( dq1 , dq2 )
+        dq[0]=False
+        dq[-1]=False
+        #print('FLIP-A-ROO: dq=',dq)
+        self.cross0   = any(dq)
+
+        dq1 =np.logical_and( quad2 , np.roll(quad3,-1) )
+        dq2 =np.logical_and( quad2 , np.roll(quad3,+1) )
+        dq = np.logical_or( dq1 , dq2 )
+        dq[0]=False
+        dq[-1]=False
+        #print('FLIP-A-ROO: dq=',dq)
+        self.cross180   = any(dq)
 
     # Initially assume that there is nothing to worry about
     self.quads12_only = False
     self.quads34_only = False
 
     # If we don't cross a boundary, there' nothing to worry about
-    print('FLIP_A_ROO: Current flip state=',self.flipper,'\tCross 0 and 180=',self.cross0,self.cross180)
+    print('FLIP_A_ROO: Current flip state=',self.flipper,
+          '\tCross 0 and 180=',self.cross0,self.cross180)
     if not self.cross0 and not self.cross180:
         print('FLIP_A_ROO: Can keep current flip state')
         
@@ -130,15 +216,18 @@ def flip_a_roo(self):
         min2=az[quad2].min()
         max3=az[quad3].max()
         max_el = el.max()
-        print('FLIP_A_ROO: Cross180 and not flipped:\n\tmin az quad2=',min2,
-              '\tmax az quad3=',max3,'\tmax el=',max_el)
+        print('FLIP_A_ROO: Crossed 180 and not currently flipped:\n',
+              '\tmin az quad2=',min2,
+              '\n\tmax az quad3=',max3,
+              '\n\tmax el=',max_el)
 
         # We need to flip if we cross the boundary significantly OR its a very high overhead pass
         # The very high overhead pass is something we can probably refine later but it should
         # constitue a very small number of passes so we'll just do this for now.
         if (max3>180+THRESH and min2<180-THRESH):     # or max_el>75:
+            print('\tExceeded THRESH! ==> need a flip a roo')
             self.flipper = True
-            print("\n######### They call him Flipper Flipper Flipper-a-roo-ski ######")
+            print("\n######### They call him Flipper Flipper Flipper-a-roo-ski ######\n")
 
         # If we don't cross the boundary by much, fix up track so rotor is never
         # commanded to cross boundary

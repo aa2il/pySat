@@ -19,15 +19,116 @@
 #
 ################################################################################
 
-import sys
+import sys,os
 import numpy as np
 from widgets_qt import QTLIB
 exec('from '+QTLIB+' import QtCore')
+exec('from '+QTLIB+'.QtWidgets import QMessageBox')
 import time
 from datetime import timedelta,datetime
 from rig_io.ft_tables import SATELLITE_LIST,SAT_PL_TONES
 from rotor import *
 from utilities import freq2band, error_trap
+import rig_io.socket_io as socket_io
+
+################################################################################
+
+# Function to open connection to rig
+def connect_to_rig(P):
+    P.gui.status_bar.setText('Opening connection to rig ...')
+    Done=False
+    while not Done:
+        P.sock = socket_io.open_rig_connection(P.connection,0,P.PORT,0,'SATELLITES',rig=P.rig)
+        if P.rig!=None and (P.sock==None or not P.sock.powered_up):
+            print('Ooops! - No rig connection')
+            print('\tpowered_up=',P.sock.powered_up,'\tconnection=',P.connection,'\trig=',P.rig)
+
+            msgBox = QMessageBox()
+            msgBox.setIcon(QMessageBox.Icon.Information)
+            msgBox.setText("Rig Not Responding!!!\n\nClick OK to POWER UP and try again ...")
+            msgBox.setWindowTitle("Rig Not Responding")
+            msgBox.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
+
+            returnValue = msgBox.exec()
+            if returnValue == QMessageBox.StandardButton.Ok:
+                print('OK clicked ...')
+                #P.sock.power_switch(1,VERBOSITY=1)
+                cmd='~/Python/findRig/findRig.py -rig DIRECT IC9700 -SWITCH 1'
+                os.system(cmd)
+
+            elif returnValue == QMessageBox.StandardButton.Cancel:
+                print('Cancel clicked - quitting app')
+                sys.exit(0)
+        else:
+            Done=True    
+
+    if P.sock.rig_type=='Icom':
+        P.sock.icom_defaults()
+    print('RIG: type=',P.sock.rig_type,'\ttype1=',P.sock.rig_type1,'\ttype2=',P.sock.rig_type2)
+    #sys.exit(0)
+
+    # Make sure rig is properly setup
+    if P.sock.rig_type2=='IC9700':
+
+        # Regular (non-Sat) mode
+        P.sock.sat_mode(0,VERBOSITY=1)
+        P.SAT_MODE = False
+                        
+        # Pre-amp on, attenuator off, mic gain=70%, RIT=0
+        P.sock.frontend(1,1,0)
+        #P.sock.mic_setting('SSB',1,lvl=70)     ### PROBLEM FOR HAMLIB - NEED CODE !!!!
+        P.sock.mic_settings(gain=70,mode='SSB',VERBOSITY=1)
+        for vfo in ['A','B']:
+            P.sock.rit(0,0,VFO=vfo)
+
+        # Check computer time
+        now = datetime.utcnow()
+        print('\nnow=',now)
+
+        # Check rig time
+        d,t,z=P.sock.get_date_time(VERBOSITY=1)
+        print('d=',d,'\tt=',t)
+        utc = datetime.strptime(d+' '+t,'%Y%m%d %H%M%S')
+        print('Rig date=',d,'\ttime=',t,'\tzone=',z,
+              '\nRig utc=',utc)
+        #sys.exit(0)
+
+        delta = (now - utc).total_seconds()/60      # In minutes
+        print('delta=',delta,'min.')
+
+        if not P.INTERNET and delta<-1:
+        
+            # The RPi doesn't have a real-time clock so use rig time if
+            # there is no internet
+            arch=os.getenv('MACHTYPE')
+            if arch=='aarch64':
+                from_zone = tz.tzutc()             # Zulu
+                to_zone = tz.tzlocal()             # Local
+                utc = utc.replace(tzinfo=from_zone)
+                rig = utc.astimezone(to_zone)
+                
+                rig_date=rig.date().strftime("%Y-%m-%d")
+                rig_time=rig.time().strftime("%H:%M:%S")
+                val = rig_date+' '+rig_time
+                
+                print('\nSetting system clock from rig to',val,'...') 
+                cmd = 'sudo date --set="'+val+'" &'
+                os.system("echo "+cmd)
+                os.system(cmd)
+                time.sleep(1)
+                #sys.exit(0)
+
+            else:
+                print('\n*** pySAT: NEED SOME CODE TO SET COMPUTER TIME FROM RIG !!!! *** arch=',arch,'\n')
+                sys.exit(0)
+
+        elif abs(delta)>2:
+        
+            # We have an internet connection so we assume the RPi clock is set
+            # Keep rig clock p to date also
+            print('Setting rig time ...')
+            P.sock.set_date_time(1)        
+            #sys.exit(0)    
 
 ################################################################################
 
@@ -48,6 +149,7 @@ class RigControl:
         self.az    = None
         self.el    = None
         self.sat_map_cntr=0
+        self.vfos=['A','B']
 
         if P.PLATFORM=='Windows':
             tmpfile="satellites.log"
@@ -67,10 +169,9 @@ class RigControl:
         self.fp_log.flush()
 
 
-    def Updater(self):
+    def Updater(self,VERBOSITY=1):
         P=self.P
         gui=P.gui
-        VERBOSITY=0
         if VERBOSITY>0:
             print('\nRIG CONTROL UPDATER ...')
 
@@ -82,7 +183,7 @@ class RigControl:
             
         need_update=gui.refresh.isSet()
         if need_update:
-            print('UPDATER: Needs and update!   Selected=',gui.Selected,
+            print('UPDATER: Needs an update!   Selected=',gui.Selected,
                   '\tNew Selection=',gui.New_Sat_Selection)
             gui.refresh.clear()
 
@@ -94,18 +195,24 @@ class RigControl:
                 print('\nNew Sat Selected:',gui.Selected)
                 gui.setFocus()
                 P.satellite = gui.Satellites[gui.Selected]
-                P.SIMPLEX=False
-                if P.SSTV and hasattr(P.satellite,'sstv'):
+                if P.SSTV and hasattr(P.satellite,'sstv') and gui.Selected=='ISS':
                     P.transp       = P.satellite.transponders[P.satellite.sstv]
                     P.SIMPLEX = True
                     print('UPDATER: sstv  =',P.satellite.sstv)
                     print('UPDATER: transp=',P.transp)
+                elif P.EME and gui.Selected=='Moon':
+                    P.transp       = P.satellite.transponders['Mode V']
+                    P.SIMPLEX = True
+                    print('UPDATER: transponders  =',P.satellite.transponders)
+                    print('UPDATER: transp=',P.transp)
                 elif P.satellite.main:
                     P.transp       = P.satellite.transponders[P.satellite.main]
+                    P.SIMPLEX = False
                     print('UPDATER: main=',P.satellite.main)
                     print('UPDATER: transp=',P.transp)
                 else:
                     print('RIG_CONTROL->UPDATER: Hmmmm - no transponder for this sat')
+                    P.SIMPLEX=False
                     gui.New_Sat_Selection=False
                     return
 
@@ -166,13 +273,18 @@ class RigControl:
                 # Set RIT & XIT for this sat
                 try:
                     OFFSETS=self.P.SETTINGS['OFFSETS']
-                    #print('\toffsets=',OFFSETS,'\tSelected=',gui.Selected)
-                    print('\toffsets=',OFFSETS[gui.Selected])
-                    gui.rit=OFFSETS[gui.Selected][0]
-                    gui.xit=OFFSETS[gui.Selected][1]
+                    print('\toffsets=',OFFSETS,'\tSelected=',gui.Selected)
+                    #print('\toffsets=',OFFSETS[gui.Selected])
+                    if gui.Selected in OFFSETS and len(OFFSETS[gui.Selected])>0:
+                        gui.rit=OFFSETS[gui.Selected][0]
+                        gui.xit=OFFSETS[gui.Selected][1]
+                    else:
+                        gui.rit=0
+                        gui.xit=0
                 except:
                     error_trap('RIG CONTROL->UPDATER: Unable to set RIT/XIT')
                     print('\tsat=',gui.Selected)
+                    print('\tOFFSETS=',OFFSETS)
                     gui.rit=0
                     gui.xit=0
                 gui.txt11.setText(str(gui.rit))
@@ -212,18 +324,19 @@ class RigControl:
 
     # Routine to check VFO bands - the IC9700 is quirky if the bands are reversed
     def check_ic9700_bands(self,P):
+        print('CHECK IC9700 BANDS: transp=',P.transp,'\tsimplex=',P.SIMPLEX)
         frq1 = int( P.sock.get_freq(VFO=self.vfos[0]) )
         #band1 = P.sock.get_band(1e-6*frq1)
         band1  = freq2band(1e-6*frq1)
         print('frq1=',frq1,band1)
-
-        frq2 = P.transp['fdn1']
-        #band2 = P.sock.get_band(1e-6*frq2)
-        band2  = freq2band(1e-6*frq2)
-        print('frq2=',frq2,band2)
-        if band1!=band2:
-            print('Flipping VFOs')
-            P.sock.select_vfo('X')
+        
+        if P.transp:
+            frq2 = P.transp['fdn1']
+            band2  = freq2band(1e-6*frq2)
+            print('frq2=',frq2,band2)
+            if band1!=band2:
+                print('Flipping VFOs')
+                P.sock.select_vfo('X')
                         
         
     # Routine to set rig mode on both VFOs
@@ -261,7 +374,10 @@ class RigControl:
     def track_freqs(self,Force=False,tag='Track'):
         P=self.P
         gui=self.gui
-        #print('\nTRACK_FREQS: P.transp=',P.transp)
+        print('\nTRACK_FREQS: P.transp=',P.transp)
+        if P.transp==None:
+            print('\nTRACK_FREQS: No transponder!')
+            return
         
         # Compute uplink freq corresponding to downlink
         try:
@@ -466,8 +582,9 @@ class RigControl:
 
         gui.txt5.setText("Az: {: 3d}".format(int(paz)))
         gui.txt6.setText("El: {: 3d}".format(int(pel)))
-        print('\nUPDATE ROTOR ANGLES: pos=',pos,
-              '\n\tresolved=',paz,pel,'\n')
+        print('\nUPDATE ROTOR ANGLES: flipper=',gui.flipper,
+              '\n\tpos      =',pos,
+              '\n\tresolved =',paz,pel,'\n')
 
         if gui.flipper:
             gui.txt7.setText('Flip-a-roo-ski!')

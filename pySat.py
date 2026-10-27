@@ -1,6 +1,5 @@
 #!/usr/bin/env -S uv run --script
 #
-# NEW: /home/joea/miniconda3/envs/aa2il/bin/python -u
 # OLD: /usr/bin/python3 -u 
 ################################################################################
 #
@@ -11,6 +10,7 @@
 # follow a user selected satellite trajectory.
 #
 # ToDo:
+# - SSTV FOLLOW - Start ENGAGE immediately, no need to click on it
 # - Set span of IC9700 bandscope to width of transponder
 # - Have pykeyer send message for arrow key and mouse wheel for XIT
 #    or just plug in keyer so we can use the paddles for this - hi hi
@@ -82,7 +82,6 @@ import json
 from dateutil import tz
 from utilities import get_Host_Name_IP,error_trap
 
-import rig_io.socket_io as socket_io
 import time
 from datetime import timedelta,datetime
 from collections import OrderedDict
@@ -90,7 +89,7 @@ from pprint import pprint
 
 from params import PARAMS
 from watchdog import WatchDog
-from rig_control import RigControl
+from rig_control import *
 from sat_class import SATELLITE
 from gui import SAT_GUI
 from tcp_server import *
@@ -103,21 +102,6 @@ from utilities import Memory_Monitor
 
 VERSION='1.1'
 
-################################################################################
-
-def check_rotor(P):
-
-    print('Testing rotor ...')
-    pos=P.sock2.get_position()
-    print('pos=',pos)
-    if pos[0]==179. and pos[1]==0:
-        pos2=[0,5]
-        P.sock2.set_position(pos2)
-        time.sleep(1)
-        pos=P.sock2.get_position()
-        print('pos=',pos)
-    return not (pos[0]==179. and pos[1]==0)
-    
 ################################################################################
 
 print('\n****************************************************************************')
@@ -205,111 +189,10 @@ if P.host_ip=='127.0.0.1':
 else:
     P.INTERNET=True
 
-# Open connection to rig
-P.gui.status_bar.setText('Opening connection to rig ...')
-P.sock = socket_io.open_rig_connection(P.connection,0,P.PORT,0,'SATELLITES',rig=P.rig)
-if P.sock.rig_type=='Icom':
-    P.sock.icom_defaults()
-print('RIG:',P.sock.rig_type,P.sock.rig_type1,P.sock.rig_type2)
-#sys.exit(0)
-
-# Make sure rig is properly setup
-if P.sock.rig_type2=='IC9700':
-
-    # Pre-amp on, attenuator off, mic gain=70%, RIT=0
-    P.sock.frontend(1,1,0)
-    #P.sock.mic_setting('SSB',1,lvl=70)     ### PROBLEM FOR HAMLIB - NEED CODE !!!!
-    P.sock.mic_settings(gain=70,mode='SSB',VERBOSITY=1)
-    for vfo in ['A','B']:
-        P.sock.rit(0,0,VFO=vfo)
-
-    # Check computer time
-    now = datetime.utcnow()
-    print('\nnow=',now)
-
-    # Check rig time
-    d,t,z=P.sock.get_date_time(VERBOSITY=1)
-    print('d=',d,'\tt=',t)
-    utc = datetime.strptime(d+' '+t,'%Y%m%d %H%M%S')
-    print('Rig date=',d,'\ttime=',t,'\tzone=',z,
-          '\nRig utc=',utc)
-    #sys.exit(0)
-
-    delta = (now - utc).total_seconds()/60      # In minutes
-    print('delta=',delta,'min.')
-
-    if not P.INTERNET and delta<-1:
-        
-        # The RPi doesn't have a real-time clock so use rig time if
-        # there is no internet
-        arch=os.getenv('MACHTYPE')
-        if arch=='aarch64':
-            from_zone = tz.tzutc()             # Zulu
-            to_zone = tz.tzlocal()             # Local
-            utc = utc.replace(tzinfo=from_zone)
-            rig = utc.astimezone(to_zone)
-
-            rig_date=rig.date().strftime("%Y-%m-%d")
-            rig_time=rig.time().strftime("%H:%M:%S")
-            val = rig_date+' '+rig_time
-            
-            print('\nSetting system clock from rig to',val,'...') 
-            cmd = 'sudo date --set="'+val+'" &'
-            os.system("echo "+cmd)
-            os.system(cmd)
-            time.sleep(1)
-            #sys.exit(0)
-
-        else:
-            print('\n*** pySAT: NEED SOME CODE TO SET COMPUTER TIME FROM RIG !!!! *** arch=',arch,'\n')
-            sys.exit(0)
-
-    elif abs(delta)>2:
-        
-        # We have an internet connection so we assume the RPi clock is set
-        # Keep rig clock p to date also
-        print('Setting rig time ...')
-        P.sock.set_date_time(1)        
-        #sys.exit(0)    
+# Open connections to rig and rotor
+connect_to_rig(P)
+connect_to_rotor(P)
     
-# Open connection to rotor
-P.gui.status_bar.setText('Opening connection to rotor ...')
-P.sock2 = socket_io.open_rig_connection(P.ROTOR_CONNECTION,0,P.PORT2,0,'ROTOR')
-#sys.exit(0)
-if not P.sock2.active and P.sock2.connection!='NONE':
-    print('*** No connection available to rotor ***')
-    sys.exit(0)
-else:
-    print(P.sock2.active)
-    print(P.sock2.connection)
-    if P.sock2.active:
-        print('Rotor found!!\t',
-              P.sock2.rig_type1,P.sock2.rig_type2,P.sock2.connection)
-
-        # Test if rotor controller is turned on
-        if P.sock2.connection=='DIRECT' or True:
-            done = check_rotor(P)
-            while not done:
-                print('\n*** Rotor not responding - make sure its plugged in and controller is turned on ***\n')
-
-                app  = QApplication(sys.argv)
-                msgBox = QMessageBox()
-                msgBox.setIcon(QMessageBox.Icon.Information)
-                msgBox.setText("Rotor Not Responding!!!\n\nMake sure it is turned ON and click OK to try again ...")
-                msgBox.setWindowTitle("Rotor Not Responding")
-                msgBox.setStandardButtons(QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
-
-                returnValue = msgBox.exec()
-                if returnValue == QMessageBox.StandardButton.Ok:
-                    print('OK clicked ...')
-                    done = check_rotor(P)
-                    print('Try again:',done)
-                    if done:
-                        P.sock2.stop_rotor()
-                elif returnValue == QMessageBox.StandardButton.Cancel:
-                    print('Cancel clicked - quitting app')
-                    sys.exit(0)
-
 # Open connection to SDR
 if P.USE_SDR:
     print('Looking for the SDR ...')
@@ -382,12 +265,12 @@ def get_satnogs_json(url,outfile):
     #print('txt=',txt)
 
     obj=json.loads(txt)
-    print('obj=',obj)
+    #print('obj=',obj)
     #for key in obj:
     #    print(key)
     
     pretty_obj = json.dumps(obj, indent=4)
-    print('pretty obj=',pretty_obj)
+    #print('pretty obj=',pretty_obj)
 
     fp=open(outfile,'w', encoding="utf-8")
     #fp.write(txt)
@@ -583,15 +466,26 @@ P.ctrl = RigControl(P,1)
 
 # Determine best sat to track right now
 date = P.gui.date_changed()
-print('Searching for next transit - sat name=',P.sat_name,' ...')
+print('\nSearching for next transit - sat name=',P.sat_name,' ...')
 sat,ttt=P.gui.find_next_transit([P.sat_name])
-print('Here we go...')
+print('... got it - Here we go with sat=',sat,'\ttransp=',P.transp,
+      '\tflipper=',P.gui.flipper)
 if sat:
     P.gui.plot_sky_track(sat,ttt)
+    print('After plot sky track: sat=',sat,'\ttransp=',P.transp,
+          '\tflipper=',P.gui.flipper)
+
+if (P.FOLLOW or P.EME):
+    P.gui.ToggleRigControl(ENGAGED=True)
+    #P.gui.ToggleRotorControl(ENGAGED=True)
+    print('After toggle rig control: sat=',sat,'\ttransp=',P.transp,
+          '\tflipper=',P.gui.flipper)
+    P.gui.refresh.set()
 
 # Event loop
 P.MEM.take_snapshot('Ready to go!')
-print('And away we go ...')
+print('And away we go ... sat=',sat,'\ttransp=',P.transp,
+      '\tflipper=',P.gui.flipper)
 P.app.exec()
 
 # Exit gracefully

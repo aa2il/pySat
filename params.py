@@ -20,7 +20,7 @@
 ################################################################################
 
 import os,sys
-from rig_io.ft_tables import SATELLITE_LIST,CONNECTIONS,SAT_RIGS
+from rig_io.ft_tables import SATELLITE_LIST,CONNECTIONS,SAT_RIGS,CELESTIAL_BODY_LIST
 import argparse
 from settings import read_settings
 import datetime
@@ -63,6 +63,8 @@ class PARAMS:
                               type=int,default=24)
         arg_proc.add_argument("-follow",  action='store_true',
                               help="Follow all passes")
+        arg_proc.add_argument("-eme",  action='store_true',
+                              help="EME/Moon Bounce")
         arg_proc.add_argument('-sstv', action='store_true',
                               help='ISS SSTV Event')
         arg_proc.add_argument('-udp', action='store_true',
@@ -79,11 +81,14 @@ class PARAMS:
         self.UPDATE_TLE = args.update
         self.SKIP_SATNOGS = args.skip_satnogs
         self.FOLLOW        = args.follow
+        self.EME           = args.eme
         if args.sat:
             self.sat_name  = args.sat.upper()
         else:
             if self.FOLLOW:
                 self.sat_name  = 'ISS'
+            elif self.EME:
+                self.sat_name  = 'Moon'
             else:
                 self.sat_name  = None
 
@@ -92,6 +97,7 @@ class PARAMS:
             self.rig       = args.rig[1]
         else:
             self.rig       = None
+        self.transp        = None
         self.PORT          = args.port
         self.UDP_CLIENT    = args.udp
         self.SSTV          = args.sstv
@@ -157,10 +163,12 @@ class PARAMS:
 
             self.SATELLITE_LIST = []
             for sat in ACTIVE:
-                if sat in SATELLITE_LIST:
+                if sat in SATELLITE_LIST or sat in CELESTIAL_BODY_LIST:
+                #if sat in SATELLITE_LIST:
                     self.SATELLITE_LIST.append(sat)
                 else:
                     print(sat,'not in list of known satellites - ignored')
+            print('PARAMS: SAT LIST=',self.SATELLITE_LIST)
             
         except:
             self.SATELLITE_LIST = SATELLITE_LIST

@@ -149,7 +149,6 @@ class TRANSIT:
 class SATELLITE:
     def __init__(self,isat,name,qth,date1,date2,TLE,SHOWERS):
 
-        print('\n=====================================================================')
         print('SATELLITE CLASS: isat=',isat,'-\tSat:',name, \
               '\ttb-ta:',date1,date2,'\tqth:',qth)
         self.name = name
@@ -180,6 +179,8 @@ class SATELLITE:
         if name in CELESTIAL_BODY_LIST:
             self.meteor_shower(name,date1,date2)
             #self.fly_me_to_the_moon(date1,date2)
+            if name=='Moon':
+                self.get_transponders()     # Fake it until we make it!
             return
         elif name in METEOR_SHOWER_LIST:
             self.meteor_shower(SHOWERS[name],date1,date2)
@@ -299,9 +300,14 @@ class SATELLITE:
     # Function to read list of transponders for this sat 
     def get_transponders(self):
 
+        # Init
+        print('GET_TRANSPONDERS: name=',self.name)
+        self.transponders = OrderedDict()
+
         # We use the transponder data that has already been parsed
         # For this, we need the sat number
         NO_TRANSP=['Moon','Orbicraft-Zorkiy']
+        #NO_TRANSP=['Sun','Orbicraft-Zorkiy']
         if self.name in NO_TRANSP:
             # There are no transponders but we fake till we make it
             self.number=self.name
@@ -321,7 +327,6 @@ class SATELLITE:
         # Read the transponder data for this sat
         config = ConfigParser() 
         print('GET_TRANSPONDERS: config.read=',config.read(fname)) 
-        self.transponders = OrderedDict()
         for transp in config.sections():
 
             # Get details for this transponder
@@ -485,6 +490,27 @@ class SATELLITE:
 
     # Function to find next transit of a satellite after time t
     def next_transit(self,t):
+        if self.name in CELESTIAL_BODY_LIST:
+            print('\nNEXT_TRANSIT:',self.name,' is a CELESTIAL BODY')
+            print('\tLets see if this works...')
+            print('\tt   =',t,' = ',datetime.fromtimestamp(t,tz=timezone.utc),' UTC')
+            
+            pass_times = np.asarray(self.pass_times)        # Times at middle of a pass
+            #print('\tpass_times=',pass_times)
+            dt = abs( pass_times - t )
+            idx = np.argmin(dt)
+            ttt = pass_times[idx]
+            print('\tttt=',ttt,' = ',datetime.fromtimestamp(ttt,tz=timezone.utc),' UTC')
+            #print('dt=',dt,ttt-t)
+            print('\tidx=',idx)
+
+            for pt in pass_times:
+                print('pass time=',pt,' = ',datetime.fromtimestamp(pt,tz=timezone.utc),' UTC')
+
+            print('INSIDE NEXT_TRANSIT...')
+            transit = self.gen_radiant_track(ttt,VERBOSITY=1)
+            return transit
+            
         if USE_PYPREDICT:
             p = predict.transits(self.tle,self.qth,ending_after=t)
             transit0 = next(p)
@@ -614,7 +640,7 @@ class SATELLITE:
 
     # Function to handle meteor showers
     def meteor_shower(self,shower,date1,date2):
-        print('\nMETEOR_SHOWER: my_qth=',self.qth,'\ndate1=',date1,'\tdate2=',date2)
+        print('\nMETEOR_SHOWER:\t',shower,'\tmy_qth=',self.qth,'\ndate1=',date1,'\tdate2=',date2)
 
         # Create fixed body at radiant
         if shower=='Moon':
@@ -672,7 +698,8 @@ class SATELLITE:
             if self.obs.date>ephem.Date(date2):
                 Done=True        
 
-        #print('Moon transits=',transits)
+        if shower in CELESTIAL_BODY_LIST and False:
+            print(shower,' transits=',transits)
 
         # Assemble graphing data from the transits
         isat=self.isat
@@ -724,10 +751,15 @@ class SATELLITE:
     def gen_radiant_track(self,t1,t2=None,dt=10.*MINS2DAYS,VERBOSITY=0):
         
         if VERBOSITY>0:
-            print('\nGEN_RADIANT_TRACK: t1=',t1,'\tt2=',t2,'\tdt=',dt)
-            print('obs=',self.obs)
-            print('radiant=',self.radiant)
-            print('t1a=',t1,type(t1),isinstance(t1,float))
+            print('\nGEN_RADIANT_TRACK: t1=',t1,' = ',datetime.fromtimestamp(t1,tz=timezone.utc),' UTC')
+            if t2:
+                print('\tt2=',t2,' = ',datetime.fromtimestamp(t2,tz=timezone.utc),' UTC')
+            else:
+                print('\tt2=',t2)
+            print('\tdt=',dt)
+            print('\tobs=',self.obs)
+            print('\tradiant=',self.radiant)
+            print('\tt1a (epoch) =',t1,type(t1),isinstance(t1,float))
 
         # Convert t1 (start time or time in the pass) to ephem datetime object
         if isinstance(t1,float):
@@ -738,7 +770,7 @@ class SATELLITE:
             #print('UTC =',t1,type(t1))
         t1=ephem.Date(t1)
         if VERBOSITY>0:
-            print('t1d=',t1,type(t1))
+            print('\tt1d (ephem date) =',t1,type(t1))
 
         # Check if t2 is given
         if t2:
@@ -747,7 +779,6 @@ class SATELLITE:
             if isinstance(t2,float):
                 # Assume it local time and convert to utc
                 t2 = datetime.fromtimestamp(t2,tz=timezone.utc)
-                t2 = datetime.fromtimestamp(t2)
             t2=ephem.Date(t2)
 
         else:
@@ -756,28 +787,42 @@ class SATELLITE:
             self.obs.date = t1
             self.radiant.compute(self.obs)
 
-            try:
-                rise=self.obs.previous_rising(self.radiant)
-            except:
-                rise=self.obs.date
-            local1=ephem.localtime(rise)
-            print('\nDate for Computation=',self.obs.date,'\nPrev Mooon Rise:',rise,'\t',local1)
-            print('az/el=',self.radiant.az,self.radiant.alt)
+            rise1=self.obs.previous_rising(self.radiant)
+            rise2=self.obs.next_rising(self.radiant)
 
-            try:
-                setting=self.obs.next_setting(self.radiant)
-            except:
-                setting=self.obs.date+1
-            local2=ephem.localtime(setting)
-            #print('Next Moon setting:',setting,'\t',local2)
-            #print('az/el=',moon.az,moon.alt)
+            print('\n\tDate for Computation:\t',self.obs.date)
+            #print('\taz/el=',self.radiant.az,self.radiant.alt)
+            print('\tPrev Moon Rise:\t\t',rise1)
+            print('\tNext Moon Rise:\t\t',rise2)
             
-            t1=rise
-            t2=setting
-            #print('Rise=',t1,type(t1),local1,'\tSet=',t2,type(t2),local2)
+            setting1=self.obs.previous_setting(self.radiant)
+            setting2=self.obs.next_setting(self.radiant)
+
+            print('\tPrev Moon setting:\t',setting1)
+            print('\tNext Moon setting:\t',setting2)
+
+            if setting1<=rise1 and rise1<=t1 and t1<=setting2 and setting2<=rise2:
+                print('\t--- Radiant is currently visible - using current pass ---')
+                rise=rise1
+                setting=setting2
+            elif rise1<=setting1 and setting1<=t1 and t1<=setting2 and setting2<=rise2:
+                # This happens if we are using the start of the next transit as our start time
+                # Unsure if is happens at other times???
+                print('\t--- Radiant is not currently visible - using next pass ---')
+                rise=t1
+                setting=setting2
+            else:
+                print('\t--- Unclear if Radiant is currently visible - using old deefault ---')
+                rise=rise1
+                setting=setting2
+            
+            local1=ephem.localtime(rise)
+            local2=ephem.localtime(setting)
+            print('\tRise=',rise,local1)
+            print('\tSet =',setting,local2)
 
         # Compute track
-        t=t1
+        t=rise
         Done=False
         tt=[]
         az=[]
@@ -786,9 +831,9 @@ class SATELLITE:
         lons=[]
         footprints=[]
         while not Done:
-            if t>=t2:
+            if t>=setting:
                 Done=True
-                t=t2
+                t=setting
             self.obs.date=t
             self.radiant.compute(self.obs)
 

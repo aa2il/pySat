@@ -192,6 +192,7 @@ class SAT_GUI(QMainWindow):
         self.ax=None
         self.event_type = None
         self.info=None
+        self.aos=None
         self.refresh = threading.Event()
         self.rigLock = threading.Lock()
 
@@ -683,7 +684,7 @@ class SAT_GUI(QMainWindow):
             
         if P.TEST_MODE:
             self.PlotWin=PLOTTING(P)
-        
+
         # This doesn't seem to be working quite right - idea is to limit size of window
         print('Main Window: hint=',self.win.sizeHint(),'\tsize=',self.win.geometry())
         self.win.resize(self.win.sizeHint())
@@ -853,12 +854,15 @@ class SAT_GUI(QMainWindow):
         P=self.P
         gui=self.P.gui
         ctrl=self.P.ctrl
+        print('RECENTER: flipper=',gui.flipper,'\ttransp=',P.transp)
         
         # Set down link freq to center of transp passband - uplink will follow
         try:
             if P.sock.rig_type2=='IC9700':
                 ctrl.check_ic9700_bands(P)
-            
+
+            if not P.transp:
+                return
             ctrl.fdown = 0.5*(P.transp['fdn1']+P.transp['fdn2'])
             ctrl.track_freqs(True,tag='Re-Center')
 
@@ -876,7 +880,8 @@ class SAT_GUI(QMainWindow):
             print('transp=',P.transp)
 
         except: 
-            error_trap('GUI->RECENTER - Failure :-(')
+            error_trap('GUI->RECENTER - Failure :-(',trace=True)
+            print('\ttransp=',P.transp)
 
     # Function to engage/disengange rig control
     def ToggleRotorControl(self,ENGAGED=None):
@@ -912,20 +917,22 @@ class SAT_GUI(QMainWindow):
             
     # Function to engage/disengange rig control
     def ToggleRigControl(self,junk=None,ENGAGED=None):
+        P=self.P
 
-        flipped=self.flipper
+        flipper=self.flipper
         if ENGAGED==None:
             if self.Selected:
                 self.rig_engaged = not self.rig_engaged
         else:
             self.rig_engaged = ENGAGED
                 
-        print('TOGGLE RIG CONTROL: Flipped=',flipped,'\tSelected=',self.Selected,
+        print('\nTOGGLE RIG CONTROL: Flipper=',flipper,'\tSelected=',self.Selected,
               'Engaged=',self.rig_engaged,ENGAGED)
         
         if not self.rig_engaged:
 
             # Manage button
+            print('TOGGLE RIG CONTROL: Setting button GREEN')
             self.btn2.setStyleSheet('QPushButton { \
             background-color: limegreen; \
             border :1px outset ; \
@@ -936,17 +943,18 @@ class SAT_GUI(QMainWindow):
             }')
             self.btn2.setText('Engage')
 
-            print('\tRIG=',self.P.rig,'\tconnection=',self.P.connection)
-            if self.P.connection in ['HAMLIB','DIRECT']:
-                #self.P.sock.sat_mode(0,VERBOSITY=1)
+            print('\tRIG=',P.rig,'\tconnection=',P.connection)
+            if P.connection in ['HAMLIB','DIRECT']:
+                #P.sock.sat_mode(0,VERBOSITY=1)
                 pass
             else:
-                self.P.sock.split_mode(0,VERBOSITY=1)
-            self.P.SAT_MODE=False
+                P.sock.split_mode(0,VERBOSITY=1)
+            P.SAT_MODE=False
             
         else:
             
             # Manage button
+            print('TOGGLE RIG CONTROL: Setting button RED')
             self.btn2.setStyleSheet('QPushButton { \
             background-color: red; \
             border :1px inset ; \
@@ -958,35 +966,37 @@ class SAT_GUI(QMainWindow):
             self.btn2.setText('Dis-Engage')
 
             # JBA - not sure why its like this????
-            print('\tRIG=',self.P.rig,'\tconnection=',self.P.connection)
-            if self.P.connection in ['HAMLIB','DIRECT']:
-                if self.P.SIMPLEX:
-                    self.P.sock.sat_mode(0,VERBOSITY=1)
+            print('TOGGLE RIG CONTROL: RIG=',P.rig,'\tconnection=',P.connection)
+            if P.connection in ['HAMLIB','DIRECT']:
+                if P.SIMPLEX:
+                    P.sock.sat_mode(0,VERBOSITY=1)
                 else:
-                    self.P.sock.sat_mode(1,VERBOSITY=1)
+                    P.sock.sat_mode(1,VERBOSITY=1)
             else:
-                if self.P.SIMPLEX:
-                    self.P.sock.split_mode(0,VERBOSITY=1)
-                    self.P.SAT_MODE=False
+                if P.SIMPLEX:
+                    P.sock.split_mode(0,VERBOSITY=1)
+                    P.SAT_MODE=False
                 else:
-                    self.P.sock.split_mode(1,VERBOSITY=1)
-                    self.P.SAT_MODE=True
+                    P.sock.split_mode(1,VERBOSITY=1)
+                    P.SAT_MODE=True
 
+            # These things take a while and will hold up the GUI - need a better scheme!
             # Check rotor and see if we need to re-calculate
             rotor_flipped(self)
-            print('TOGGLE RIG CONTROL: flipped=',flipped,self.flipper,'\tAOS=',self.aos)
-            if flipped != self.flipper:
+            print('TOGGLE RIG CONTROL: flipper=',flipper,self.flipper,'\tAOS=',self.aos)
+            #if not P.EME and flipper != self.flipper and self.Selected:
+            if flipper != self.flipper and self.Selected:
                 self.plot_sky_track(self.Selected,self.aos)
             
             # Retune the rig
             self.ReCenter()
 
             # Plot sat track for current orbit on sat map
-            if self.P.SHOW_MAP:
-                self.plot_sat_map_track(self.P.satellite,0)
+            if P.SHOW_MAP:
+                self.plot_sat_map_track(P.satellite,0)
             
             # Put up a reminder for something that is not availabe via CAT
-            if self.P.sock.rig_type2=='IC9700' and False:
+            if P.sock.rig_type2=='IC9700' and False:
                 msgBox = QMessageBox()
                 msgBox.setIcon(QMessageBox.Icon.Information)
                 msgBox.setText("Be sure REVERSE mode is set !!!\n\nKeep RF GAIN Centered !!!")
@@ -998,7 +1008,9 @@ class SAT_GUI(QMainWindow):
                 returnValue = msgBox.exec()
                 if returnValue == QMessageBox.StandardButton.Ok:
                     print('OK clicked')
-                
+
+        print('TOGGLE RIG CONTROL: Done.\n')
+                    
 ################################################################################
         
     # Function to change RIT
@@ -1126,24 +1138,29 @@ class SAT_GUI(QMainWindow):
             self.Satellites2 = OrderedDict()
         self.pass_times=[]
         SAT_LIST=self.P.SATELLITE_LIST.copy()
-        for isat in ['Moon','Sun']:
+        for isat in CELESTIAL_BODY_LIST:
             if isat not in self.P.SATELLITE_LIST:
                 SAT_LIST.append(isat)
         for isat in range(1,len(SAT_LIST) ):
             name=SAT_LIST[isat]
-            self.P.gui.status_bar.setText('Loading data for '+name+' ...')
+            print('\n=====================================================================\n')
+            txt='Loading data for '+name+' ...'
+            print(txt)
+            self.P.gui.status_bar.setText(txt)
             self.Satellites[name]=SATELLITE(isat,name,self.P.my_qth,
                                             date1,date2,self.P.TLE,self.P.SHOWERS)
+            print(name,self.Satellites[name])
             if self.P.GRID2:
                 self.Satellites2[name]=SATELLITE(isat,name,self.P.other_qth,
                                                  date1,date2,self.P.TLE,self.P.SHOWERS)
                 sat2=self.Satellites2[name]
-                
+        print(' ')
         
     # Plot passes for all sats
     def draw_passes(self):
 
-        #print('\nDraw passes - self.sats=',self.Satellites)
+        print('\nDRAW PASSES: self.sats=',self.Satellites)
+        print('\tP.SAT_LIST=',self.P.SATELLITE_LIST)
         self.ax = self.fig.add_subplot(111)
 
         # Loop over list of sats
@@ -1249,14 +1266,18 @@ class SAT_GUI(QMainWindow):
             sat_names=list(self.Satellites.keys())
         for name in sat_names:
             Sat=self.Satellites[name]
-            if name in CELESTIAL_BODY_LIST or not Sat.main:
-                print('FIND NEXT TRANSIT: name=',name,
+            #if not Sat.main:
+            #if name in CELESTIAL_BODY_LIST or not Sat.main:
+            if not Sat.main and name not in CELESTIAL_BODY_LIST:
+                print('FIND NEXT TRANSIT: name=',name,Sat.main,
                       '\tHmmmm - no transponder for this sat - skipping')
+                tnext=None
                 continue
             
             # Observe sat at current time
             now = time.mktime( datetime.now().timetuple() )
-            print('FIND NEXT TRANSIT: name=',name,'\tnow=',now)
+            print('FIND NEXT TRANSIT: name=',name)
+            print('\tnow =',now,' = ',datetime.fromtimestamp(now,tz=timezone.utc),' UTC')
 
             # Look at next transit for this sat
             try:
@@ -1301,10 +1322,11 @@ class SAT_GUI(QMainWindow):
             except: 
                 error_trap('GUI->FIND NEXT TRANSIT: Failure for sat '+name)
                 
-        print('FIND NEXT TANSIT: name=',name,'\ttnext=',tnext)
+        print('FIND NEXT TANSIT: name=',name)
+        print('\ttnext =',tnext,' = ',datetime.fromtimestamp(tnext,tz=timezone.utc),' UTC')
         try:
             ttt = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(tnext))
-            print('\nNext transit:',best,ttt,'\n')
+            print('\tBest=',best,'\tttt=',ttt,'\n')
         except: 
             error_trap('GUI->FIND NEXT TRANSIT: Failure for sat '+name)
             best=None
@@ -1370,16 +1392,19 @@ class SAT_GUI(QMainWindow):
             
         # The Sun, Moon and meteor showers are special
         if sat in CELESTIAL_BODY_LIST+METEOR_SHOWER_LIST:
+            print('PLOT SKY TRACK: sat=',sat,'is a CELESTIAL BODY')
+            #print('\tpass_times=',self.pass_times)
+            #print('\nmain=',self.main)
 
             self.transit = Sat.gen_radiant_track(ttt,VERBOSITY=1)
             tt=self.transit.t
             az=self.transit.az
             el=self.transit.el
 
-            # Indicate to use what he should see in the sky
+            # Indicator to use what we should see in the sky
             if sat=='Moon':
                 lunation,phz=Sat.get_moon_phase()
-                print('lunation=',lunation,'\tphz=',phz)
+                print('\tlunation=',lunation,'\tphz=',phz)
                 self.status_bar.setText('Moon Phase: '+phz)
 
         else:
@@ -1502,7 +1527,7 @@ class SAT_GUI(QMainWindow):
         RADIANS=np.pi/180.
         az=(90.-np.array(az))*RADIANS
         r=90.-np.array(el)
-    
+
         self.ax2.clear()
         self.ax2.plot(az, r)
         self.ax2.plot(az[0], r[0],'go')
@@ -1515,7 +1540,6 @@ class SAT_GUI(QMainWindow):
 
         if sat in CELESTIAL_BODY_LIST+METEOR_SHOWER_LIST:
             [az,el,lat,lon,illum] = Sat.current_radiant_position()
-            #[az,el,lat,lon,illum] = Sat.current_moon_position()
         else:
             [fdop1,fdop2,az,el,rng,lat,lon,footprint] = \
                 Sat.Doppler_Shifts(0,0,self.P.my_qth)
@@ -1690,6 +1714,11 @@ class SAT_GUI(QMainWindow):
         print('Sending rotor west ...')
         self.P.sock2.set_position([-90,0])
 
+    # Function to send the rotor south - it is flipped!
+    def RotorSouth(self):
+        print('Sending rotor south ...')
+        self.P.sock2.set_position([0,175])
+
     # Function to stop rotor 
     def RotorStop(self):
         print('Rotor Stop ...')
@@ -1838,4 +1867,9 @@ class SAT_GUI(QMainWindow):
         RotorWest.setStatusTip('Send Rotor to (-90,0)')
         RotorWest.triggered.connect( functools.partial( self.RotorWest ))
         rotorMenu.addAction(RotorWest)
+
+        RotorSouth = QAction('&Rotor South', self)
+        RotorSouth.setStatusTip('Send Rotor to (0,180)')
+        RotorSouth.triggered.connect( functools.partial( self.RotorSouth ))
+        rotorMenu.addAction(RotorSouth)
 
